@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+pydantic
+python-multipart
+deepface
+tf-keras
+opencv-python
+python-dotenv
