@@ -50,5 +50,8 @@ fun AppNavigation() {
         composable("reports") {
             ReportsScreen(navController = navController)
         }
+        composable("start_session") {
+            StartSessionScreen(navController = navController)
+        }
     }
 }

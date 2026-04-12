@@ -7,22 +7,64 @@ import retrofit2.http.*
 
 interface ApiService {
     
+    @POST("sessions/start")
+    suspend fun startSession(@Body request: StartSessionRequest): Response<SessionResponse>
+
     @POST("auth/login")
-    suspend fun login(@Body credentials: Map<String, String>): Response<Map<String, String>>
+    suspend fun login(@Body credentials: Map<String, String>): Response<Map<String, Any>>
+
+    @POST("auth/signup")
+    suspend fun signup(@Body userData: Map<String, String>): Response<Map<String, Any>>
 
     @POST("attendance/verify-wifi")
     suspend fun verifyWifi(@Body wifiRequest: WifiRequest): Response<WifiResponse>
 
     @POST("attendance/verify-qr")
-    suspend fun verifyQr(@Body qrRequest: QrRequest): Response<Map<String, Any>>
+    suspend fun verifyQr(@Body request: Map<String, String>): Response<Map<String, Any>>
 
     @Multipart
     @POST("attendance/verify-face")
     suspend fun verifyFace(
         @Part image: MultipartBody.Part,
-        @Part("student_id") studentId: String
+        @Part("student_id") studentId: String,
+        @Part("session_id") sessionId: String
     ): Response<FaceResponse>
+
+    @GET("sessions/{session_id}/attendance")
+    suspend fun getLiveAttendance(
+        @Path("session_id") sessionId: String
+    ): Response<LiveAttendanceResponse>
 
     @GET("student/attendance/{studentId}")
     suspend fun getAttendanceHistory(@Path("studentId") studentId: String): Response<List<AttendanceRecord>>
+
+    @GET("faculty/sessions/{facultyId}")
+    suspend fun getFacultySessions(@Path("facultyId") facultyId: String): Response<List<FacultySessionRecord>>
+
+    @GET("classrooms")
+    suspend fun getClassrooms(): Response<List<Classroom>>
+
+    @GET("subjects")
+    suspend fun getSubjects(): Response<List<Subject>>
+
+    @GET("faculty/subjects/{facultyId}")
+    suspend fun getFacultySubjects(@Path("facultyId") facultyId: String): Response<List<Subject>>
+
+    @GET("sessions/active")
+    suspend fun getActiveSessions(): Response<List<ActiveSession>>
+
+    @POST("sessions/stop/{session_id}")
+    suspend fun stopSession(@Path("session_id") sessionId: String): Response<SessionReportResponse>
+
+    @GET("faculty/schedule/{facultyId}")
+    suspend fun getFacultySchedule(@Path("facultyId") facultyId: String): Response<List<ScheduleRecord>>
+
+    @GET("student/schedule/{studentId}")
+    suspend fun getStudentSchedule(@Path("studentId") studentId: String): Response<List<ScheduleRecord>>
+
+    @GET("notifications/{userId}")
+    suspend fun getNotifications(@Path("userId") userId: String): Response<List<NotificationRecord>>
+
+    @POST("notifications/read/{notificationId}")
+    suspend fun markNotificationAsRead(@Path("notificationId") notificationId: String): Response<Map<String, Any>>
 }

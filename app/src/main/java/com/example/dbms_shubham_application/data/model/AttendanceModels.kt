@@ -1,30 +1,115 @@
 package com.example.dbms_shubham_application.data.model
 
+data class StartSessionRequest(
+    val faculty_id: String,
+    val subject_id: String,
+    val classroom_id: String,
+    val duration_minutes: Int = 45
+)
+
+data class SessionResponse(
+    val session_id: String,
+    val qr_token: String,
+    val expires_at: String,
+    val classroom_name: String
+)
+
+data class AttendanceLog(
+    val student_id: String,
+    val student_name: String? = null,
+    val timestamp: String,
+    val status: String
+)
+
+data class LiveAttendanceResponse(
+    val session_id: String,
+    val total_count: Int,
+    val students: List<AttendanceLog>
+)
+
 data class WifiRequest(
+    val session_id: String,
     val bssid: String,
-    val ssid: String
+    val ssid: String,
+    val latitude: Double? = null,
+    val longitude: Double? = null
 )
 
 data class WifiResponse(
     val success: Boolean,
     val message: String,
-    val classroomName: String? = null
+    val location_match: Boolean = false
 )
 
 data class QrRequest(
-    val token: String,
-    val sessionId: String
+    val session_id: String,
+    val token: String
 )
 
 data class FaceResponse(
     val success: Boolean,
-    val confidence: Float,
     val message: String
 )
 
 data class AttendanceRecord(
-    val studentId: String,
-    val sessionId: String,
-    val timestamp: Long,
+    val subject_id: String,
+    val session_id: String,
+    val timestamp: String,
     val status: String
+)
+
+data class FacultySessionRecord(
+    val session_id: String,
+    val subject_id: String,
+    val classroom_id: String,
+    val expires_at: String,
+    val status: String,
+    val student_count: Int
+)
+
+data class Classroom(
+    val id: String,
+    val name: String,
+    val wifi_bssid: String
+)
+
+data class Subject(
+    val id: String,
+    val name: String,
+    val department_id: String
+)
+
+data class ActiveSession(
+    val session_id: String,
+    val subject_id: String,
+    val classroom_name: String,
+    val expires_at: String
+)
+
+data class SessionReportResponse(
+    val session_id: String,
+    val total_present: Int,
+    val students: List<StudentReport>,
+    val course_id: String
+)
+
+data class StudentReport(
+    val id: String,
+    val name: String,
+    val time: String
+)
+
+data class ScheduleRecord(
+    val day: String,
+    val subject: String,
+    val room: String,
+    val time: String
+)
+
+data class NotificationRecord(
+    val id: String,
+    val title: String,
+    val message: String,
+    val is_read: Boolean,
+    val created_at: String
 )

@@ -22,6 +22,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.example.dbms_shubham_application.data.local.SessionManager
 import com.example.dbms_shubham_application.network.RetrofitClient
 import kotlinx.coroutines.launch
 
@@ -129,9 +130,16 @@ fun LoginScreen(navController: NavController, role: String) {
                                 "password" to password.trim()
                             )
                             val response = RetrofitClient.apiService.login(credentials)
-                            if (response.isSuccessful) {
-                                val body = response.body()
-                                val userRole = body?.get("role")?.lowercase() ?: role.lowercase()
+                            if (response.isSuccessful && response.body() != null) {
+                                val body = response.body()!!
+                                val sessionManager = SessionManager(context)
+                                
+                                val userId = body["user_id"]?.toString() ?: ""
+                                val userRole = body["role"]?.toString() ?: role.lowercase()
+                                val userName = body["name"]?.toString() ?: ""
+                                
+                                sessionManager.saveSession(userId, userRole, userName)
+
                                 navController.navigate("dashboard/$userRole") {
                                     popUpTo("role_selection") { inclusive = false }
                                 }

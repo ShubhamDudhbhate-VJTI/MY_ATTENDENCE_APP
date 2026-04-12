@@ -1,5 +1,7 @@
 package com.example.dbms_shubham_application.screens
 
+import androidx.compose.ui.platform.LocalContext
+import com.example.dbms_shubham_application.data.local.SessionManager
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -27,6 +29,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 
+import com.example.dbms_shubham_application.data.model.AttendanceRecord
+import com.example.dbms_shubham_application.data.model.FacultySessionRecord
+import com.example.dbms_shubham_application.network.RetrofitClient
+import kotlinx.coroutines.launch
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
+
 private val DarkBg = Color(0xFF0F172A)
 private val CardBg = Color(0xFF1E293B)
 private val AccentBlue = Color(0xFF3B82F6)
@@ -37,6 +47,39 @@ private val TextMuted = Color(0xFF94A3B8)
 
 @Composable
 fun DashboardScreen(navController: NavController, role: String) {
+    val context = LocalContext.current
+    val sessionManager = remember { SessionManager(context) }
+    val userId = sessionManager.getUserId() ?: ""
+    val scope = rememberCoroutineScope()
+    
+    var studentHistory by remember { mutableStateOf<List<AttendanceRecord>>(emptyList()) }
+    var facultySessions by remember { mutableStateOf<List<FacultySessionRecord>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+
+    LaunchedEffect(userId) {
+        if (userId.isNotEmpty()) {
+            scope.launch {
+                try {
+                    if (role.lowercase() == "student") {
+                        val response = RetrofitClient.apiService.getAttendanceHistory(userId)
+                        if (response.isSuccessful) {
+                            studentHistory = response.body() ?: emptyList()
+                        }
+                    } else if (role.lowercase() == "faculty") {
+                        val response = RetrofitClient.apiService.getFacultySessions(userId)
+                        if (response.isSuccessful) {
+                            facultySessions = response.body() ?: emptyList()
+                        }
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                } finally {
+                    isLoading = false
+                }
+            }
+        }
+    }
+
     val roleTitle = when (role.lowercase()) {
         "student" -> "Student Portal"
         "faculty" -> "Faculty Dashboard"
@@ -66,7 +109,11 @@ fun DashboardScreen(navController: NavController, role: String) {
 
                 // Stats Row
                 item {
-                    StatsRow(role)
+                    if (role.lowercase() == "student") {
+                        StudentStatsRow(studentHistory)
+                    } else {
+                        StatsRow(role) // Keep original for now or update later
+                    }
                 }
 
                 // Quick Actions (New Section)
@@ -86,7 +133,18 @@ fun DashboardScreen(navController: NavController, role: String) {
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        RecentAttendanceCard(modifier = Modifier.weight(1f), role = role)
+                        if (role.lowercase() == "student") {
+                            RecentAttendanceCard(
+                                modifier = Modifier.weight(1f),
+                                role = role,
+                                history = studentHistory
+                            )
+                        } else {
+                            RecentSessionsCard(
+                                modifier = Modifier.weight(1f),
+                                sessions = facultySessions
+                            )
+                        }
                         TodayScheduleCard(modifier = Modifier.weight(1f), role = role)
                     }
                 }
@@ -141,9 +199,12 @@ fun HeaderSection(navController: NavController, title: String) {
 
 @Composable
 fun GreetingSection(role: String) {
-    val name = if (role.lowercase() == "student") "Shubham" else "Prof. Deshmukh"
+    val context = LocalContext.current
+    val sessionManager = remember { SessionManager(context) }
+    val name = sessionManager.getName() ?: "User"
+    
     val subtext = when (role.lowercase()) {
-        "student" -> "S.Y. B.Tech (I.T.) Batch A • 241080017"
+        "student" -> "S.Y. B.Tech (I.T.) • ${sessionManager.getUserId()}"
         "faculty" -> "Information Technology Department"
         "hod" -> "Head of IT Department"
         else -> ""
@@ -161,6 +222,23 @@ fun GreetingSection(role: String) {
             color = TextMuted,
             modifier = Modifier.padding(top = 4.dp)
         )
+    }
+}
+
+@Composable
+fun StudentStatsRow(history: List<AttendanceRecord>) {
+    val total = history.size
+    val present = history.count { it.status.lowercase() == "present" }
+    val percentage = if (total > 0) (present.toDouble() / total * 100) else 0.0
+    val formattedPercent = "%.1f%%".format(percentage)
+
+    LazyRow(
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        item { StatCard("Overall Attendance", formattedPercent, if (percentage >= 75) "Eligible" else "Low", if (percentage >= 75) AccentBlue else AccentRed) }
+        item { StatCard("Sessions Attended", present.toString(), "of $total total", Color(0xFF10B981)) }
+        item { StatCard("Sessions Missed", (total - present).toString(), "Total", AccentOrange) }
     }
 }
 
@@ -273,36 +351,87 @@ fun StatCard(title: String, value: String, subtitle: String, color: Color) {
 }
 
 @Composable
-fun RecentAttendanceCard(modifier: Modifier = Modifier, role: String) {
+fun RecentAttendanceCard(modifier: Modifier = Modifier, role: String, history: List<AttendanceRecord>) {
     Card(
         modifier = modifier.height(200.dp),
         colors = CardDefaults.cardColors(containerColor = CardBg),
         shape = RoundedCornerShape(20.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            val title = if (role.lowercase() == "student") "Recent Attendance" else "Class Reports"
-            val subtitle = if (role.lowercase() == "student") "Last 6 records" else "Recent sessions"
-            
-            Text(title, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextWhite)
-            Text(subtitle, fontSize = 12.sp, color = TextMuted)
+            Text("Recent Attendance", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextWhite)
+            Text("Latest records", fontSize = 12.sp, color = TextMuted)
             Spacer(modifier = Modifier.height(16.dp))
             
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text("04 Feb", fontSize = 12.sp, color = TextMuted)
-                    Text("Database Mgmt", fontSize = 14.sp, color = TextWhite)
+            if (history.isEmpty()) {
+                Text("No records found", color = TextMuted, fontSize = 12.sp)
+            } else {
+                val latest = history.first()
+                val date = try {
+                    if (latest.timestamp.length >= 10) {
+                        val parts = latest.timestamp.substring(0, 10).split("-")
+                        if (parts.size == 3) {
+                            val months = listOf("", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+                            "${parts[2]} ${months[parts[1].toInt()]}"
+                        } else latest.timestamp.take(10)
+                    } else latest.timestamp
+                } catch (e: Exception) {
+                    latest.timestamp.take(10)
                 }
-                val statusColor = if (role.lowercase() == "student") AccentRed else Color(0xFF10B981)
-                val statusText = if (role.lowercase() == "student") "Absent" else "92%"
-                
-                Box(
-                    modifier = Modifier.background(statusColor.copy(alpha = 0.2f), RoundedCornerShape(8.dp)).padding(horizontal = 8.dp, vertical = 4.dp)
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(statusText, fontSize = 10.sp, color = statusColor, fontWeight = FontWeight.Bold)
+                    Column {
+                        Text(date, fontSize = 12.sp, color = TextMuted)
+                        Text(latest.subject_id, fontSize = 14.sp, color = TextWhite)
+                    }
+                    val isPresent = latest.status.lowercase() == "present"
+                    val statusColor = if (isPresent) Color(0xFF10B981) else AccentRed
+                    
+                    Box(
+                        modifier = Modifier.background(statusColor.copy(alpha = 0.2f), RoundedCornerShape(8.dp)).padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text(latest.status, fontSize = 10.sp, color = statusColor, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun RecentSessionsCard(modifier: Modifier = Modifier, sessions: List<FacultySessionRecord>) {
+    Card(
+        modifier = modifier.height(200.dp),
+        colors = CardDefaults.cardColors(containerColor = CardBg),
+        shape = RoundedCornerShape(20.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text("Recent Sessions", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextWhite)
+            Text("Engagement data", fontSize = 12.sp, color = TextMuted)
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            if (sessions.isEmpty()) {
+                Text("No sessions started", color = TextMuted, fontSize = 12.sp)
+            } else {
+                val latest = sessions.first()
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(latest.subject_id, fontSize = 14.sp, color = TextWhite)
+                        Text("${latest.student_count} Students", fontSize = 12.sp, color = AccentBlue)
+                    }
+                    
+                    Box(
+                        modifier = Modifier.background(Color(0xFF10B981).copy(alpha = 0.2f), RoundedCornerShape(8.dp)).padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text("Active", fontSize = 10.sp, color = Color(0xFF10B981), fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }
