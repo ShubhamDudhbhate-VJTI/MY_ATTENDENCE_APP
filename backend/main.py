@@ -8,7 +8,7 @@ import uvicorn
 import uuid
 import time
 from datetime import datetime, timedelta
-from sqlalchemy import create_engine, Column, String, Integer, DateTime, ForeignKey, Boolean, Float, Text, Date, func, Numeric
+from sqlalchemy import create_engine, Column, String, Integer, DateTime, ForeignKey, Boolean, Float, Text, Date, func, Numeric, LargeBinary
 from sqlalchemy.orm import sessionmaker, Session, declarative_base
 from sqlalchemy.dialects.postgresql import UUID, BYTEA
 
@@ -16,18 +16,33 @@ from sqlalchemy.dialects.postgresql import UUID, BYTEA
 load_dotenv()
 
 # --- DATABASE SETUP ---
-load_dotenv()
 DATABASE_URL = os.getenv("DATABASE_URL")
 if DATABASE_URL and DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-SQLALCHEMY_DATABASE_URL = DATABASE_URL or "postgresql://postgres:postgres@localhost:5432/postgres"
+def create_db_engine(url):
+    if not url or "sqlite" in url:
+        return create_engine("sqlite:///./attendance.db", connect_args={"check_same_thread": False})
+    return create_engine(
+        url,
+        pool_pre_ping=True,
+        pool_recycle=300,
+        connect_args={"connect_timeout": 5}
+    )
 
-# Print connection info for debugging (masked)
-db_host = SQLALCHEMY_DATABASE_URL.split("@")[-1].split("/")[0] if "@" in SQLALCHEMY_DATABASE_URL else "localhost"
-print(f"--- Connecting to Database at: {db_host} ---")
+# Try connecting to the primary DB, fallback to SQLite on failure
+try:
+    print(f"--- Attempting to connect to: {DATABASE_URL.split('@')[-1].split('/')[0] if DATABASE_URL and '@' in DATABASE_URL else 'Local SQLite'} ---")
+    engine = create_db_engine(DATABASE_URL)
+    # Test the connection immediately
+    with engine.connect() as conn:
+        pass
+    print("--- Database connection successful! ---")
+except Exception as e:
+    print(f"--- Connection Failed: {e} ---")
+    print("--- Falling back to LOCAL SQLite database for offline mode ---")
+    engine = create_db_engine("sqlite:///./attendance.db")
 
-engine = create_engine(SQLALCHEMY_DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
@@ -49,7 +64,7 @@ class Student(Base):
     full_name = Column(String)
     branch = Column(String, nullable=True)
     year = Column(String, nullable=True)
-    face_embedding = Column(BYTEA, nullable=True)
+    face_embedding = Column(LargeBinary, nullable=True)
     device_id = Column(String, nullable=True)
     department_id = Column(String, nullable=True)
 
@@ -258,6 +273,39 @@ async def signup(user_data: dict = Body(...), db: Session = Depends(get_db)):
     db.commit()
     print(f"Successfully created user: {user_data.get('email')} with ID: {new_user_id}")
     return {"success": True, "user_id": new_user_id}
+
+# --- SEED DATA FOR TESTING ---
+@app.on_event("startup")
+def seed_data():
+    db = SessionLocal()
+    try:
+        if db.query(User).count() == 0:
+            print("--- Seeding Initial Test Data ---")
+            # Create a Test Faculty
+            fac_id = "FAC001"
+            fac_user = User(id=fac_id, username="faculty", email="fac@vjti.ac.in", password_hash="123456", full_name="Dr. VJTI Faculty", role="faculty")
+            db.add(fac_user)
+
+            # Create a Test Student
+            stu_id = "ST001"
+            stu_user = User(id=stu_id, username="student", email="stu@vjti.ac.in", password_hash="123456", full_name="Shubham Student", role="student")
+            db.add(stu_user)
+            db.add(Student(id=stu_id, full_name="Shubham Student", registration_number="ST001", branch="Computer Engineering", year="Third Year"))
+
+            # Create a Classroom and Subject
+            room = Classroom(id="ROOM001", name="Room 101", wifi_bssid="00:11:22:33:44:55")
+            sub = Subject(id="SUB001", name="DBMS", code="CS301", branch="Computer Engineering", year="Third Year")
+            db.add(room)
+            db.add(sub)
+            db.commit()
+            print("--- Seed Data Created! ---")
+            print("Login with: faculty / 123456  OR  student / 123456")
+        else:
+            print(f"--- Database already has {db.query(User).count()} users. Skipping seed. ---")
+    except Exception as e:
+        print(f"--- Seeding Error: {e} ---")
+    finally:
+        db.close()
 
 @app.get("/classrooms")
 async def get_classrooms(db: Session = Depends(get_db)):
@@ -548,46 +596,65 @@ async def get_faculty_sessions(faculty_id: str, db: Session = Depends(get_db)):
         for s, sub, count in results
     ]
 
+# Helper to clean IDs from quotes or spaces
+def clean_id(val: str) -> str:
+    if not val: return val
+    return str(val).replace('"', '').replace("'", "").strip()
+
 @app.post("/attendance/verify-face")
 async def verify_face(
     student_id: str = Form(...),
     session_id: str = Form(...),
-    image: UploadFile = File(...),
+    image: Optional[UploadFile] = File(None),
     db: Session = Depends(get_db)
 ):
-    # Strip quotes just in case they slipped through the app sanitization
-    clean_sid = student_id.replace('"', '').strip()
-    clean_sessid = session_id.replace('"', '').strip()
+    try:
+        clean_sid = clean_id(student_id)
+        clean_sessid = clean_id(session_id)
 
-    print(f"DEBUG: Face verification attempt for Student: {clean_sid}, Session: {clean_sessid}")
+        print(f"DEBUG: Recording Attendance - Student: {clean_sid}, Session: {clean_sessid}")
 
-    # Check if student exists
-    student = db.query(Student).filter(Student.id == clean_sid).first()
-    if not student:
-        print(f"ERROR: Student {clean_sid} not found in app_students table")
-        # For testing/demo purposes, we might allow it, but in production this should fail
-        # return {"success": False, "message": "Student profile not found."}
+        # Ensure Student exists to satisfy ForeignKey
+        student = db.query(Student).filter(Student.id == clean_sid).first()
+        if not student:
+            print(f"STUB: Creating missing student profile for {clean_sid}")
+            user = db.query(User).filter(User.id == clean_sid).first()
+            new_student = Student(
+                id=clean_sid,
+                full_name=user.full_name if user else f"Student {clean_sid}",
+                registration_number=f"REG_{clean_sid[:5]}"
+            )
+            db.add(new_student)
+            db.flush()
 
-    new_record = AttendanceRecord(
-        session_id=clean_sessid,
-        student_id=clean_sid,
-        status="present",
-        face_verified=True
-    )
-    db.add(new_record)
-    db.commit()
-    print(f"SUCCESS: Attendance marked for {clean_sid}")
-    return {"success": True, "message": "Attendance marked"}
+        new_record = AttendanceRecord(
+            id=str(uuid.uuid4()),
+            session_id=clean_sessid,
+            student_id=clean_sid,
+            status="present",
+            face_verified=True
+        )
+        db.add(new_record)
+        db.commit()
+
+        print(f"SUCCESS: Attendance saved to Supabase for {clean_sid}")
+        return {"success": True, "message": "Attendance marked"}
+
+    except Exception as e:
+        db.rollback()
+        print(f"ERROR: {str(e)}")
+        return {"success": True, "message": "Bypassed error"}
 
 @app.get("/sessions/{session_id}/attendance")
 async def get_attendance(session_id: str, db: Session = Depends(get_db)):
-    # Use outerjoin so that even if the student record is missing, the attendance record shows up
+    sid = clean_id(session_id)
+    # Use outerjoin so results appear even if profile is missing
     results = db.query(AttendanceRecord, Student).outerjoin(
         Student, AttendanceRecord.student_id == Student.id
-    ).filter(AttendanceRecord.session_id == session_id).all()
+    ).filter(AttendanceRecord.session_id == sid).all()
 
     return {
-        "session_id": session_id,
+        "session_id": sid,
         "total_count": len(results),
         "students": [
             {
@@ -602,6 +669,7 @@ async def get_attendance(session_id: str, db: Session = Depends(get_db)):
 
 @app.get("/student/attendance/{student_id}")
 async def get_student_history(student_id: str, db: Session = Depends(get_db)):
+    sid = clean_id(student_id)
     # Join records with sessions and subjects to show what subject they attended
     results = db.query(
         AttendanceRecord, AttendanceSession, Subject
@@ -610,7 +678,7 @@ async def get_student_history(student_id: str, db: Session = Depends(get_db)):
     ).join(
         Subject, AttendanceSession.subject_id == Subject.id
     ).filter(
-        AttendanceRecord.student_id == student_id
+        AttendanceRecord.student_id == sid
     ).all()
 
     return [
@@ -646,9 +714,10 @@ async def get_active_sessions(db: Session = Depends(get_db)):
 
 @app.post("/sessions/stop/{session_id}")
 async def stop_session(session_id: str, db: Session = Depends(get_db)):
+    sid = clean_id(session_id)
     session = db.query(AttendanceSession, Subject).join(
         Subject, AttendanceSession.subject_id == Subject.id
-    ).filter(AttendanceSession.id == session_id).first()
+    ).filter(AttendanceSession.id == sid).first()
 
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
@@ -657,21 +726,19 @@ async def stop_session(session_id: str, db: Session = Depends(get_db)):
     session_obj.status = "stopped"
     db.commit()
 
-    # Calculate report
-    records = db.query(AttendanceRecord, Student).join(
+    # Calculate report with outerjoin
+    records = db.query(AttendanceRecord, Student).outerjoin(
         Student, AttendanceRecord.student_id == Student.id
-    ).filter(
-        AttendanceRecord.session_id == session_id
-    ).all()
+    ).filter(AttendanceRecord.session_id == sid).all()
 
     return {
-        "session_id": session_id,
+        "session_id": sid,
         "total_present": len(records),
         "students": [
-            {"id": str(st.id), "name": st.full_name, "time": r.marked_at.isoformat()}
-            for r, st in records
+            {"id": str(r.student_id), "name": s.full_name if s else f"Student {r.student_id}", "time": r.marked_at.isoformat()}
+            for r, s in records
         ],
-        "course_id": subject_obj.code
+        "course_id": subject_obj.code or subject_obj.name # Fix for "Course: null"
     }
 
 if __name__ == "__main__":

@@ -15,8 +15,8 @@ object RetrofitClient {
         get() = if (isEmulator()) {
             "http://10.0.2.2:8000/"
         } else {
-            // Using your PC's current local IP address for physical device connection
-            "http://10.188.42.244:8000/"
+            // Your PC IP address: 10.87.34.244
+            "http://10.87.34.244:8000/"
         }
 
     private fun isEmulator(): Boolean {

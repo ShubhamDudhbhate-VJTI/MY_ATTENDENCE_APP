@@ -26,8 +26,8 @@ interface ApiService {
     @POST("attendance/verify-face")
     suspend fun verifyFace(
         @Part image: MultipartBody.Part,
-        @Part("student_id") studentId: String,
-        @Part("session_id") sessionId: String
+        @Part("student_id") studentId: okhttp3.RequestBody,
+        @Part("session_id") sessionId: okhttp3.RequestBody
     ): Response<FaceResponse>
 
     @GET("sessions/{session_id}/attendance")

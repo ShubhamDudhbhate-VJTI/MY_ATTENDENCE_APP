@@ -421,8 +421,21 @@ fun StartSessionScreen(navController: NavController) {
                                         horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
                                         Column {
-                                            Text(log.student_id, color = TextWhite, fontWeight = FontWeight.Bold)
-                                            Text(log.timestamp.take(16).replace("T", " "), color = TextMuted, fontSize = 11.sp)
+                                            Text(
+                                                text = log.student_name ?: "Unknown Name",
+                                                color = TextWhite,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                            Text(
+                                                text = log.student_id,
+                                                color = TextMuted,
+                                                fontSize = 12.sp
+                                            )
+                                            Text(
+                                                text = log.timestamp.take(16).replace("T", " "),
+                                                color = TextMuted,
+                                                fontSize = 11.sp
+                                            )
                                         }
                                         Text(log.status, color = SuccessGreen, fontWeight = FontWeight.Medium)
                                     }
