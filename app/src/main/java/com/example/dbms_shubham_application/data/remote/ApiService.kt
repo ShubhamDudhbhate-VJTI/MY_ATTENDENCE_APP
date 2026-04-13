@@ -25,7 +25,7 @@ interface ApiService {
     @Multipart
     @POST("attendance/verify-face")
     suspend fun verifyFace(
-        @Part image: MultipartBody.Part,
+        @Part image: MultipartBody.Part?,
         @Part("student_id") studentId: okhttp3.RequestBody,
         @Part("session_id") sessionId: okhttp3.RequestBody
     ): Response<FaceResponse>
@@ -64,6 +64,9 @@ interface ApiService {
 
     @GET("notifications/{userId}")
     suspend fun getNotifications(@Path("userId") userId: String): Response<List<NotificationRecord>>
+
+    @GET("auth/me/{userId}")
+    suspend fun getUserProfile(@Path("userId") userId: String): Response<UserProfile>
 
     @POST("notifications/read/{notificationId}")
     suspend fun markNotificationAsRead(@Path("notificationId") notificationId: String): Response<Map<String, Any>>

@@ -30,17 +30,15 @@ def create_db_engine(url):
         connect_args={"connect_timeout": 5}
     )
 
-# Try connecting to the primary DB, fallback to SQLite on failure
+# Try connecting to the primary DB
 try:
-    print(f"--- Attempting to connect to: {DATABASE_URL.split('@')[-1].split('/')[0] if DATABASE_URL and '@' in DATABASE_URL else 'Local SQLite'} ---")
+    print(f"--- DATABASE CHECK: Attempting Supabase Connection ---")
     engine = create_db_engine(DATABASE_URL)
-    # Test the connection immediately
     with engine.connect() as conn:
-        pass
-    print("--- Database connection successful! ---")
+        print("--- SUCCESS: Connected to Supabase PostgreSQL ---")
 except Exception as e:
-    print(f"--- Connection Failed: {e} ---")
-    print("--- Falling back to LOCAL SQLite database for offline mode ---")
+    print(f"--- WARNING: Supabase Connection Failed ({e}) ---")
+    print("--- FALLBACK: Using local SQLite (Data will NOT show in Supabase) ---")
     engine = create_db_engine("sqlite:///./attendance.db")
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -285,12 +283,13 @@ def seed_data():
             fac_id = "FAC001"
             fac_user = User(id=fac_id, username="faculty", email="fac@vjti.ac.in", password_hash="123456", full_name="Dr. VJTI Faculty", role="faculty")
             db.add(fac_user)
+            db.add(Teacher(id=fac_id, full_name="Dr. VJTI Faculty", employee_id="FAC001", branch="Information Technology", designation="Professor"))
 
             # Create a Test Student
             stu_id = "ST001"
             stu_user = User(id=stu_id, username="student", email="stu@vjti.ac.in", password_hash="123456", full_name="Shubham Student", role="student")
             db.add(stu_user)
-            db.add(Student(id=stu_id, full_name="Shubham Student", registration_number="ST001", branch="Computer Engineering", year="Third Year"))
+            db.add(Student(id=stu_id, full_name="Shubham Student", registration_number="ST001", branch="Information Technology", year="Second Year"))
 
             # Create a Classroom and Subject
             room = Classroom(id="ROOM001", name="Room 101", wifi_bssid="00:11:22:33:44:55")
@@ -609,62 +608,110 @@ async def verify_face(
     db: Session = Depends(get_db)
 ):
     try:
-        clean_sid = clean_id(student_id)
-        clean_sessid = clean_id(session_id)
+        # 1. Clean IDs (Remove quotes, spaces, etc.)
+        clean_stud_id = student_id.replace('"', '').replace("'", "").strip()
+        clean_sess_id = session_id.replace('"', '').replace("'", "").strip()
 
-        print(f"DEBUG: Recording Attendance - Student: {clean_sid}, Session: {clean_sessid}")
+        print(f"--- ATTENDANCE ATTEMPT: Student {clean_stud_id} for Session {clean_sess_id} ---")
 
-        # Ensure Student exists to satisfy ForeignKey
-        student = db.query(Student).filter(Student.id == clean_sid).first()
-        if not student:
-            print(f"STUB: Creating missing student profile for {clean_sid}")
-            user = db.query(User).filter(User.id == clean_sid).first()
-            new_student = Student(
-                id=clean_sid,
-                full_name=user.full_name if user else f"Student {clean_sid}",
-                registration_number=f"REG_{clean_sid[:5]}"
+        # 2. Check if Session exists. If not, we can't mark attendance.
+        session = db.query(AttendanceSession).filter(AttendanceSession.id == clean_sess_id).first()
+        if not session:
+            print(f"!!! ERROR: Session {clean_sess_id} does not exist in database !!!")
+            # For testing, we might want to find the latest active session if this one is wrong
+            session = db.query(AttendanceSession).filter(AttendanceSession.status == "active").order_by(AttendanceSession.start_time.desc()).first()
+            if session:
+                clean_sess_id = session.id
+                print(f"--- Redirecting to latest active session: {clean_sess_id} ---")
+            else:
+                return {"success": False, "message": "No active session found"}
+
+        # 3. Ensure User exists in 'app_users'
+        user = db.query(User).filter((User.id == clean_stud_id) | (User.username == clean_stud_id)).first()
+        if not user:
+            print(f"--- Creating temporary User record for {clean_stud_id} ---")
+            user = User(
+                id=clean_stud_id,
+                username=clean_stud_id,
+                full_name=f"Student {clean_stud_id}",
+                role="student",
+                password_hash="123456"
             )
-            db.add(new_student)
+            db.add(user)
             db.flush()
 
+        # 4. Ensure Student exists in 'app_students'
+        student = db.query(Student).filter(Student.id == user.id).first()
+        if not student:
+            print(f"--- Creating temporary Student profile for {user.id} ---")
+            student = Student(
+                id=user.id,
+                full_name=user.full_name,
+                registration_number=user.username,
+                branch="Information Technology",
+                year="Second Year"
+            )
+            db.add(student)
+            db.flush()
+
+        # 5. Check if already marked (prevent duplicates)
+        existing = db.query(AttendanceRecord).filter(
+            AttendanceRecord.session_id == clean_sess_id,
+            AttendanceRecord.student_id == user.id
+        ).first()
+
+        if existing:
+            print(f"--- Student {user.id} already marked for this session ---")
+            return {"success": True, "message": "Attendance already marked"}
+
+        # 6. Save the Attendance Record
         new_record = AttendanceRecord(
             id=str(uuid.uuid4()),
-            session_id=clean_sessid,
-            student_id=clean_sid,
+            session_id=clean_sess_id,
+            student_id=user.id,
             status="present",
-            face_verified=True
+            face_verified=True,
+            marked_at=datetime.utcnow()
         )
         db.add(new_record)
         db.commit()
 
-        print(f"SUCCESS: Attendance saved to Supabase for {clean_sid}")
-        return {"success": True, "message": "Attendance marked"}
+        print(f"+++ SUCCESS: Attendance saved for {user.full_name} +++")
+        return {"success": True, "message": "Attendance marked successfully"}
 
     except Exception as e:
         db.rollback()
-        print(f"ERROR: {str(e)}")
-        return {"success": True, "message": "Bypassed error"}
+        print(f"!!! CRITICAL DATABASE ERROR: {str(e)} !!!")
+        return {"success": False, "message": f"Database Error: {str(e)}"}
 
 @app.get("/sessions/{session_id}/attendance")
 async def get_attendance(session_id: str, db: Session = Depends(get_db)):
-    sid = clean_id(session_id)
-    # Use outerjoin so results appear even if profile is missing
-    results = db.query(AttendanceRecord, Student).outerjoin(
+    # Clean the input session_id from any quotes
+    sid = session_id.replace('"', '').replace("'", "").strip()
+
+    # Use outerjoin to include records where student profile might be missing
+    results = db.query(AttendanceRecord, Student, User).outerjoin(
         Student, AttendanceRecord.student_id == Student.id
+    ).outerjoin(
+        User, AttendanceRecord.student_id == User.id
     ).filter(AttendanceRecord.session_id == sid).all()
+
+    attendance_list = []
+    for r, s, u in results:
+        # Determine name: Try Student table, then User table, then ID
+        name = s.full_name if s else (u.full_name if u else f"Student {r.student_id}")
+
+        attendance_list.append({
+            "student_id": str(r.student_id),
+            "student_name": name,
+            "timestamp": r.marked_at.isoformat(),
+            "status": r.status
+        })
 
     return {
         "session_id": sid,
-        "total_count": len(results),
-        "students": [
-            {
-                "student_id": str(r.student_id),
-                "student_name": s.full_name if s else f"Unknown ({r.student_id})",
-                "timestamp": r.marked_at.isoformat(),
-                "status": r.status
-            }
-            for r, s in results
-        ]
+        "total_count": len(attendance_list),
+        "students": attendance_list
     }
 
 @app.get("/student/attendance/{student_id}")
@@ -714,7 +761,7 @@ async def get_active_sessions(db: Session = Depends(get_db)):
 
 @app.post("/sessions/stop/{session_id}")
 async def stop_session(session_id: str, db: Session = Depends(get_db)):
-    sid = clean_id(session_id)
+    sid = session_id.replace('"', '').replace("'", "").strip()
     session = db.query(AttendanceSession, Subject).join(
         Subject, AttendanceSession.subject_id == Subject.id
     ).filter(AttendanceSession.id == sid).first()
@@ -726,20 +773,78 @@ async def stop_session(session_id: str, db: Session = Depends(get_db)):
     session_obj.status = "stopped"
     db.commit()
 
-    # Calculate report with outerjoin
-    records = db.query(AttendanceRecord, Student).outerjoin(
+    # Calculate detailed report with Roll Numbers and Names
+    records = db.query(AttendanceRecord, Student, User).outerjoin(
         Student, AttendanceRecord.student_id == Student.id
+    ).outerjoin(
+        User, AttendanceRecord.student_id == User.id
     ).filter(AttendanceRecord.session_id == sid).all()
+
+    report_students = []
+    for r, s, u in records:
+        name = s.full_name if s else (u.full_name if u else f"Student {r.student_id}")
+        reg_no = s.registration_number if s else (u.username if u else r.student_id)
+
+        report_students.append({
+            "id": reg_no, # Return the Roll Number as ID
+            "name": name,
+            "time": r.marked_at.isoformat()
+        })
 
     return {
         "session_id": sid,
-        "total_present": len(records),
-        "students": [
-            {"id": str(r.student_id), "name": s.full_name if s else f"Student {r.student_id}", "time": r.marked_at.isoformat()}
-            for r, s in records
-        ],
-        "course_id": subject_obj.code or subject_obj.name # Fix for "Course: null"
+        "total_present": len(report_students),
+        "students": report_students,
+        "course_id": subject_obj.code or subject_obj.name
     }
+
+@app.get("/auth/me/{user_id}")
+async def get_user_profile(user_id: str, db: Session = Depends(get_db)):
+    uid = clean_id(user_id)
+    # 1. Search by ID or Username
+    user = db.query(User).filter((User.id == uid) | (User.username == uid)).first()
+
+    if not user:
+        # 2. Fallback: Search in specific role tables if user_id looks like a Registration Number
+        student = db.query(Student).filter(Student.registration_number == uid).first()
+        if student:
+            user = db.query(User).filter(User.id == student.id).first()
+
+        teacher = db.query(Teacher).filter(Teacher.employee_id == uid).first()
+        if teacher:
+            user = db.query(User).filter(User.id == teacher.id).first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail=f"User {uid} not found")
+
+    profile_data = {
+        "id": str(user.id),
+        "username": user.username,
+        "email": user.email,
+        "full_name": user.full_name,
+        "role": user.role,
+        "academic": {}
+    }
+
+    # Fetch role-specific details
+    if user.role == "student":
+        student = db.query(Student).filter(Student.id == user.id).first()
+        if student:
+            profile_data["academic"] = {
+                "branch": student.branch or "N/A",
+                "year": student.year or "N/A",
+                "reg_no": student.registration_number or user.username
+            }
+    elif user.role == "faculty":
+        teacher = db.query(Teacher).filter(Teacher.id == user.id).first()
+        if teacher:
+            profile_data["academic"] = {
+                "branch": teacher.branch or "N/A",
+                "designation": teacher.designation or "Faculty",
+                "employee_id": teacher.employee_id or user.username
+            }
+
+    return profile_data
 
 if __name__ == "__main__":
     # Use 0.0.0.0 to listen on all network interfaces (allows mobile devices to connect)

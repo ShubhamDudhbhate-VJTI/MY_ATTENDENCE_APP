@@ -65,42 +65,76 @@ fun StartSessionScreen(navController: NavController) {
     var classroomExpanded by remember { mutableStateOf(false) }
     var subjectExpanded by remember { mutableStateOf(false) }
 
-    // Fetch rooms and subjects on load
-    LaunchedEffect(Unit) {
-        try {
-            val sessionManager = SessionManager(context)
-            val facultyId = sessionManager.getUserId() ?: ""
+    var isLoadingInfo by remember { mutableStateOf(false) }
 
-            val roomRes = RetrofitClient.apiService.getClassrooms()
-            if (roomRes.isSuccessful) {
-                classrooms = roomRes.body() ?: emptyList()
-                selectedClassroom = classrooms.firstOrNull()
-            }
-            
-            // Fetch subjects specifically for this teacher
-            val subjectRes = if (facultyId.isNotEmpty()) {
-                RetrofitClient.apiService.getFacultySubjects(facultyId)
-            } else {
-                RetrofitClient.apiService.getSubjects()
-            }
+    fun loadInitialData() {
+        scope.launch {
+            try {
+                isLoadingInfo = true
+                val sessionManager = SessionManager(context)
+                val rawId = sessionManager.getUserId() ?: ""
+                val facultyId = rawId.replace("\"", "").replace("'", "").trim()
 
-            if (subjectRes.isSuccessful) {
-                val fetchedSubjects = subjectRes.body() ?: emptyList()
-                if (fetchedSubjects.isNotEmpty()) {
-                    subjects = fetchedSubjects
-                    selectedSubject = subjects.firstOrNull()
+                Log.d("StartSession", "Fetching data for clean facultyId: '$facultyId'")
+
+                // 1. Fetch Classrooms
+                val roomRes = RetrofitClient.apiService.getClassrooms()
+                if (roomRes.isSuccessful) {
+                    classrooms = roomRes.body() ?: emptyList()
+                    selectedClassroom = classrooms.firstOrNull()
+                    Log.d("StartSession", "Loaded ${classrooms.size} classrooms")
                 } else {
-                    // Fallback to all subjects if faculty has none assigned
-                    val allSubjectsRes = RetrofitClient.apiService.getSubjects()
-                    if (allSubjectsRes.isSuccessful) {
-                        subjects = allSubjectsRes.body() ?: emptyList()
+                    val err = roomRes.errorBody()?.string() ?: "Unknown Error"
+                    Log.e("StartSession", "Room fetch error: ${roomRes.code()} $err")
+                    Toast.makeText(context, "Classroom Error: ${roomRes.code()}", Toast.LENGTH_SHORT).show()
+                }
+                
+                // 2. Fetch Subjects
+                val subjectRes = if (facultyId.isNotEmpty()) {
+                    RetrofitClient.apiService.getFacultySubjects(facultyId)
+                } else {
+                    RetrofitClient.apiService.getSubjects()
+                }
+
+                if (subjectRes.isSuccessful) {
+                    val fetchedSubjects = subjectRes.body() ?: emptyList()
+                    Log.d("StartSession", "Loaded ${fetchedSubjects.size} subjects for faculty")
+                    if (fetchedSubjects.isNotEmpty()) {
+                        subjects = fetchedSubjects
+                        selectedSubject = subjects.firstOrNull()
+                    } else {
+                        Log.d("StartSession", "No specific subjects, falling back to all")
+                        val allRes = RetrofitClient.apiService.getSubjects()
+                        if (allRes.isSuccessful) {
+                            subjects = allRes.body() ?: emptyList()
+                            selectedSubject = subjects.firstOrNull()
+                        }
+                    }
+                } else {
+                    Log.e("StartSession", "Subject fetch error: ${subjectRes.code()}")
+                    // Fallback
+                    val allRes = RetrofitClient.apiService.getSubjects()
+                    if (allRes.isSuccessful) {
+                        subjects = allRes.body() ?: emptyList()
                         selectedSubject = subjects.firstOrNull()
                     }
                 }
+
+                if (classrooms.isEmpty() && subjects.isEmpty()) {
+                    Toast.makeText(context, "No data returned. Check DB or Faculty Assignment.", Toast.LENGTH_LONG).show()
+                }
+            } catch (e: Exception) {
+                Log.e("StartSession", "Fetch failed", e)
+                Toast.makeText(context, "Connection Error: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+            } finally {
+                isLoadingInfo = false
             }
-        } catch (e: Exception) {
-            Log.e("StartSession", "Initial fetch failed", e)
         }
+    }
+
+    // Fetch rooms and subjects on load
+    LaunchedEffect(Unit) {
+        loadInitialData()
     }
 
     fun fetchAttendance() {
@@ -195,7 +229,7 @@ fun StartSessionScreen(navController: NavController) {
                 navigationIcon = {
                     IconButton(onClick = { 
                         if (showReport) showReport = false
-                        else navController.navigateUp() 
+                        else navController.navigateUp()
                     }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = TextWhite)
                     }
@@ -219,107 +253,141 @@ fun StartSessionScreen(navController: NavController) {
                     sessionId = ""
                 }
             } else if (!sessionStarted) {
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = CardBg),
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Session Details", color = TextWhite, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                        Spacer(modifier = Modifier.height(16.dp))
-                        
-                        // Classroom Dropdown
-                        ExposedDropdownMenuBox(
-                            expanded = classroomExpanded,
-                            onExpandedChange = { classroomExpanded = !classroomExpanded }
-                        ) {
-                            OutlinedTextField(
-                                value = selectedClassroom?.name ?: "Select Classroom",
-                                onValueChange = {},
-                                readOnly = true,
-                                label = { Text("Classroom") },
-                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = classroomExpanded) },
-                                colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(
-                                    focusedTextColor = TextWhite,
-                                    unfocusedTextColor = TextWhite,
-                                    focusedBorderColor = AccentBlue,
-                                    unfocusedBorderColor = TextMuted,
-                                    focusedLabelColor = AccentBlue,
-                                    unfocusedLabelColor = TextMuted
-                                ),
-                                modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth()
-                            )
-                            ExposedDropdownMenu(
-                                expanded = classroomExpanded,
-                                onDismissRequest = { classroomExpanded = false },
-                                modifier = Modifier.background(CardBg)
-                            ) {
-                                classrooms.forEach { room ->
-                                    DropdownMenuItem(
-                                        text = { Text(room.name, color = TextWhite) },
-                                        onClick = {
-                                            selectedClassroom = room
-                                            classroomExpanded = false
-                                        }
-                                    )
-                                }
+                if (isLoadingInfo) {
+                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = AccentBlue)
+                    }
+                } else if (classrooms.isEmpty() && subjects.isEmpty()) {
+                    Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(Icons.Default.Refresh, contentDescription = null, tint = TextMuted, modifier = Modifier.size(64.dp))
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text("No data available", color = TextWhite, fontSize = 18.sp)
+                            Text("Check your server connection or IP", color = TextMuted, fontSize = 14.sp)
+                            Spacer(modifier = Modifier.height(24.dp))
+                            Button(onClick = { loadInitialData() }) {
+                                Text("Retry Fetching")
                             }
                         }
-                        
-                        Spacer(modifier = Modifier.height(16.dp))
-                        
-                        // Subject Dropdown
-                        ExposedDropdownMenuBox(
-                            expanded = subjectExpanded,
-                            onExpandedChange = { subjectExpanded = !subjectExpanded }
-                        ) {
-                            OutlinedTextField(
-                                value = selectedSubject?.name ?: "Select Subject",
-                                onValueChange = {},
-                                readOnly = true,
-                                label = { Text("Subject") },
-                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = subjectExpanded) },
-                                colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(
-                                    focusedTextColor = TextWhite,
-                                    unfocusedTextColor = TextWhite,
-                                    focusedBorderColor = AccentBlue,
-                                    unfocusedBorderColor = TextMuted,
-                                    focusedLabelColor = AccentBlue,
-                                    unfocusedLabelColor = TextMuted
-                                ),
-                                modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth()
-                            )
-                            ExposedDropdownMenu(
-                                expanded = subjectExpanded,
-                                onDismissRequest = { subjectExpanded = false },
-                                modifier = Modifier.background(CardBg)
+                    }
+                } else {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = CardBg),
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Text("Session Details", color = TextWhite, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            // Classroom Dropdown
+                            ExposedDropdownMenuBox(
+                                expanded = classroomExpanded,
+                                onExpandedChange = { classroomExpanded = it }
                             ) {
-                                subjects.forEach { subject ->
-                                    DropdownMenuItem(
-                                        text = { Text(subject.name, color = TextWhite) },
-                                        onClick = {
-                                            selectedSubject = subject
-                                            subjectExpanded = false
+                                OutlinedTextField(
+                                    value = selectedClassroom?.name ?: "No Classrooms Found",
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    label = { Text("Classroom") },
+                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = classroomExpanded) },
+                                    colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(
+                                        focusedTextColor = TextWhite,
+                                        unfocusedTextColor = TextWhite,
+                                        focusedBorderColor = AccentBlue,
+                                        unfocusedBorderColor = TextMuted,
+                                        focusedLabelColor = AccentBlue,
+                                        unfocusedLabelColor = TextMuted
+                                    ),
+                                    modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth()
+                                )
+                                if (classrooms.isNotEmpty()) {
+                                    ExposedDropdownMenu(
+                                        expanded = classroomExpanded,
+                                        onDismissRequest = { classroomExpanded = false },
+                                        modifier = Modifier.background(CardBg)
+                                    ) {
+                                        classrooms.forEach { room ->
+                                            DropdownMenuItem(
+                                                text = { Text(room.name, color = TextWhite) },
+                                                onClick = {
+                                                    selectedClassroom = room
+                                                    classroomExpanded = false
+                                                }
+                                            )
                                         }
-                                    )
+                                    }
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            // Subject Dropdown
+                            ExposedDropdownMenuBox(
+                                expanded = subjectExpanded,
+                                onExpandedChange = { subjectExpanded = it }
+                            ) {
+                                OutlinedTextField(
+                                    value = selectedSubject?.name ?: "No Subjects Found",
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    label = { Text("Subject") },
+                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = subjectExpanded) },
+                                    colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(
+                                        focusedTextColor = TextWhite,
+                                        unfocusedTextColor = TextWhite,
+                                        focusedBorderColor = AccentBlue,
+                                        unfocusedBorderColor = TextMuted,
+                                        focusedLabelColor = AccentBlue,
+                                        unfocusedLabelColor = TextMuted
+                                    ),
+                                    modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable).fillMaxWidth()
+                                )
+                                if (subjects.isNotEmpty()) {
+                                    ExposedDropdownMenu(
+                                        expanded = subjectExpanded,
+                                        onDismissRequest = { subjectExpanded = false },
+                                        modifier = Modifier.background(CardBg)
+                                    ) {
+                                        subjects.forEach { subject ->
+                                            DropdownMenuItem(
+                                                text = { 
+                                                    Column {
+                                                        Text(subject.name, color = TextWhite)
+                                                        if (!subject.code.isNullOrEmpty()) {
+                                                            Text(subject.code, color = TextMuted, fontSize = 12.sp)
+                                                        }
+                                                        if (!subject.branch.isNullOrEmpty()) {
+                                                            Text("${subject.branch} - ${subject.year}", color = AccentBlue, fontSize = 10.sp)
+                                                        }
+                                                    }
+                                                },
+                                                onClick = {
+                                                    selectedSubject = subject
+                                                    subjectExpanded = false
+                                                }
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
                     }
-                }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(24.dp))
 
-                if (isStarting) {
-                    CircularProgressIndicator(color = AccentBlue)
-                } else {
-                    Button(
-                        onClick = { startSessionOnServer() },
-                        modifier = Modifier.fillMaxWidth().height(56.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Text("Initialize Session & QR", fontWeight = FontWeight.Bold)
+                    if (isStarting) {
+                        CircularProgressIndicator(color = AccentBlue)
+                    } else {
+                        Button(
+                            enabled = selectedClassroom != null && selectedSubject != null,
+                            onClick = { startSessionOnServer() },
+                            modifier = Modifier.fillMaxWidth().height(56.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("Initialize Session & QR", fontWeight = FontWeight.Bold)
+                        }
                     }
                 }
             } else {
@@ -476,9 +544,9 @@ fun SessionSummaryView(report: SessionReportResponse, onDismiss: () -> Unit) {
                 Spacer(modifier = Modifier.height(16.dp))
                 Text("Session Ended", color = TextWhite, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                 Text("Course: ${report.course_id}", color = TextMuted)
-                
+
                 Divider(modifier = Modifier.padding(vertical = 16.dp), color = TextMuted.copy(alpha = 0.3f))
-                
+
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceEvenly
@@ -494,7 +562,7 @@ fun SessionSummaryView(report: SessionReportResponse, onDismiss: () -> Unit) {
         Spacer(modifier = Modifier.height(24.dp))
 
         Text("Student List", color = TextWhite, fontWeight = FontWeight.Bold, fontSize = 18.sp, modifier = Modifier.fillMaxWidth())
-        
+
         Spacer(modifier = Modifier.height(8.dp))
 
         LazyColumn(

@@ -70,13 +70,17 @@ data class FacultySessionRecord(
 data class Classroom(
     val id: String,
     val name: String,
-    val wifi_bssid: String
+    val wifi_ssid: String? = null,
+    val wifi_bssid: String? = null
 )
 
 data class Subject(
     val id: String,
     val name: String,
-    val department_id: String
+    val code: String? = null,
+    val branch: String? = null,
+    val year: String? = null,
+    val department_id: String? = null
 )
 
 data class ActiveSession(
@@ -104,6 +108,15 @@ data class ScheduleRecord(
     val subject: String,
     val room: String,
     val time: String
+)
+
+data class UserProfile(
+    val id: String,
+    val username: String,
+    val email: String,
+    val full_name: String,
+    val role: String,
+    val academic: Map<String, String?>
 )
 
 data class NotificationRecord(
