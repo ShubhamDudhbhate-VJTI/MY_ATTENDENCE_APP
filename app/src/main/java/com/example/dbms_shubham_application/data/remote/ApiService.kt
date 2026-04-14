@@ -39,7 +39,17 @@ interface ApiService {
     suspend fun getAttendanceHistory(@Path("studentId") studentId: String): Response<List<AttendanceRecord>>
 
     @GET("faculty/sessions/{facultyId}")
-    suspend fun getFacultySessions(@Path("facultyId") facultyId: String): Response<List<FacultySessionRecord>>
+    suspend fun getFacultySessions(
+        @Path("facultyId") facultyId: String,
+        @Query("subject_id") subjectId: String? = null,
+        @Query("classroom_id") classroomId: String? = null,
+        @Query("date") date: String? = null
+    ): Response<List<FacultySessionRecord>>
+
+    @GET("sessions/{session_id}/details")
+    suspend fun getSessionDetails(
+        @Path("session_id") sessionId: String
+    ): Response<SessionDetailsResponse>
 
     @GET("classrooms")
     suspend fun getClassrooms(): Response<List<Classroom>>
@@ -57,10 +67,33 @@ interface ApiService {
     suspend fun stopSession(@Path("session_id") sessionId: String): Response<SessionReportResponse>
 
     @GET("faculty/schedule/{facultyId}")
-    suspend fun getFacultySchedule(@Path("facultyId") facultyId: String): Response<List<ScheduleRecord>>
+    suspend fun getFacultySchedule(
+        @Path("facultyId") facultyId: String,
+        @Query("day") day: String? = null
+    ): Response<List<ScheduleRecord>>
+
+    @POST("faculty/schedule/{facultyId}")
+    suspend fun addScheduleRecord(
+        @Path("facultyId") facultyId: String,
+        @Body record: ScheduleRecord
+    ): Response<ScheduleRecord>
+
+    @DELETE("faculty/schedule/{recordId}")
+    suspend fun deleteScheduleRecord(
+        @Path("recordId") recordId: String
+    ): Response<Map<String, Any>>
+
+    @PUT("faculty/schedule/{recordId}")
+    suspend fun updateScheduleRecord(
+        @Path("recordId") recordId: String,
+        @Body record: ScheduleRecord
+    ): Response<ScheduleRecord>
 
     @GET("student/schedule/{studentId}")
-    suspend fun getStudentSchedule(@Path("studentId") studentId: String): Response<List<ScheduleRecord>>
+    suspend fun getStudentSchedule(
+        @Path("studentId") studentId: String,
+        @Query("day") day: String? = null
+    ): Response<List<ScheduleRecord>>
 
     @GET("notifications/{userId}")
     suspend fun getNotifications(@Path("userId") userId: String): Response<List<NotificationRecord>>

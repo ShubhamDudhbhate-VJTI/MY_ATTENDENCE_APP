@@ -59,12 +59,28 @@ data class AttendanceRecord(
     val status: String
 )
 
+data class SessionDetailsResponse(
+    val session_id: String,
+    val subject_name: String,
+    val start_time: String,
+    val total_students: Int,
+    val students: List<SessionStudentDetail>
+)
+
+data class SessionStudentDetail(
+    val student_id: String,
+    val student_name: String,
+    val marked_at: String,
+    val status: String
+)
+
 data class FacultySessionRecord(
     val session_id: String,
     val subject_id: String,
+    val subject_name: String = "",
     val classroom_id: String,
     val start_time: String = "",
-    val expires_at: String,
+    val expires_at: String?,
     val status: String,
     val student_count: Int
 )
@@ -106,9 +122,15 @@ data class StudentReport(
 )
 
 data class ScheduleRecord(
+    val id: String? = null,
     val day: String,
     val subject: String,
+    val subject_id: String? = null,
+    val subject_code: String? = null,
+    val branch: String? = null,
+    val year: String? = null,
     val room: String,
+    val classroom_id: String? = null,
     val time: String
 )
 

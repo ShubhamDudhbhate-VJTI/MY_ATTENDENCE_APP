@@ -31,8 +31,11 @@ import androidx.navigation.NavController
 
 import com.example.dbms_shubham_application.data.model.AttendanceRecord
 import com.example.dbms_shubham_application.data.model.FacultySessionRecord
+import com.example.dbms_shubham_application.data.model.ScheduleRecord
 import com.example.dbms_shubham_application.network.RetrofitClient
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
+import java.util.Calendar
+import android.util.Log
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -49,42 +52,72 @@ private val TextMuted = Color(0xFF94A3B8)
 fun DashboardScreen(navController: NavController, role: String) {
     val context = LocalContext.current
     val sessionManager = remember { SessionManager(context) }
-    val userId = sessionManager.getUserId() ?: ""
-    val scope = rememberCoroutineScope()
+    
+    val normalizedRole = remember(role) { role.lowercase() }
+    val userId = remember { sessionManager.getUserId()?.replace("\"", "")?.replace("'", "") ?: "" }
+    val userName = remember { sessionManager.getName() ?: "User" }
     
     var studentHistory by remember { mutableStateOf<List<AttendanceRecord>>(emptyList()) }
     var facultySessions by remember { mutableStateOf<List<FacultySessionRecord>>(emptyList()) }
+    var todaySchedule by remember { mutableStateOf<List<ScheduleRecord>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
 
-    LaunchedEffect(userId) {
-        if (userId.isNotEmpty()) {
-            scope.launch {
-                try {
-                    if (role.lowercase() == "student") {
-                        val response = RetrofitClient.apiService.getAttendanceHistory(userId)
-                        if (response.isSuccessful) {
-                            studentHistory = response.body() ?: emptyList()
-                        }
-                    } else if (role.lowercase() == "faculty") {
-                        val response = RetrofitClient.apiService.getFacultySessions(userId)
-                        if (response.isSuccessful) {
-                            facultySessions = response.body() ?: emptyList()
-                        }
-                    }
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                } finally {
-                    isLoading = false
-                }
-            }
+    val currentDay = remember {
+        val calendar = Calendar.getInstance()
+        when (calendar.get(Calendar.DAY_OF_WEEK)) {
+            Calendar.MONDAY -> "Monday"
+            Calendar.TUESDAY -> "Tuesday"
+            Calendar.WEDNESDAY -> "Wednesday"
+            Calendar.THURSDAY -> "Thursday"
+            Calendar.FRIDAY -> "Friday"
+            Calendar.SATURDAY -> "Saturday"
+            Calendar.SUNDAY -> "Sunday"
+            else -> "Monday"
         }
     }
 
-    val roleTitle = when (role.lowercase()) {
-        "student" -> "Student Portal"
-        "faculty" -> "Faculty Dashboard"
-        "hod" -> "HOD Administration"
-        else -> "Dashboard"
+    LaunchedEffect(userId, normalizedRole) {
+        if (userId.isNotEmpty()) {
+            try {
+                // Perform network requests in parallel to avoid UI hang
+                coroutineScope {
+                    if (normalizedRole == "student") {
+                        val historyJob = async { RetrofitClient.apiService.getAttendanceHistory(userId) }
+                        val scheduleJob = async { RetrofitClient.apiService.getStudentSchedule(userId, currentDay) }
+                        
+                        val historyRes = historyJob.await()
+                        if (historyRes.isSuccessful) studentHistory = historyRes.body() ?: emptyList()
+                        
+                        val scheduleRes = scheduleJob.await()
+                        if (scheduleRes.isSuccessful) todaySchedule = scheduleRes.body() ?: emptyList()
+                    } else if (normalizedRole == "faculty") {
+                        val sessionsJob = async { RetrofitClient.apiService.getFacultySessions(userId) }
+                        val scheduleJob = async { RetrofitClient.apiService.getFacultySchedule(userId, currentDay) }
+                        
+                        val sessionsRes = sessionsJob.await()
+                        if (sessionsRes.isSuccessful) facultySessions = sessionsRes.body() ?: emptyList()
+                        
+                        val scheduleRes = scheduleJob.await()
+                        if (scheduleRes.isSuccessful) todaySchedule = scheduleRes.body() ?: emptyList()
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("DashboardScreen", "Error fetching dashboard data", e)
+            } finally {
+                isLoading = false
+            }
+        } else {
+            isLoading = false
+        }
+    }
+
+    val roleTitle = remember(normalizedRole) {
+        when (normalizedRole) {
+            "student" -> "Student Portal"
+            "faculty" -> "Faculty Dashboard"
+            "hod" -> "HOD Administration"
+            else -> "Dashboard"
+        }
     }
 
     Scaffold(
@@ -92,66 +125,80 @@ fun DashboardScreen(navController: NavController, role: String) {
         containerColor = DarkBg
     ) { innerPadding ->
         Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(20.dp),
-                verticalArrangement = Arrangement.spacedBy(24.dp)
-            ) {
-                // Header
-                item {
-                    HeaderSection(navController, roleTitle)
+            if (isLoading) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = AccentBlue)
                 }
-
-                // Greeting
-                item {
-                    GreetingSection(role)
-                }
-
-                // Stats Row
-                item {
-                    if (role.lowercase() == "student") {
-                        StudentStatsRow(studentHistory)
-                    } else {
-                        StatsRow(role) // Keep original for now or update later
-                    }
-                }
-
-                // Quick Actions (New Section)
-                if (role.lowercase() == "student") {
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(24.dp)
+                ) {
+                    // Header
                     item {
-                        QuickActionsSection(navController)
+                        HeaderSection(navController, roleTitle)
                     }
-                } else if (role.lowercase() == "faculty") {
-                    item {
-                        FacultyQuickActionsSection(navController)
-                    }
-                }
 
-                // Two main cards
-                item {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        if (role.lowercase() == "student") {
-                            RecentAttendanceCard(
-                                modifier = Modifier.weight(1f),
-                                role = role,
-                                history = studentHistory
-                            )
+                    // Greeting
+                    item {
+                        GreetingSection(normalizedRole, userName, userId)
+                    }
+
+                    // Stats Row
+                    item {
+                        if (normalizedRole == "student") {
+                            StudentStatsRow(studentHistory)
                         } else {
-                            RecentSessionsCard(
+                            StatsRow(normalizedRole)
+                        }
+                    }
+
+                    // Quick Actions
+                    if (normalizedRole == "student") {
+                        item {
+                            QuickActionsSection(navController)
+                        }
+                    } else if (normalizedRole == "faculty") {
+                        item {
+                            FacultyQuickActionsSection(navController)
+                        }
+                    }
+
+                    // Two main cards
+                    item {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            if (normalizedRole == "student") {
+                                RecentAttendanceCard(
+                                    modifier = Modifier.weight(1f),
+                                    role = normalizedRole,
+                                    history = studentHistory
+                                )
+                            } else {
+                                RecentSessionsCard(
+                                    modifier = Modifier.weight(1f),
+                                    sessions = facultySessions
+                                )
+                            }
+                            TodayScheduleCard(
                                 modifier = Modifier.weight(1f),
-                                sessions = facultySessions
+                                role = normalizedRole,
+                                schedule = todaySchedule,
+                                onViewAll = {
+                                    if (normalizedRole == "faculty") navController.navigate("faculty_classes")
+                                    else /* TODO student schedule */ {}
+                                }
                             )
                         }
-                        TodayScheduleCard(modifier = Modifier.weight(1f), role = role)
                     }
                 }
             }
 
             // Side Mark Attendance Button (Only for students)
-            if (role.lowercase() == "student") {
+            if (normalizedRole == "student") {
                 MarkAttendanceSideButton(
                     modifier = Modifier
                         .align(Alignment.CenterEnd)
@@ -206,13 +253,9 @@ fun HeaderSection(navController: NavController, title: String) {
 }
 
 @Composable
-fun GreetingSection(role: String) {
-    val context = LocalContext.current
-    val sessionManager = remember { SessionManager(context) }
-    val name = sessionManager.getName() ?: "User"
-    
+fun GreetingSection(role: String, name: String, userId: String) {
     val subtext = when (role.lowercase()) {
-        "student" -> "S.Y. B.Tech (I.T.) • ${sessionManager.getUserId()}"
+        "student" -> "S.Y. B.Tech (I.T.) • $userId"
         "faculty" -> "Information Technology Department"
         "hod" -> "Head of IT Department"
         else -> ""
@@ -304,8 +347,11 @@ fun FacultyQuickActionsSection(navController: NavController) {
             QuickActionCard("Start Session", Icons.Default.QrCode, AccentBlue, modifier = Modifier.weight(1f)) {
                 navController.navigate("start_session")
             }
-            QuickActionCard("Reports", Icons.Default.BarChart, AccentOrange, modifier = Modifier.weight(1f)) {
-                navController.navigate("reports")
+            QuickActionCard("History", Icons.Default.History, AccentOrange, modifier = Modifier.weight(1f)) {
+                navController.navigate("faculty_history")
+            }
+            QuickActionCard("Schedule", Icons.Default.CalendarMonth, Color(0xFF10B981), modifier = Modifier.weight(1f)) {
+                navController.navigate("manage_schedule")
             }
             QuickActionCard("Classes", Icons.AutoMirrored.Filled.Assignment, Color(0xFF8B5CF6), modifier = Modifier.weight(1f)) {
                 navController.navigate("faculty_classes")
@@ -447,20 +493,41 @@ fun RecentSessionsCard(modifier: Modifier = Modifier, sessions: List<FacultySess
 }
 
 @Composable
-fun TodayScheduleCard(modifier: Modifier = Modifier, role: String) {
+fun TodayScheduleCard(
+    modifier: Modifier = Modifier,
+    role: String,
+    schedule: List<ScheduleRecord> = emptyList(),
+    onViewAll: () -> Unit = {}
+) {
     Card(
-        modifier = modifier.height(200.dp),
+        modifier = modifier.height(200.dp).clickable(onClick = onViewAll),
         colors = CardDefaults.cardColors(containerColor = CardBg),
         shape = RoundedCornerShape(20.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            val title = if (role.lowercase() == "student") "Today's Schedule" else "Teaching Load"
+            val title = if (role.lowercase() == "student") "Today's Classes" else "Today's Teaching"
             Text(title, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextWhite)
             Spacer(modifier = Modifier.height(12.dp))
-            Text("09:00 AM", fontSize = 12.sp, color = TextMuted)
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(if (role.lowercase() == "student") "Database Mgmt Sys" else "SE-IT Batch B", fontSize = 14.sp, color = TextWhite, modifier = Modifier.weight(1f))
-                Text("R-301", fontSize = 12.sp, color = AccentBlue)
+            
+            if (schedule.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("No classes today", color = TextMuted, fontSize = 12.sp)
+                }
+            } else {
+                val nextItem = schedule.first()
+                Text(nextItem.time, fontSize = 12.sp, color = TextMuted)
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(nextItem.subject, fontSize = 14.sp, color = TextWhite, modifier = Modifier.weight(1f), maxLines = 1)
+                    Text(nextItem.room, fontSize = 12.sp, color = AccentBlue)
+                }
+                
+                if (schedule.size > 1) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("+ ${schedule.size - 1} more sessions", color = TextMuted, fontSize = 10.sp)
+                }
+                
+                Spacer(modifier = Modifier.weight(1f))
+                Text("View Full Schedule →", color = AccentBlue, fontSize = 10.sp, fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -508,7 +575,7 @@ fun BottomNavBar(navController: NavController, role: String) {
             listOf(
                 Triple("Dashboard", Icons.Default.Dashboard, "dashboard/$role"),
                 Triple("My Classes", Icons.AutoMirrored.Filled.Assignment, "faculty_classes"),
-                Triple("Reports", Icons.Default.BarChart, "reports"),
+                Triple("History", Icons.Default.History, "faculty_history"),
                 Triple("Alerts", Icons.Default.Notifications, "alerts")
             )
         }

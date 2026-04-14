@@ -48,6 +48,9 @@ def update_schema():
         except Exception:
             pass
 
+        print("Updating schedules table...")
+        conn.execute(text("ALTER TABLE schedules ADD COLUMN IF NOT EXISTS is_official BOOLEAN DEFAULT TRUE;"))
+
         conn.commit()
         print("Schema updated successfully.")
 

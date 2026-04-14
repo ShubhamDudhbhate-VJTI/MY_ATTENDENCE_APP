@@ -1,8 +1,11 @@
 package com.example.dbms_shubham_application.screens
 
+import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -14,11 +17,17 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.example.dbms_shubham_application.data.local.SessionManager
+import com.example.dbms_shubham_application.data.model.ScheduleRecord
+import com.example.dbms_shubham_application.network.RetrofitClient
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import java.util.Calendar
 
 private val DarkBg = Color(0xFF0F172A)
 private val CardBg = Color(0xFF1E293B)
@@ -30,58 +39,123 @@ private val SuccessGreen = Color(0xFF10B981)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FacultyClassesScreen(navController: NavController) {
-    var showSessionModal by remember { mutableStateOf(false) }
-    var activeSession by remember { mutableStateOf<FacultyClass?>(null) }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val sessionManager = remember { SessionManager(context) }
+    val facultyId = sessionManager.getUserId()?.replace("\"", "")?.replace("'", "") ?: ""
+
+    var schedule by remember { mutableStateOf<List<ScheduleRecord>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
     
-    val classes = remember {
-        listOf(
-            FacultyClass("SE-IT Batch A", "Database Management Systems", "R-301", "45 Students"),
-            FacultyClass("TE-IT Batch B", "Software Engineering", "R-402", "38 Students"),
-            FacultyClass("BE-IT Batch A", "Data Warehousing", "R-105", "52 Students")
+    val days = listOf("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")
+    var selectedDay by remember { 
+        mutableStateOf(
+            when (Calendar.getInstance().get(Calendar.DAY_OF_WEEK)) {
+                Calendar.MONDAY -> "Monday"
+                Calendar.TUESDAY -> "Tuesday"
+                Calendar.WEDNESDAY -> "Wednesday"
+                Calendar.THURSDAY -> "Thursday"
+                Calendar.FRIDAY -> "Friday"
+                Calendar.SATURDAY -> "Saturday"
+                else -> "Monday"
+            }
         )
+    }
+
+    fun loadSchedule(day: String) {
+        scope.launch {
+            isLoading = true
+            try {
+                val response = RetrofitClient.apiService.getFacultySchedule(facultyId, day)
+                if (response.isSuccessful) {
+                    schedule = response.body() ?: emptyList()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+            } finally {
+                isLoading = false
+            }
+        }
+    }
+
+    LaunchedEffect(selectedDay) {
+        loadSchedule(selectedDay)
     }
 
     Scaffold(
         containerColor = DarkBg,
         topBar = {
             TopAppBar(
-                title = { Text("Faculty Portal", color = TextWhite, fontWeight = FontWeight.Bold) },
+                title = { Text("My Schedule", color = TextWhite, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = { navController.navigateUp() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextWhite)
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { loadSchedule(selectedDay) }) {
+                        Icon(Icons.Default.Refresh, "Refresh", tint = AccentBlue)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = DarkBg)
             )
         }
     ) { padding ->
-        Column(modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 24.dp)) {
-            Text("Select Class to Start Session", color = TextWhite, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 16.dp))
-            
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                contentPadding = PaddingValues(bottom = 24.dp)
+        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+            // Day Selector
+            LazyRow(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(classes) { item ->
-                    ClassCard(item) {
-                        activeSession = item
-                        showSessionModal = true
+                items(days) { day ->
+                    FilterChip(
+                        selected = selectedDay == day,
+                        onClick = { selectedDay = day },
+                        label = { Text(day) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = AccentBlue,
+                            selectedLabelColor = TextWhite,
+                            containerColor = CardBg,
+                            labelColor = TextMuted
+                        )
+                    )
+                }
+            }
+
+            if (isLoading) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = AccentBlue)
+                }
+            } else if (schedule.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(Icons.Default.EventBusy, null, tint = TextMuted, modifier = Modifier.size(64.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("No classes scheduled for $selectedDay", color = TextMuted)
+                    }
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    contentPadding = PaddingValues(bottom = 24.dp)
+                ) {
+                    items(schedule) { item ->
+                        ScheduleCard(item) {
+                            // Navigate to Start Session with pre-filled room and subject
+                            val route = "start_session?subject_id=${item.subject_id}&classroom_id=${item.classroom_id}"
+                            navController.navigate(route)
+                        }
                     }
                 }
             }
         }
     }
-
-    if (showSessionModal && activeSession != null) {
-        SessionManagementDialog(
-            activeClass = activeSession!!,
-            onDismiss = { showSessionModal = false }
-        )
-    }
 }
 
 @Composable
-fun ClassCard(item: FacultyClass, onStart: () -> Unit) {
+fun ScheduleCard(item: ScheduleRecord, onStart: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = CardBg),
@@ -93,83 +167,42 @@ fun ClassCard(item: FacultyClass, onStart: () -> Unit) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(item.batch, color = AccentBlue, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                Text(item.students, color = TextMuted, fontSize = 12.sp)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Schedule, null, tint = AccentBlue, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(item.time, color = AccentBlue, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                }
+                Box(
+                    modifier = Modifier.background(AccentBlue.copy(alpha = 0.1f), RoundedCornerShape(8.dp)).padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text(item.room, color = AccentBlue, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
             }
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(item.subject, color = TextWhite, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-            Spacer(modifier = Modifier.height(16.dp))
+            
+            Spacer(modifier = Modifier.height(12.dp))
+            
+            Text(item.subject, color = TextWhite, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+            
+            if (!item.subject_code.isNullOrEmpty()) {
+                Text(item.subject_code, color = TextMuted, fontSize = 12.sp)
+            }
+            
+            if (!item.branch.isNullOrEmpty()) {
+                Text("${item.branch} • ${item.year}", color = TextMuted, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
             Button(
                 onClick = onStart,
                 modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
+                colors = ButtonDefaults.buttonColors(containerColor = SuccessGreen),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Icon(Icons.Default.PlayArrow, null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Start Attendance Session")
+                Text("Start This Session")
             }
         }
     }
 }
-
-@Composable
-fun SessionManagementDialog(activeClass: FacultyClass, onDismiss: () -> Unit) {
-    var sessionStatus by remember { mutableStateOf("Initializing...") }
-    var timeLeft by remember { mutableStateOf(600) } // 10 minutes in seconds
-    
-    LaunchedEffect(Unit) {
-        delay(1000)
-        sessionStatus = "Session Active"
-        while (timeLeft > 0) {
-            delay(1000)
-            timeLeft--
-        }
-    }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = CardBg,
-        title = { Text("Active Session", color = TextWhite) },
-        text = {
-            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-                Text(activeClass.subject, color = AccentBlue, fontWeight = FontWeight.Bold)
-                Text(activeClass.batch, color = TextMuted)
-                
-                Spacer(modifier = Modifier.height(24.dp))
-                
-                // Dynamic QR Placeholder
-                Box(
-                    modifier = Modifier.size(180.dp).background(Color.White, RoundedCornerShape(12.dp)).padding(16.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(Icons.Default.QrCode, null, tint = Color.Black, modifier = Modifier.size(140.dp))
-                }
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Wifi, null, tint = SuccessGreen, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("WiFi Beacon: Broadcast Active", color = SuccessGreen, fontSize = 12.sp)
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
-                
-                Text("Session expires in: ${timeLeft / 60}:${(timeLeft % 60).toString().padStart(2, '0')}", color = TextWhite, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-            }
-        },
-        confirmButton = {
-            Button(onClick = onDismiss, colors = ButtonDefaults.buttonColors(containerColor = Color.Red)) {
-                Text("End Session")
-            }
-        }
-    )
-}
-
-data class FacultyClass(
-    val batch: String,
-    val subject: String,
-    val room: String,
-    val students: String
-)

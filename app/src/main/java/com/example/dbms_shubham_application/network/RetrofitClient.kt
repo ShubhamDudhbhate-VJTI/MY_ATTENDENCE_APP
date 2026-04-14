@@ -13,7 +13,7 @@ object RetrofitClient {
     private const val TAG = "RetrofitClient"
     
     // CURRENT PC IP (Change this if ipconfig changes)
-    private const val PC_IP = "10.86.1.244"
+    private const val PC_IP = "10.133.134.244"
 
     private fun getBaseUrl(): String {
         return if (isEmulator()) {

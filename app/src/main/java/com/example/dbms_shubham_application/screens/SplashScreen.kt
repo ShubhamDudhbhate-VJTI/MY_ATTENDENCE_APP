@@ -21,10 +21,14 @@ fun SplashScreen(navController: NavController) {
     val context = LocalContext.current
     val sessionManager = remember { SessionManager(context) }
     
+    // Use a single side effect for navigation
     LaunchedEffect(Unit) {
-        delay(2000)
-        if (sessionManager.isLoggedIn()) {
-            val role = sessionManager.getRole() ?: "student"
+        val isLoggedIn = sessionManager.isLoggedIn()
+        val role = sessionManager.getRole() ?: "student"
+        
+        delay(1500) // Slightly shorter delay for better UX
+        
+        if (isLoggedIn) {
             navController.navigate("dashboard/$role") {
                 popUpTo("splash") { inclusive = true }
             }
@@ -38,48 +42,59 @@ fun SplashScreen(navController: NavController) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF2196F3)),
+            .background(Color(0xFF0F172A)), // Match theme background to avoid flash
         contentAlignment = Alignment.Center
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // Logo
+            // Logo with optimized background
             Box(
                 modifier = Modifier
-                    .size(80.dp)
-                    .background(Color.White, shape = androidx.compose.foundation.shape.CircleShape),
+                    .size(100.dp)
+                    .background(Color.White.copy(alpha = 0.1f), shape = CircleShape)
+                    .padding(10.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = "SA",
-                    fontSize = 32.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF2196F3)
-                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.White, shape = CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "SA",
+                        fontSize = 40.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color(0xFF2196F3)
+                    )
+                }
             }
             
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(32.dp))
             
             Text(
                 text = "Smart Attendance",
                 fontSize = 32.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.White
+                color = Color.White,
+                letterSpacing = 1.sp
             )
             
             Text(
-                text = "Face Recognition & QR Code Based",
+                text = "Face Recognition & QR Powered",
                 fontSize = 16.sp,
-                color = Color.White.copy(alpha = 0.8f)
+                color = Color.White.copy(alpha = 0.6f),
+                modifier = Modifier.padding(top = 8.dp)
             )
             
-            Spacer(modifier = Modifier.height(48.dp))
+            Spacer(modifier = Modifier.height(64.dp))
             
             CircularProgressIndicator(
-                color = Color.White,
-                modifier = Modifier.size(24.dp)
+                color = Color(0xFF2196F3),
+                modifier = Modifier.size(28.dp),
+                strokeWidth = 3.dp
             )
         }
     }

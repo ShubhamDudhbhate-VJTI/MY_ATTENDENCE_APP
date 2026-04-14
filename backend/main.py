@@ -129,6 +129,7 @@ class Schedule(Base):
     day_of_week = Column(String)
     start_time = Column(String)
     end_time = Column(String)
+    is_official = Column(Boolean, default=True)
 
 class AttendanceSession(Base):
     __tablename__ = "attendance_sessions"
@@ -453,30 +454,39 @@ async def get_teacher_reports(faculty_id: str, db: Session = Depends(get_db)):
     ]
 
 @app.get("/faculty/schedule/{faculty_id}")
-async def get_faculty_schedule(faculty_id: str, db: Session = Depends(get_db)):
-    schedule = db.query(Schedule, Subject, Classroom).join(
+async def get_faculty_schedule(faculty_id: str, day: Optional[str] = None, db: Session = Depends(get_db)):
+    fid = clean_id(faculty_id)
+    query = db.query(Schedule, Subject, Classroom).join(
         Subject, Schedule.subject_id == Subject.id
     ).join(
         Classroom, Schedule.classroom_id == Classroom.id
-    ).filter(Schedule.faculty_id == faculty_id).all()
+    ).filter(Schedule.faculty_id == fid)
+
+    if day:
+        query = query.filter(Schedule.day_of_week == day)
+
+    schedule = query.all()
 
     return [
         {
             "day": s.day_of_week,
             "subject": sub.name,
+            "subject_id": str(sub.id),
             "subject_code": sub.code,
             "branch": sub.branch,
             "year": sub.year,
             "room": c.name,
+            "classroom_id": str(c.id),
             "time": f"{s.start_time} - {s.end_time}"
         }
         for s, sub, c in schedule
     ]
 
 @app.get("/student/schedule/{student_id}")
-async def get_student_schedule(student_id: str, db: Session = Depends(get_db)):
+async def get_student_schedule(student_id: str, day: Optional[str] = None, db: Session = Depends(get_db)):
     """Returns the schedule for the student (Branch subjects + Minors)"""
-    student = db.query(Student).filter(Student.id == student_id).first()
+    sid = clean_id(student_id)
+    student = db.query(Student).filter(Student.id == sid).first()
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
 
@@ -492,19 +502,29 @@ async def get_student_schedule(student_id: str, db: Session = Depends(get_db)):
 
     all_subject_ids = [s[0] for s in (branch_subject_ids + minor_subject_ids)]
 
-    schedule = db.query(Schedule, Subject, Classroom).join(
+    query = db.query(Schedule, Subject, Classroom).join(
         Subject, Schedule.subject_id == Subject.id
     ).join(
         Classroom, Schedule.classroom_id == Classroom.id
     ).filter(
         Schedule.subject_id.in_(all_subject_ids)
-    ).all()
+    )
+
+    if day:
+        query = query.filter(Schedule.day_of_week == day)
+
+    schedule = query.all()
 
     return [
         {
             "day": s.day_of_week,
             "subject": sub.name,
+            "subject_id": str(sub.id),
+            "subject_code": sub.code,
+            "branch": sub.branch,
+            "year": sub.year,
             "room": c.name,
+            "classroom_id": str(c.id),
             "time": f"{s.start_time} - {s.end_time}"
         }
         for s, sub, c in schedule
@@ -606,8 +626,14 @@ async def verify_qr(req: dict = Body(...), db: Session = Depends(get_db)):
     return {"success": False, "message": "Invalid QR code"}
 
 @app.get("/faculty/sessions/{faculty_id}")
-async def get_faculty_sessions(faculty_id: str, db: Session = Depends(get_db)):
-    results = db.query(
+async def get_faculty_sessions(
+    faculty_id: str,
+    subject_id: Optional[str] = None,
+    classroom_id: Optional[str] = None,
+    date: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    query = db.query(
         AttendanceSession,
         Subject,
         func.count(AttendanceRecord.id).label("student_count")
@@ -617,19 +643,62 @@ async def get_faculty_sessions(faculty_id: str, db: Session = Depends(get_db)):
         AttendanceRecord, AttendanceSession.id == AttendanceRecord.session_id
     ).filter(
         AttendanceSession.faculty_id == faculty_id
-    ).group_by(AttendanceSession.id, Subject.id).all()
+    )
+
+    if subject_id:
+        query = query.filter(AttendanceSession.subject_id == subject_id)
+    if classroom_id:
+        query = query.filter(AttendanceSession.classroom_id == classroom_id)
+    if date:
+        try:
+            target_date = datetime.strptime(date, "%Y-%m-%d").date()
+            query = query.filter(func.date(AttendanceSession.start_time) == target_date)
+        except:
+            pass
+
+    results = query.group_by(AttendanceSession.id, Subject.id).order_by(AttendanceSession.start_time.desc()).all()
 
     return [
         {
             "session_id": str(s.id),
             "subject_id": str(sub.id),
+            "subject_name": sub.name,
             "classroom_id": str(s.classroom_id),
             "status": s.status,
             "student_count": count,
-            "expires_at": s.qr_expires_at.isoformat()
+            "start_time": s.start_time.isoformat(),
+            "expires_at": s.qr_expires_at.isoformat() if s.qr_expires_at else None
         }
         for s, sub, count in results
     ]
+
+@app.get("/sessions/{session_id}/details")
+async def get_session_details(session_id: str, db: Session = Depends(get_db)):
+    session = db.query(AttendanceSession).filter(AttendanceSession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    subject = db.query(Subject).filter(Subject.id == session.subject_id).first()
+
+    records = db.query(AttendanceRecord, Student).join(
+        Student, AttendanceRecord.student_id == Student.id
+    ).filter(AttendanceRecord.session_id == session_id).all()
+
+    return {
+        "session_id": str(session.id),
+        "subject_name": subject.name if subject else "Unknown",
+        "start_time": session.start_time.isoformat(),
+        "total_students": len(records),
+        "students": [
+            {
+                "student_id": r.student_id,
+                "student_name": s.full_name,
+                "marked_at": r.marked_at.isoformat(),
+                "status": r.status
+            }
+            for r, s in records
+        ]
+    }
 
 # Helper to clean IDs from quotes or spaces
 def clean_id(val: str) -> str:

@@ -43,10 +43,14 @@ private val SuccessGreen = Color(0xFF10B981)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun StartSessionScreen(navController: NavController) {
+fun StartSessionScreen(
+    navController: NavController,
+    prefillSubjectId: String? = null,
+    prefillClassroomId: String? = null
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    
+
     var classrooms by remember { mutableStateOf<List<Classroom>>(emptyList()) }
     var subjects by remember { mutableStateOf<List<Subject>>(emptyList()) }
     var selectedClassroom by remember { mutableStateOf<Classroom?>(null) }
@@ -81,15 +85,13 @@ fun StartSessionScreen(navController: NavController) {
                 // 1. Fetch Classrooms
                 val roomRes = RetrofitClient.apiService.getClassrooms()
                 if (roomRes.isSuccessful) {
-                    classrooms = roomRes.body() ?: emptyList()
-                    selectedClassroom = classrooms.firstOrNull()
-                    Log.d("StartSession", "Loaded ${classrooms.size} classrooms")
-                } else {
-                    val err = roomRes.errorBody()?.string() ?: "Unknown Error"
-                    Log.e("StartSession", "Room fetch error: ${roomRes.code()} $err")
-                    Toast.makeText(context, "Classroom Error: ${roomRes.code()}", Toast.LENGTH_SHORT).show()
+                    val classroomsData = roomRes.body() ?: emptyList()
+                    classrooms = classroomsData
+                    // Use prefill if available
+                    selectedClassroom = classroomsData.find { it.id == prefillClassroomId } ?: classroomsData.firstOrNull()
+                    Log.d("StartSession", "Loaded ${classroomsData.size} classrooms")
                 }
-                
+
                 // 2. Fetch Subjects
                 val subjectRes = if (facultyId.isNotEmpty()) {
                     RetrofitClient.apiService.getFacultySubjects(facultyId)
@@ -99,25 +101,15 @@ fun StartSessionScreen(navController: NavController) {
 
                 if (subjectRes.isSuccessful) {
                     val fetchedSubjects = subjectRes.body() ?: emptyList()
-                    Log.d("StartSession", "Loaded ${fetchedSubjects.size} subjects for faculty")
-                    if (fetchedSubjects.isNotEmpty()) {
-                        subjects = fetchedSubjects
-                        selectedSubject = subjects.firstOrNull()
-                    } else {
-                        Log.d("StartSession", "No specific subjects, falling back to all")
-                        val allRes = RetrofitClient.apiService.getSubjects()
-                        if (allRes.isSuccessful) {
-                            subjects = allRes.body() ?: emptyList()
-                            selectedSubject = subjects.firstOrNull()
-                        }
-                    }
+                    subjects = fetchedSubjects
+                    selectedSubject = subjects.find { it.id == prefillSubjectId } ?: subjects.firstOrNull()
                 } else {
                     Log.e("StartSession", "Subject fetch error: ${subjectRes.code()}")
                     // Fallback
                     val allRes = RetrofitClient.apiService.getSubjects()
                     if (allRes.isSuccessful) {
                         subjects = allRes.body() ?: emptyList()
-                        selectedSubject = subjects.firstOrNull()
+                        selectedSubject = subjects.find { it.id == prefillSubjectId } ?: subjects.firstOrNull()
                     }
                 }
 
@@ -190,7 +182,7 @@ fun StartSessionScreen(navController: NavController) {
 
         val sessionManager = SessionManager(context)
         val facultyId = sessionManager.getUserId() ?: "UNKNOWN_FACULTY"
-        
+
         isStarting = true
         scope.launch {
             try {
@@ -352,7 +344,7 @@ fun StartSessionScreen(navController: NavController) {
                                     ) {
                                         subjects.forEach { subject ->
                                             DropdownMenuItem(
-                                                text = { 
+                                                text = {
                                                     Column {
                                                         Text(subject.name, color = TextWhite)
                                                         if (!subject.code.isNullOrEmpty()) {
@@ -436,7 +428,7 @@ fun StartSessionScreen(navController: NavController) {
                 }
 
                 Spacer(modifier = Modifier.height(40.dp))
-                
+
                 Card(
                     colors = CardDefaults.cardColors(containerColor = CardBg),
                     modifier = Modifier.fillMaxWidth()
