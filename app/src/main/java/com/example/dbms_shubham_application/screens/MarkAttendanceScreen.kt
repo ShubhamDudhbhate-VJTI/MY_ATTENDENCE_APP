@@ -423,8 +423,15 @@ fun FaceVerificationStep(sessionId: String, onSuccess: () -> Unit, onFailure: (S
                     countdown = 5
                 }
             } catch (e: Exception) {
-                Log.e("Attendance", "Face processing error: ${e.message}")
-                errorMessage = "Network error. Check connection."
+                Log.e("Attendance", "Face processing error: ${e.message}", e)
+                val isStreamEnd = e.message?.contains("unexpected end of stream") == true ||
+                                 e.message?.contains("Software caused connection abort") == true
+
+                errorMessage = if (isStreamEnd) {
+                    "Server connection reset. Retrying upload might help."
+                } else {
+                    "Network error. Check connection."
+                }
                 statusMessage = "Error occurred"
                 isUploading = false
                 // Keep the captured image visible even on network error

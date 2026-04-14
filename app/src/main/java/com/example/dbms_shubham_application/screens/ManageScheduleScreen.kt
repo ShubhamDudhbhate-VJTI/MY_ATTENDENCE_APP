@@ -25,6 +25,8 @@ import com.example.dbms_shubham_application.data.model.Classroom
 import com.example.dbms_shubham_application.data.model.ScheduleRecord
 import com.example.dbms_shubham_application.data.model.Subject
 import com.example.dbms_shubham_application.network.RetrofitClient
+import java.text.SimpleDateFormat
+import java.util.*
 import kotlinx.coroutines.launch
 
 private val DarkBg = Color(0xFF0F172A)
@@ -80,6 +82,31 @@ fun ManageScheduleScreen(navController: NavController) {
                 navigationIcon = {
                     IconButton(onClick = { navController.navigateUp() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = TextWhite)
+                    }
+                },
+                actions = {
+                    IconButton(onClick = {
+                        scope.launch {
+                            isLoading = true
+                            try {
+                                val currentDay = SimpleDateFormat("EEEE", Locale.getDefault()).format(Date())
+                                val res = RetrofitClient.apiService.syncOfficialSchedule(facultyId, currentDay)
+                                if (res.isSuccessful) {
+                                    val body = res.body()
+                                    schedule = body?.schedule ?: emptyList()
+                                    val syncInfo = "${body?.day}, ${body?.date}"
+                                    Toast.makeText(context, "Synced: $syncInfo", Toast.LENGTH_LONG).show()
+                                } else {
+                                    Toast.makeText(context, "Sync failed: ${res.code()}", Toast.LENGTH_SHORT).show()
+                                }
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                            } finally {
+                                isLoading = false
+                            }
+                        }
+                    }) {
+                        Icon(Icons.Default.CloudDownload, "Sync Today's Official", tint = TextWhite)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = DarkBg)
@@ -153,7 +180,18 @@ fun ScheduleEditCard(record: ScheduleRecord, onEdit: () -> Unit, onDelete: () ->
     ) {
         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(record.day, color = AccentBlue, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(record.day, color = AccentBlue, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    if (record.is_official) {
+                        Spacer(Modifier.width(8.dp))
+                        Icon(
+                            Icons.Default.Verified,
+                            contentDescription = "Official",
+                            tint = AccentBlue,
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
+                }
                 Text(record.subject, color = TextWhite, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 Text("${record.time} • ${record.room}", color = TextMuted, fontSize = 12.sp)
             }

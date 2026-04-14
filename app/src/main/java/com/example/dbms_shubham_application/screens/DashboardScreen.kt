@@ -497,7 +497,8 @@ fun TodayScheduleCard(
     modifier: Modifier = Modifier,
     role: String,
     schedule: List<ScheduleRecord> = emptyList(),
-    onViewAll: () -> Unit = {}
+    onViewAll: () -> Unit = {},
+    onSync: () -> Unit = {}
 ) {
     Card(
         modifier = modifier.height(200.dp).clickable(onClick = onViewAll),
@@ -505,13 +506,33 @@ fun TodayScheduleCard(
         shape = RoundedCornerShape(20.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            val title = if (role.lowercase() == "student") "Today's Classes" else "Today's Teaching"
-            Text(title, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextWhite)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                val title = if (role.lowercase() == "student") "Today's Classes" else "Today's Teaching"
+                Text(title, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextWhite)
+                
+                if (schedule.isEmpty() && role.lowercase() == "faculty") {
+                    IconButton(
+                        onClick = onSync,
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(Icons.Default.Sync, "Sync", tint = AccentBlue, modifier = Modifier.size(16.dp))
+                    }
+                }
+            }
             Spacer(modifier = Modifier.height(12.dp))
             
             if (schedule.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("No classes today", color = TextMuted, fontSize = 12.sp)
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("No classes today", color = TextMuted, fontSize = 12.sp)
+                        if (role.lowercase() == "faculty") {
+                            Text("Tap sync to fetch", color = AccentBlue, fontSize = 10.sp)
+                        }
+                    }
                 }
             } else {
                 val nextItem = schedule.first()

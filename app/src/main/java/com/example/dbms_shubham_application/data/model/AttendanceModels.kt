@@ -131,7 +131,8 @@ data class ScheduleRecord(
     val year: String? = null,
     val room: String,
     val classroom_id: String? = null,
-    val time: String
+    val time: String,
+    val is_official: Boolean = true
 )
 
 data class UserProfile(
@@ -142,6 +143,12 @@ data class UserProfile(
     val role: String,
     val image_url: String? = null,
     val academic: Map<String, String?>
+)
+
+data class SyncScheduleResponse(
+    val date: String,
+    val day: String,
+    val schedule: List<ScheduleRecord>
 )
 
 data class NotificationRecord(

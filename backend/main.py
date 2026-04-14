@@ -477,10 +477,51 @@ async def get_faculty_schedule(faculty_id: str, day: Optional[str] = None, db: S
             "year": sub.year,
             "room": c.name,
             "classroom_id": str(c.id),
-            "time": f"{s.start_time} - {s.end_time}"
+            "time": f"{s.start_time} - {s.end_time}",
+            "is_official": s.is_official
         }
         for s, sub, c in schedule
     ]
+
+@app.post("/faculty/schedule/{faculty_id}/sync-official")
+async def sync_official_schedule(faculty_id: str, day: Optional[str] = None, db: Session = Depends(get_db)):
+    fid = clean_id(faculty_id)
+    # If no day is passed, use today's day name (e.g., 'Monday')
+    target_day = day or datetime.now().strftime("%A")
+
+    # Fetch records marked as is_official=True for that day
+    query = db.query(Schedule, Subject, Classroom).join(
+        Subject, Schedule.subject_id == Subject.id
+    ).join(
+        Classroom, Schedule.classroom_id == Classroom.id
+    ).filter(
+        Schedule.faculty_id == fid,
+        Schedule.is_official == True,
+        Schedule.day_of_week == target_day
+    )
+
+    official_schedule = query.all()
+
+    # Create the confirmation response
+    return {
+        "date": datetime.now().strftime("%d %b, %Y"),
+        "day": target_day,
+        "schedule": [
+            {
+                "day": s.day_of_week,
+                "subject": sub.name,
+                "subject_id": str(sub.id),
+                "subject_code": sub.code,
+                "branch": sub.branch,
+                "year": sub.year,
+                "room": c.name,
+                "classroom_id": str(c.id),
+                "time": f"{s.start_time} - {s.end_time}",
+                "is_official": s.is_official
+            }
+            for s, sub, c in official_schedule
+        ]
+    }
 
 @app.get("/student/schedule/{student_id}")
 async def get_student_schedule(student_id: str, day: Optional[str] = None, db: Session = Depends(get_db)):
@@ -525,7 +566,8 @@ async def get_student_schedule(student_id: str, day: Optional[str] = None, db: S
             "year": sub.year,
             "room": c.name,
             "classroom_id": str(c.id),
-            "time": f"{s.start_time} - {s.end_time}"
+            "time": f"{s.start_time} - {s.end_time}",
+            "is_official": s.is_official
         }
         for s, sub, c in schedule
     ]

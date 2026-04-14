@@ -163,8 +163,12 @@ fun StartSessionScreen(
     LaunchedEffect(sessionStarted, sessionId) {
         if (sessionStarted && sessionId.isNotEmpty()) {
             timeLeft = 180
+            var lastPollTime = 0
             while (sessionStarted && timeLeft > 0) {
-                fetchAttendance()
+                // Poll every 5 seconds to reduce server load and avoid 'unexpected end of stream'
+                if (timeLeft % 5 == 0) {
+                    fetchAttendance()
+                }
                 delay(1000)
                 timeLeft--
             }

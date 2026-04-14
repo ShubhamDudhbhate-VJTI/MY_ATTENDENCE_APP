@@ -72,6 +72,12 @@ interface ApiService {
         @Query("day") day: String? = null
     ): Response<List<ScheduleRecord>>
 
+    @POST("faculty/schedule/{facultyId}/sync-official")
+    suspend fun syncOfficialSchedule(
+        @Path("facultyId") facultyId: String,
+        @Query("day") day: String? = null
+    ): Response<SyncScheduleResponse>
+
     @POST("faculty/schedule/{facultyId}")
     suspend fun addScheduleRecord(
         @Path("facultyId") facultyId: String,
