@@ -140,6 +140,23 @@ fun LoginScreen(navController: NavController, role: String) {
                                 
                                 sessionManager.saveSession(userId, userRole, userName)
 
+                                // If student, try to download and cache their master face
+                                if (userRole == "student") {
+                                    scope.launch {
+                                        try {
+                                            val profileRes = RetrofitClient.apiService.getUserProfile(userId)
+                                            if (profileRes.isSuccessful) {
+                                                val imageUrl = profileRes.body()?.image_url
+                                                if (!imageUrl.isNullOrBlank()) {
+                                                    downloadAndSaveFace(context, userId, imageUrl)
+                                                }
+                                            }
+                                        } catch (e: Exception) {
+                                            android.util.Log.e("Login", "Failed to cache master face: ${e.message}")
+                                        }
+                                    }
+                                }
+
                                 navController.navigate("dashboard/$userRole") {
                                     popUpTo("role_selection") { inclusive = false }
                                 }
@@ -210,4 +227,33 @@ fun ModernTextField(
         ),
         shape = RoundedCornerShape(16.dp)
     )
+}
+
+/**
+ * Downloads the student's registered face image from the backend and saves it locally.
+ */
+private suspend fun downloadAndSaveFace(context: android.content.Context, userId: String, url: String) {
+    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        try {
+            val client = okhttp3.OkHttpClient()
+            val request = okhttp3.Request.Builder().url(url).build()
+            val response = client.newCall(request).execute()
+
+            if (response.isSuccessful) {
+                val bytes = response.body?.bytes() ?: return@withContext
+                val faceDir = java.io.File(context.cacheDir, "face")
+                if (!faceDir.exists()) faceDir.mkdirs()
+
+                val masterFile = java.io.File(faceDir, "master_face_${userId}.jpg")
+                if (!masterFile.exists()) {
+                    masterFile.writeBytes(bytes)
+                    android.util.Log.d("Login", "Master face cached at: ${masterFile.absolutePath}")
+                } else {
+                    android.util.Log.d("Login", "Master face already exists at: ${masterFile.absolutePath}")
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("Login", "Error downloading face: ${e.message}")
+        }
+    }
 }

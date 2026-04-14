@@ -13,6 +13,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -488,7 +489,7 @@ fun StartSessionScreen(navController: NavController) {
                                             .padding(12.dp),
                                         horizontalArrangement = Arrangement.SpaceBetween
                                     ) {
-                                        Column {
+                                        Column(modifier = Modifier.weight(1f)) {
                                             Text(
                                                 text = log.student_name ?: "Unknown Name",
                                                 color = TextWhite,
@@ -499,13 +500,19 @@ fun StartSessionScreen(navController: NavController) {
                                                 color = TextMuted,
                                                 fontSize = 12.sp
                                             )
-                                            Text(
-                                                text = log.timestamp.take(16).replace("T", " "),
-                                                color = TextMuted,
-                                                fontSize = 11.sp
-                                            )
                                         }
-                                        Text(log.status, color = SuccessGreen, fontWeight = FontWeight.Medium)
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            if (log.face_verified) {
+                                                Icon(
+                                                    Icons.Default.Face,
+                                                    contentDescription = "Face Verified",
+                                                    tint = SuccessGreen,
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                            }
+                                            Text(log.status, color = SuccessGreen, fontWeight = FontWeight.Medium)
+                                        }
                                     }
                                 }
                             }

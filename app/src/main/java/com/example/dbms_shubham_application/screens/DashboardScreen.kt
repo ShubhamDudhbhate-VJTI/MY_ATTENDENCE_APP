@@ -165,16 +165,24 @@ fun DashboardScreen(navController: NavController, role: String) {
 
 @Composable
 fun HeaderSection(navController: NavController, title: String) {
+    val context = LocalContext.current
+    val sessionManager = remember { SessionManager(context) }
+    
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         IconButton(
-            onClick = { navController.navigateUp() },
+            onClick = { 
+                sessionManager.logout()
+                navController.navigate("role_selection") {
+                    popUpTo(0) { inclusive = true }
+                }
+            },
             modifier = Modifier.background(Color.White.copy(alpha = 0.1f), CircleShape)
         ) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextWhite)
+            Icon(Icons.Default.Logout, contentDescription = "Logout", tint = AccentRed)
         }
         
         Text(

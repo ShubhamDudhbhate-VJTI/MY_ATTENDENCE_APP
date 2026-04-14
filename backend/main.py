@@ -1,7 +1,7 @@
 import os
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Body, UploadFile, File, Form, Depends
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, HTTPException, Body, UploadFile, File, Form, Depends, Response
+from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel
 from typing import List, Optional, Dict
 import uvicorn
@@ -11,6 +11,11 @@ from datetime import datetime, timedelta
 from sqlalchemy import create_engine, Column, String, Integer, DateTime, ForeignKey, Boolean, Float, Text, Date, func, Numeric, LargeBinary
 from sqlalchemy.orm import sessionmaker, Session, declarative_base
 from sqlalchemy.dialects.postgresql import UUID, BYTEA
+import cv2
+import numpy as np
+from deepface import DeepFace
+import tempfile
+import json
 
 # Load .env file
 load_dotenv()
@@ -63,6 +68,7 @@ class Student(Base):
     branch = Column(String, nullable=True)
     year = Column(String, nullable=True)
     face_embedding = Column(LargeBinary, nullable=True)
+    face_image = Column(LargeBinary, nullable=True) # Added for Supabase storage
     device_id = Column(String, nullable=True)
     department_id = Column(String, nullable=True)
 
@@ -200,6 +206,36 @@ class VerifyWifiRequest(BaseModel):
     longitude: Optional[float] = None
 
 # --- ENDPOINTS ---
+
+# Ensure upload directory exists
+FACES_DIR = "static/faces"
+os.makedirs(FACES_DIR, exist_ok=True)
+
+@app.post("/attendance/reset-face/{student_id}")
+async def reset_face(student_id: str, db: Session = Depends(get_db)):
+    sid = clean_id(student_id)
+    # Find user
+    user = db.query(User).filter((User.id == sid) | (User.username == sid)).first()
+    if not user:
+        return {"success": False, "message": "User not found"}
+
+    # Update student record
+    student = db.query(Student).filter(Student.id == user.id).first()
+    if student:
+        student.face_embedding = None
+        student.face_image = None  # Clear the actual image as well
+        db.commit()
+
+        # Also remove local file
+        local_file = os.path.join(FACES_DIR, f"{user.username}.jpg")
+        if os.path.exists(local_file):
+            try:
+                os.remove(local_file)
+            except:
+                pass
+
+        return {"success": True, "message": f"Face data cleared for {user.username}"}
+    return {"success": False, "message": "Student profile not found"}
 
 @app.get("/")
 async def root():
@@ -608,81 +644,156 @@ async def verify_face(
     db: Session = Depends(get_db)
 ):
     try:
-        # 1. Clean IDs (Remove quotes, spaces, etc.)
+        # 1. Clean and Resolve IDs
         clean_stud_id = student_id.replace('"', '').replace("'", "").strip()
         clean_sess_id = session_id.replace('"', '').replace("'", "").strip()
 
-        print(f"--- ATTENDANCE ATTEMPT: Student {clean_stud_id} for Session {clean_sess_id} ---")
+        print(f"--- ATTENDANCE ATTEMPT: Student {clean_stud_id} ---")
 
-        # 2. Check if Session exists. If not, we can't mark attendance.
-        session = db.query(AttendanceSession).filter(AttendanceSession.id == clean_sess_id).first()
-        if not session:
-            print(f"!!! ERROR: Session {clean_sess_id} does not exist in database !!!")
-            # For testing, we might want to find the latest active session if this one is wrong
-            session = db.query(AttendanceSession).filter(AttendanceSession.status == "active").order_by(AttendanceSession.start_time.desc()).first()
-            if session:
-                clean_sess_id = session.id
-                print(f"--- Redirecting to latest active session: {clean_sess_id} ---")
-            else:
-                return {"success": False, "message": "No active session found"}
-
-        # 3. Ensure User exists in 'app_users'
+        # Find User first (by Registration Number or UUID)
         user = db.query(User).filter((User.id == clean_stud_id) | (User.username == clean_stud_id)).first()
         if not user:
-            print(f"--- Creating temporary User record for {clean_stud_id} ---")
-            user = User(
-                id=clean_stud_id,
-                username=clean_stud_id,
-                full_name=f"Student {clean_stud_id}",
-                role="student",
-                password_hash="123456"
-            )
+            # Auto-create user if missing (for seamless testing)
+            user = User(id=clean_stud_id, username=clean_stud_id, full_name=f"Student {clean_stud_id}", role="student", password_hash="123456")
             db.add(user)
-            db.flush()
+            db.commit()
+            db.refresh(user)
 
-        # 4. Ensure Student exists in 'app_students'
+        # Find Student Profile
         student = db.query(Student).filter(Student.id == user.id).first()
         if not student:
-            print(f"--- Creating temporary Student profile for {user.id} ---")
-            student = Student(
-                id=user.id,
-                full_name=user.full_name,
-                registration_number=user.username,
-                branch="Information Technology",
-                year="Second Year"
-            )
+            student = Student(id=user.id, full_name=user.full_name, registration_number=user.username, branch="IT", year="Second Year")
             db.add(student)
-            db.flush()
+            db.commit()
+            db.refresh(student)
 
-        # 5. Check if already marked (prevent duplicates)
+        # 2. Face Storage & Verification Logic
+        is_verified = False
+        msg = "Attendance marked!"
+        if image:
+            image_bytes = await image.read()
+
+            # Temporary file for the current scan
+            current_path = os.path.join(tempfile.gettempdir(), f"current_{user.username}_{int(time.time())}.jpg")
+            with open(current_path, "wb") as f:
+                f.write(image_bytes)
+
+            try:
+                if not student.face_embedding:
+                    # FIRST TIME: Extract and Store Embedding
+                    print(f"--- REGISTRATION: Extracting Face Embedding for {user.username} ---")
+
+                    objs = DeepFace.represent(
+                        img_path = current_path,
+                        model_name = "VGG-Face",
+                        detector_backend = "mtcnn", # Changed from opencv for better detection
+                        enforce_detection = True
+                    )
+
+                    if objs:
+                        embedding = objs[0]["embedding"]
+                        # Store as JSON string for compatibility
+                        student.face_embedding = json.dumps(embedding).encode('utf-8')
+
+                        # Store the actual image binary in Supabase
+                        student.face_image = image_bytes
+                        db.commit()
+
+                        # Also save the master face image locally for backup
+                        master_face_path = os.path.join(FACES_DIR, f"{user.username}.jpg")
+                        with open(master_face_path, "wb") as f:
+                            f.write(image_bytes)
+
+                        is_verified = True
+                        msg = "Face registered and attendance marked!"
+                        print(f"+++ REGISTRATION SUCCESS: {user.username} (Saved to Supabase) +++")
+                    else:
+                        return {"success": False, "message": "Could not detect face for registration."}
+                else:
+                    # SUBSEQUENT TIMES: Verify Embedding
+                    print(f"--- VERIFICATION: Comparing embedding for {user.username} ---")
+
+                    objs = DeepFace.represent(
+                        img_path = current_path,
+                        model_name = "VGG-Face",
+                        detector_backend = "mtcnn", # Changed from opencv for better detection
+                        enforce_detection = True
+                    )
+
+                    if not objs:
+                        raise HTTPException(status_code=400, detail="Could not detect face in current scan.")
+
+                    current_emb = np.array(objs[0]["embedding"])
+                    stored_emb = np.array(json.loads(student.face_embedding.decode('utf-8')))
+
+                    # Calculate Cosine Distance using numpy
+                    dot_product = np.dot(current_emb, stored_emb)
+                    norm_current = np.linalg.norm(current_emb)
+                    norm_stored = np.linalg.norm(stored_emb)
+                    cosine_similarity = dot_product / (norm_current * norm_stored)
+                    dist = 1 - cosine_similarity
+
+                    print(f"DEBUG: Cosine Distance: {dist}")
+
+                    # Threshold for VGG-Face is typically 0.40
+                    if dist < 0.40:
+                        print(f"+++ MATCH FOUND (Distance: {dist}) +++")
+                        is_verified = True
+                        msg = "Face verified and attendance marked!"
+                    else:
+                        print(f"!!! NO MATCH (Distance: {dist}) !!!")
+                        # Use 401 Unauthorized for face mismatch to trigger error UI in App
+                        raise HTTPException(status_code=401, detail="Face does not match our records!")
+
+            except HTTPException as he:
+                raise he
+            except Exception as ve:
+                print(f"--- Face Error: {str(ve)} ---")
+                raise HTTPException(status_code=400, detail=f"Face processing error: {str(ve)}")
+            finally:
+                if os.path.exists(current_path): os.remove(current_path)
+        else:
+            raise HTTPException(status_code=400, detail="No face image received")
+
+        # 3. Check Session
+        session = db.query(AttendanceSession).filter(AttendanceSession.id == clean_sess_id).first()
+        if not session:
+            # Fallback to latest active session
+            session = db.query(AttendanceSession).filter(AttendanceSession.status == "active").order_by(AttendanceSession.start_time.desc()).first()
+            if not session:
+                raise HTTPException(status_code=404, detail="No active session found")
+            clean_sess_id = session.id
+
+        # 4. Mark Attendance Record
         existing = db.query(AttendanceRecord).filter(
             AttendanceRecord.session_id == clean_sess_id,
             AttendanceRecord.student_id == user.id
         ).first()
 
         if existing:
-            print(f"--- Student {user.id} already marked for this session ---")
-            return {"success": True, "message": "Attendance already marked"}
+            return {"success": True, "message": "Attendance already marked for this session"}
 
-        # 6. Save the Attendance Record
         new_record = AttendanceRecord(
             id=str(uuid.uuid4()),
             session_id=clean_sess_id,
             student_id=user.id,
             status="present",
-            face_verified=True,
+            face_verified=is_verified,
             marked_at=datetime.utcnow()
         )
         db.add(new_record)
         db.commit()
 
-        print(f"+++ SUCCESS: Attendance saved for {user.full_name} +++")
-        return {"success": True, "message": "Attendance marked successfully"}
+        print(f"+++ SUCCESS: {user.full_name} marked present +++")
+        return {"success": True, "message": msg}
 
+    except HTTPException as he:
+        db.rollback()
+        raise he # Let FastAPI handle the status code
     except Exception as e:
         db.rollback()
-        print(f"!!! CRITICAL DATABASE ERROR: {str(e)} !!!")
-        return {"success": False, "message": f"Database Error: {str(e)}"}
+        print(f"!!! CRITICAL ERROR: {str(e)} !!!")
+        raise HTTPException(status_code=500, detail=f"Server Error: {str(e)}")
 
 @app.get("/sessions/{session_id}/attendance")
 async def get_attendance(session_id: str, db: Session = Depends(get_db)):
@@ -705,7 +816,8 @@ async def get_attendance(session_id: str, db: Session = Depends(get_db)):
             "student_id": str(r.student_id),
             "student_name": name,
             "timestamp": r.marked_at.isoformat(),
-            "status": r.status
+            "status": r.status,
+            "face_verified": r.face_verified
         })
 
     return {
@@ -845,6 +957,24 @@ async def get_user_profile(user_id: str, db: Session = Depends(get_db)):
             }
 
     return profile_data
+
+@app.get("/faces/{student_id}.jpg")
+async def get_student_face(student_id: str, db: Session = Depends(get_db)):
+    # 1. Check local filesystem first
+    local_path = os.path.join(FACES_DIR, f"{student_id}.jpg")
+    if os.path.exists(local_path):
+        return FileResponse(local_path)
+
+    # 2. If not local, try fetching from Supabase
+    student = db.query(Student).filter(Student.registration_number == student_id).first()
+    if not student:
+        # Try by user ID if reg_number fails
+        student = db.query(Student).filter(Student.id == student_id).first()
+
+    if student and student.face_image:
+        return Response(content=student.face_image, media_type="image/jpeg")
+
+    raise HTTPException(status_code=404, detail="Face image not found")
 
 if __name__ == "__main__":
     # Use 0.0.0.0 to listen on all network interfaces (allows mobile devices to connect)

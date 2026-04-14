@@ -19,6 +19,9 @@ def update_schema():
         conn.execute(text("ALTER TABLE app_teachers ADD COLUMN IF NOT EXISTS specialization TEXT;"))
         conn.execute(text("ALTER TABLE app_teachers ADD COLUMN IF NOT EXISTS phone TEXT;"))
 
+        print("Updating app_students...")
+        conn.execute(text("ALTER TABLE app_students ADD COLUMN IF NOT EXISTS face_image BYTEA;"))
+
         print("Creating faculty_subjects table...")
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS faculty_subjects (

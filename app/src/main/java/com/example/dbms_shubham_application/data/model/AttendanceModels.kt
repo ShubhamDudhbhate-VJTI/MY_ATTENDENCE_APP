@@ -18,7 +18,8 @@ data class AttendanceLog(
     val student_id: String,
     val student_name: String? = null,
     val timestamp: String,
-    val status: String
+    val status: String,
+    val face_verified: Boolean = false
 )
 
 data class LiveAttendanceResponse(
@@ -62,6 +63,7 @@ data class FacultySessionRecord(
     val session_id: String,
     val subject_id: String,
     val classroom_id: String,
+    val start_time: String = "",
     val expires_at: String,
     val status: String,
     val student_count: Int
@@ -116,6 +118,7 @@ data class UserProfile(
     val email: String,
     val full_name: String,
     val role: String,
+    val image_url: String? = null,
     val academic: Map<String, String?>
 )
 
