@@ -13,6 +13,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.Face
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
@@ -31,6 +32,8 @@ import com.example.dbms_shubham_application.data.model.*
 import com.example.dbms_shubham_application.network.RetrofitClient
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
+import java.text.SimpleDateFormat
+import java.util.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -274,6 +277,122 @@ fun StartSessionScreen(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
+                            // Add Button to fetch from Today's Schedule
+                            Button(
+                                onClick = {
+                                    scope.launch {
+                                        try {
+                                            val currentDay = SimpleDateFormat("EEEE", Locale.getDefault()).format(Date())
+                                            val sessionManager = SessionManager(context)
+                                            val rawId = sessionManager.getUserId() ?: ""
+                                            val facultyId = rawId.replace("\"", "").replace("'", "").trim()
+
+                                            val res = RetrofitClient.apiService.getFacultySchedule(facultyId, currentDay)
+                                            if (res.isSuccessful) {
+                                                val todaySchedule = res.body() ?: emptyList()
+                                                if (todaySchedule.isNotEmpty()) {
+                                                    val now = Calendar.getInstance()
+                                                    val currentTime = now.timeInMillis
+                                                    
+                                                    val record = todaySchedule.find { r ->
+                                                        try {
+                                                            // Handle separators like "11:00 - 12:00", "11:00 to 12:00", etc.
+                                                            val parts = r.time.split("-", "–", "—", "to", "TO").map { it.trim() }
+                                                            if (parts.size >= 2) {
+                                                                val fullTimeStr = r.time.uppercase()
+                                                                val is12h = fullTimeStr.contains("AM") || fullTimeStr.contains("PM")
+                                                                
+                                                                fun parseToToday(timeStr: String, is12hFormat: Boolean): Calendar {
+                                                                    var normalized = timeStr.uppercase().replace(".", ":").trim()
+                                                                    // If only hour is provided (e.g., "11"), append ":00"
+                                                                    if (!normalized.contains(":")) {
+                                                                        val hourPart = normalized.takeWhile { it.isDigit() }
+                                                                        val amPmPart = normalized.dropWhile { it.isDigit() }.trim()
+                                                                        normalized = if (amPmPart.isNotEmpty()) "$hourPart:00 $amPmPart" else "$hourPart:00"
+                                                                    }
+                                                                    
+                                                                    val sdf = if (is12hFormat && (normalized.contains("AM") || normalized.contains("PM"))) {
+                                                                        SimpleDateFormat("h:mm a", Locale.US)
+                                                                    } else {
+                                                                        // Fallback to 24h/European style if no AM/PM or not 12h format
+                                                                        SimpleDateFormat("H:mm", Locale.US)
+                                                                    }
+                                                                    
+                                                                    val date = sdf.parse(normalized)!!
+                                                                    val cal = Calendar.getInstance()
+                                                                    val timeParts = Calendar.getInstance().apply { time = date }
+                                                                    
+                                                                    cal.set(Calendar.HOUR_OF_DAY, timeParts.get(Calendar.HOUR_OF_DAY))
+                                                                    cal.set(Calendar.MINUTE, timeParts.get(Calendar.MINUTE))
+                                                                    cal.set(Calendar.SECOND, 0)
+                                                                    cal.set(Calendar.MILLISECOND, 0)
+                                                                    return cal
+                                                                }
+
+                                                                var startCal = parseToToday(parts[0], is12h)
+                                                                var endCal = parseToToday(parts[1], is12h)
+                                                                
+                                                                // Logic for common shorthand like "11 - 1 PM" -> 11 AM to 1 PM
+                                                                if (is12h) {
+                                                                    // If start is 1-11 and end is PM, and start has no AM/PM, it's likely AM
+                                                                    // But simpler: if start is after end, and it's 12h, try flipping start to AM or end to PM
+                                                                    if (startCal.after(endCal)) {
+                                                                        // e.g., 11:00 (parsed as 11:00 AM) to 1:00 (parsed as 1:00 AM)
+                                                                        // If end is 1-11, it might be PM
+                                                                        if (endCal.get(Calendar.HOUR_OF_DAY) < 12) {
+                                                                             val tempEnd = endCal.clone() as Calendar
+                                                                             tempEnd.add(Calendar.HOUR_OF_DAY, 12)
+                                                                             if (tempEnd.after(startCal)) {
+                                                                                 endCal = tempEnd
+                                                                             }
+                                                                        }
+                                                                    }
+                                                                }
+
+                                                                // Match if current time is within class window (with 20-min early buffer)
+                                                                val startTime = startCal.timeInMillis - (20 * 60 * 1000)
+                                                                val endTime = endCal.timeInMillis
+                                                                currentTime in startTime..endTime
+                                                            } else false
+                                                        } catch (e: Exception) { 
+                                                            Log.e("TimeMatch", "Error parsing time ${r.time}: ${e.message}")
+                                                            false 
+                                                        }
+                                                    }
+
+                                                    if (record != null) {
+                                                        val matchedSub = subjects.find { it.id == record.subject_id }
+                                                        val matchedRoom = classrooms.find { it.id == record.classroom_id }
+                                                        
+                                                        if (matchedSub != null && matchedRoom != null) {
+                                                            selectedSubject = matchedSub
+                                                            selectedClassroom = matchedRoom
+                                                            Toast.makeText(context, "Matched: ${record.subject} (${record.time})", Toast.LENGTH_SHORT).show()
+                                                        } else {
+                                                            Toast.makeText(context, "Class found but details missing locally", Toast.LENGTH_SHORT).show()
+                                                        }
+                                                    } else {
+                                                        val displayTime = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(now.time)
+                                                        Toast.makeText(context, "No class scheduled at $displayTime", Toast.LENGTH_LONG).show()
+                                                    }
+                                                } else {
+                                                    Toast.makeText(context, "No schedule found for today", Toast.LENGTH_SHORT).show()
+                                                }
+                                            }
+                                        } catch (e: Exception) {
+                                            Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = CardBg),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, AccentBlue)
+                            ) {
+                                Icon(Icons.Default.CloudDownload, contentDescription = null, tint = AccentBlue)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Load from Today's Schedule", color = AccentBlue)
+                            }
+
                             Text("Session Details", color = TextWhite, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                             Spacer(modifier = Modifier.height(16.dp))
 

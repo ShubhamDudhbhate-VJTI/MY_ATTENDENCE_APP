@@ -13,11 +13,17 @@ object RetrofitClient {
     private const val TAG = "RetrofitClient"
     
     // CURRENT PC IP (Change this if ipconfig changes)
-    private const val PC_IP = "172.23.148.244"
+    private const val PC_IP = "10.87.34.244"
 
     private fun getBaseUrl(): String {
-        // Using localhost:8000 with 'adb reverse' for the most stable connection
-        return "http://localhost:8000/"
+        return if (isEmulator()) {
+            "http://10.0.2.2:8000/"
+        } else {
+            // Use PC_IP for physical devices over Wi-Fi
+            // Or use "http://10.0.2.2:8000/" if using adb reverse (standard)
+            // But usually, physical devices over WiFi need the actual IP:
+            "http://$PC_IP:8000/"
+        }
     }
 
     private val logging = HttpLoggingInterceptor().apply {

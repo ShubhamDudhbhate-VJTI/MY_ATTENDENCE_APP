@@ -193,15 +193,16 @@ fun ScheduleCard(item: ScheduleRecord, onStart: () -> Unit) {
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            Button(
+            OutlinedButton(
                 onClick = onStart,
                 modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = SuccessGreen),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = TextMuted),
+                border = androidx.compose.foundation.BorderStroke(1.dp, TextMuted.copy(alpha = 0.3f)),
                 shape = RoundedCornerShape(12.dp)
             ) {
-                Icon(Icons.Default.PlayArrow, null, modifier = Modifier.size(18.dp))
+                Icon(Icons.Default.Info, null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Start This Session")
+                Text("View Details Only")
             }
         }
     }

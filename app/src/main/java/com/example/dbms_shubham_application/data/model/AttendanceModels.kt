@@ -132,7 +132,7 @@ data class ScheduleRecord(
     val room: String,
     val classroom_id: String? = null,
     val time: String,
-    val is_official: Boolean = true
+    val is_official: Boolean = false
 )
 
 data class UserProfile(

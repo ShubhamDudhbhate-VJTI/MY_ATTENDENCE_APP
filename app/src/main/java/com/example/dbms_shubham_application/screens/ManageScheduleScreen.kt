@@ -56,7 +56,9 @@ fun ManageScheduleScreen(navController: NavController) {
         scope.launch {
             isLoading = true
             try {
-                val schedRes = RetrofitClient.apiService.getFacultySchedule(facultyId)
+                // Modified: Filter by current day
+                val currentDay = SimpleDateFormat("EEEE", Locale.getDefault()).format(Date())
+                val schedRes = RetrofitClient.apiService.getFacultySchedule(facultyId, currentDay)
                 if (schedRes.isSuccessful) schedule = schedRes.body() ?: emptyList()
 
                 val subRes = RetrofitClient.apiService.getFacultySubjects(facultyId)
@@ -85,6 +87,11 @@ fun ManageScheduleScreen(navController: NavController) {
                     }
                 },
                 actions = {
+                    // Changed: Now a Refresh button that fetches ALL records (including manual ones)
+                    IconButton(onClick = { loadData() }) {
+                        Icon(Icons.Default.Refresh, "Refresh", tint = TextWhite)
+                    }
+                    // Optional: Keep Sync but make it clear it's for Official template
                     IconButton(onClick = {
                         scope.launch {
                             isLoading = true
@@ -95,7 +102,7 @@ fun ManageScheduleScreen(navController: NavController) {
                                     val body = res.body()
                                     schedule = body?.schedule ?: emptyList()
                                     val syncInfo = "${body?.day}, ${body?.date}"
-                                    Toast.makeText(context, "Synced: $syncInfo", Toast.LENGTH_LONG).show()
+                                    Toast.makeText(context, "Synced Official Template: $syncInfo", Toast.LENGTH_LONG).show()
                                 } else {
                                     Toast.makeText(context, "Sync failed: ${res.code()}", Toast.LENGTH_SHORT).show()
                                 }
@@ -106,7 +113,7 @@ fun ManageScheduleScreen(navController: NavController) {
                             }
                         }
                     }) {
-                        Icon(Icons.Default.CloudDownload, "Sync Today's Official", tint = TextWhite)
+                        Icon(Icons.Default.CloudDownload, "Sync Official Template", tint = TextWhite)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = DarkBg)

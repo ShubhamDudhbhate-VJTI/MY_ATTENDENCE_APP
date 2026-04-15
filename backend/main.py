@@ -8,7 +8,7 @@ import uvicorn
 import uuid
 import time
 from datetime import datetime, timedelta
-from sqlalchemy import create_engine, Column, String, Integer, DateTime, ForeignKey, Boolean, Float, Text, Date, func, Numeric, LargeBinary
+from sqlalchemy import create_engine, Column, String, Integer, DateTime, ForeignKey, Boolean, Float, Text, Date, func, Numeric, LargeBinary, text
 from sqlalchemy.orm import sessionmaker, Session, declarative_base
 from sqlalchemy.dialects.postgresql import UUID, BYTEA
 import cv2
@@ -38,16 +38,73 @@ def create_db_engine(url):
 # Try connecting to the primary DB
 try:
     print(f"--- DATABASE CHECK: Attempting Supabase Connection ---")
+    print(f"Target: {DATABASE_URL.split('@')[-1] if DATABASE_URL else 'None'}")
     engine = create_db_engine(DATABASE_URL)
     with engine.connect() as conn:
+        conn.execute(text("SELECT 1"))
         print("--- SUCCESS: Connected to Supabase PostgreSQL ---")
 except Exception as e:
-    print(f"--- WARNING: Supabase Connection Failed ({e}) ---")
+    print(f"--- ERROR: Supabase Connection Failed ---")
+    print(f"Details: {str(e)[:200]}...")
     print("--- FALLBACK: Using local SQLite (Data will NOT show in Supabase) ---")
     engine = create_db_engine("sqlite:///./attendance.db")
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
+
+# Migration for SQLite (Adding columns if they don't exist)
+def run_migrations(engine):
+    if "sqlite" in str(engine.url):
+        with engine.begin() as conn:
+            # Check classrooms table
+            try:
+                conn.execute(text("ALTER TABLE classrooms ADD COLUMN wifi_ssid TEXT"))
+                print("Added wifi_ssid to classrooms")
+            except Exception: pass
+
+            try:
+                conn.execute(text("ALTER TABLE classrooms ADD COLUMN wifi_bssid TEXT"))
+                print("Added wifi_bssid to classrooms")
+            except Exception: pass
+
+            # Check schedules table
+            try:
+                conn.execute(text("ALTER TABLE schedules ADD COLUMN is_official BOOLEAN DEFAULT 1"))
+                print("Added is_official to schedules")
+            except Exception: pass
+
+            # Check subjects table
+            try:
+                conn.execute(text("ALTER TABLE subjects ADD COLUMN department_id TEXT"))
+                print("Added department_id to subjects")
+            except Exception: pass
+
+            # Check students table
+            try:
+                conn.execute(text("ALTER TABLE app_students ADD COLUMN face_image BLOB"))
+                print("Added face_image to app_students")
+            except Exception: pass
+            try:
+                conn.execute(text("ALTER TABLE app_students ADD COLUMN device_id TEXT"))
+                print("Added device_id to app_students")
+            except Exception: pass
+            try:
+                conn.execute(text("ALTER TABLE app_students ADD COLUMN department_id TEXT"))
+                print("Added department_id to app_students")
+            except Exception: pass
+
+            # Check teachers table
+            try:
+                conn.execute(text("ALTER TABLE app_teachers ADD COLUMN department_id TEXT"))
+                print("Added department_id to app_teachers")
+            except Exception: pass
+            try:
+                conn.execute(text("ALTER TABLE app_teachers ADD COLUMN branch TEXT"))
+                print("Added branch to app_teachers")
+            except Exception: pass
+
+# Run migrations immediately
+run_migrations(engine)
 
 # --- SQL MODELS ---
 
@@ -175,6 +232,7 @@ def get_db():
         db.close()
 
 Base.metadata.create_all(engine)
+run_migrations(engine)
 
 app = FastAPI(title="AttendX - Professional Backend")
 
@@ -469,6 +527,7 @@ async def get_faculty_schedule(faculty_id: str, day: Optional[str] = None, db: S
 
     return [
         {
+            "id": str(s.id),
             "day": s.day_of_week,
             "subject": sub.name,
             "subject_id": str(sub.id),
@@ -482,6 +541,72 @@ async def get_faculty_schedule(faculty_id: str, day: Optional[str] = None, db: S
         }
         for s, sub, c in schedule
     ]
+
+@app.post("/faculty/schedule/{faculty_id}")
+async def add_schedule_record(faculty_id: str, record: dict = Body(...), db: Session = Depends(get_db)):
+    fid = clean_id(faculty_id)
+    # Parse time "09:00 - 10:00"
+    time_parts = record.get("time", "09:00 - 10:00").split(" - ")
+    start_t = time_parts[0]
+    end_t = time_parts[1] if len(time_parts) > 1 else "10:00"
+
+    new_s = Schedule(
+        id=str(uuid.uuid4()),
+        faculty_id=fid,
+        subject_id=record.get("subject_id"),
+        classroom_id=record.get("classroom_id"),
+        day_of_week=record.get("day"),
+        start_time=start_t,
+        end_time=end_t,
+        is_official=False # Manual additions are not official template
+    )
+    db.add(new_s)
+    db.commit()
+    db.refresh(new_s)
+
+    # Return full object for UI
+    sub = db.query(Subject).filter(Subject.id == new_s.subject_id).first()
+    room = db.query(Classroom).filter(Classroom.id == new_s.classroom_id).first()
+
+    return {
+        "id": str(new_s.id),
+        "day": new_s.day_of_week,
+        "subject": sub.name if sub else "Unknown",
+        "subject_id": str(sub.id) if sub else None,
+        "room": room.name if room else "Unknown",
+        "classroom_id": str(room.id) if room else None,
+        "time": f"{new_s.start_time} - {new_s.end_time}",
+        "is_official": new_s.is_official
+    }
+
+@app.put("/faculty/schedule/{record_id}")
+async def update_schedule_record(record_id: str, record: dict = Body(...), db: Session = Depends(get_db)):
+    rid = clean_id(record_id)
+    s = db.query(Schedule).filter(Schedule.id == rid).first()
+    if not s:
+        raise HTTPException(status_code=404, detail="Record not found")
+
+    if "subject_id" in record: s.subject_id = record["subject_id"]
+    if "classroom_id" in record: s.classroom_id = record["classroom_id"]
+    if "day" in record: s.day_of_week = record["day"]
+
+    if "time" in record:
+        time_parts = record["time"].split(" - ")
+        s.start_time = time_parts[0]
+        if len(time_parts) > 1: s.end_time = time_parts[1]
+
+    db.commit()
+    return {"success": True}
+
+@app.delete("/faculty/schedule/{record_id}")
+async def delete_schedule_record(record_id: str, db: Session = Depends(get_db)):
+    rid = clean_id(record_id)
+    s = db.query(Schedule).filter(Schedule.id == rid).first()
+    if s:
+        db.delete(s)
+        db.commit()
+        return {"success": True}
+    raise HTTPException(status_code=404, detail="Record not found")
 
 @app.post("/faculty/schedule/{faculty_id}/sync-official")
 async def sync_official_schedule(faculty_id: str, day: Optional[str] = None, db: Session = Depends(get_db)):
@@ -508,6 +633,7 @@ async def sync_official_schedule(faculty_id: str, day: Optional[str] = None, db:
         "day": target_day,
         "schedule": [
             {
+                "id": str(s.id),
                 "day": s.day_of_week,
                 "subject": sub.name,
                 "subject_id": str(sub.id),
@@ -806,18 +932,19 @@ async def verify_face(
                         # Store as JSON string for compatibility
                         student.face_embedding = json.dumps(embedding).encode('utf-8')
 
-                        # Store the actual image binary in Supabase
+                        # ALWAYS: Store the actual image binary in Supabase and locally
                         student.face_image = image_bytes
                         db.commit()
 
-                        # Also save the master face image locally for backup
+                        # Save the master face image locally
+                        os.makedirs(FACES_DIR, exist_ok=True)
                         master_face_path = os.path.join(FACES_DIR, f"{user.username}.jpg")
                         with open(master_face_path, "wb") as f:
                             f.write(image_bytes)
 
                         is_verified = True
                         msg = "Face registered and attendance marked!"
-                        print(f"+++ REGISTRATION SUCCESS: {user.username} (Saved to Supabase) +++")
+                        print(f"+++ REGISTRATION SUCCESS: {user.username} (Saved to Supabase & Local) +++")
                     else:
                         return {"success": False, "message": "Could not detect face for registration."}
                 else:
