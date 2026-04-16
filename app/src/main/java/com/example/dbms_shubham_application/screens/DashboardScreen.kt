@@ -1,52 +1,54 @@
 package com.example.dbms_shubham_application.screens
 
-import androidx.compose.ui.platform.LocalContext
-import com.example.dbms_shubham_application.data.local.SessionManager
+import android.util.Log
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Assignment
+import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-
+import com.example.dbms_shubham_application.data.local.SessionManager
 import com.example.dbms_shubham_application.data.model.AttendanceRecord
 import com.example.dbms_shubham_application.data.model.FacultySessionRecord
 import com.example.dbms_shubham_application.data.model.ScheduleRecord
 import com.example.dbms_shubham_application.network.RetrofitClient
-import kotlinx.coroutines.*
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import java.util.Calendar
-import android.util.Log
-import java.time.ZonedDateTime
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 
-private val DarkBg = Color(0xFF0F172A)
-private val CardBg = Color(0xFF1E293B)
-private val AccentBlue = Color(0xFF3B82F6)
-private val AccentOrange = Color(0xFFF59E0B)
-private val AccentRed = Color(0xFFEF4444)
-private val TextWhite = Color(0xFFFFFFFF)
-private val TextMuted = Color(0xFF94A3B8)
+// --- MODERN GLASSMORPHIC PALETTE ---
+private val DarkBg = Color(0xFF0F172A)          // Rich Dark Navy
+private val CardBg = Color(0xFF1E293B)          // Slate Surface
+private val GlassBorder = Color(0xFF334155)     // Subtle Border
+private val AccentBlue = Color(0xFF3B82F6)      // Electric Blue
+private val AccentPurple = Color(0xFF8B5CF6)    // Soft Purple
+private val AccentOrange = Color(0xFFF59E0B)    // Alert Orange
+private val AccentRed = Color(0xFFEF4444)       // Critical Red
+private val SuccessGreen = Color(0xFF10B981)    // Success Green
+private val TextWhite = Color(0xFFF8FAFC)       // Off-White
+private val TextMuted = Color(0xFF94A3B8)       // Cool Gray
 
 @Composable
 fun DashboardScreen(navController: NavController, role: String) {
@@ -76,10 +78,10 @@ fun DashboardScreen(navController: NavController, role: String) {
         }
     }
 
+    // --- CONNECTION LOGIC (UNTOUCHED) ---
     LaunchedEffect(userId, normalizedRole) {
         if (userId.isNotEmpty()) {
             try {
-                // Perform network requests in parallel to avoid UI hang
                 coroutineScope {
                     if (normalizedRole == "student") {
                         val historyJob = async { RetrofitClient.apiService.getAttendanceHistory(userId) }
@@ -111,15 +113,6 @@ fun DashboardScreen(navController: NavController, role: String) {
         }
     }
 
-    val roleTitle = remember(normalizedRole) {
-        when (normalizedRole) {
-            "student" -> "Student Portal"
-            "faculty" -> "Faculty Dashboard"
-            "hod" -> "HOD Administration"
-            else -> "Dashboard"
-        }
-    }
-
     Scaffold(
         bottomBar = { BottomNavBar(navController, role) },
         containerColor = DarkBg
@@ -127,83 +120,97 @@ fun DashboardScreen(navController: NavController, role: String) {
         Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
             if (isLoading) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = AccentBlue)
+                    CircularProgressIndicator(color = AccentBlue, strokeWidth = 3.dp)
                 }
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(24.dp)
+                    contentPadding = PaddingValues(bottom = 32.dp),
+                    verticalArrangement = Arrangement.spacedBy(28.dp)
                 ) {
-                    // Header
+                    // Top Gradient Header
                     item {
-                        HeaderSection(navController, roleTitle)
+                        Box(modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                Brush.verticalGradient(listOf(AccentBlue.copy(alpha = 0.15f), Color.Transparent))
+                            )
+                            .statusBarsPadding()
+                            .padding(20.dp)
+                        ) {
+                            HeaderSection(navController)
+                        }
                     }
 
                     // Greeting
                     item {
-                        GreetingSection(normalizedRole, userName, userId)
+                        GreetingSection(normalizedRole, userName, userId, modifier = Modifier.padding(horizontal = 24.dp))
                     }
 
-                    // Stats Row
+                    // Stats Section
                     item {
                         if (normalizedRole == "student") {
                             StudentStatsRow(studentHistory)
                         } else {
-                            StatsRow(normalizedRole)
+                            FacultyStatsRow(facultySessions, todaySchedule)
                         }
                     }
 
-                    // Quick Actions
-                    if (normalizedRole == "student") {
-                        item {
-                            QuickActionsSection(navController)
-                        }
-                    } else if (normalizedRole == "faculty") {
-                        item {
-                            FacultyQuickActionsSection(navController)
-                        }
-                    }
-
-                    // Two main cards
+                    // Actions Section
                     item {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        if (normalizedRole == "student") {
+                            QuickActionsSection(navController, modifier = Modifier.padding(horizontal = 24.dp))
+                        } else if (normalizedRole == "faculty") {
+                            FacultyManagementSection(navController, modifier = Modifier.padding(horizontal = 24.dp))
+                        }
+                    }
+
+                    // Main Content Cards
+                    item {
+                        Column(
+                            modifier = Modifier.padding(horizontal = 24.dp),
+                            verticalArrangement = Arrangement.spacedBy(20.dp)
                         ) {
-                            if (normalizedRole == "student") {
-                                RecentAttendanceCard(
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                if (normalizedRole == "student") {
+                                    ModernRecentAttendanceCard(
+                                        modifier = Modifier.weight(1f),
+                                        history = studentHistory
+                                    )
+                                } else {
+                                    ModernRecentSessionsCard(
+                                        modifier = Modifier.weight(1f),
+                                        sessions = facultySessions
+                                    )
+                                }
+                                ModernScheduleCard(
                                     modifier = Modifier.weight(1f),
-                                    role = normalizedRole,
-                                    history = studentHistory
-                                )
-                            } else {
-                                RecentSessionsCard(
-                                    modifier = Modifier.weight(1f),
-                                    sessions = facultySessions
+                                    schedule = todaySchedule,
+                                    onViewAll = {
+                                        if (normalizedRole == "faculty") navController.navigate("faculty_classes")
+                                    }
                                 )
                             }
-                            TodayScheduleCard(
-                                modifier = Modifier.weight(1f),
-                                role = normalizedRole,
-                                schedule = todaySchedule,
-                                onViewAll = {
-                                    if (normalizedRole == "faculty") navController.navigate("faculty_classes")
-                                    else /* TODO student schedule */ {}
-                                }
-                            )
                         }
                     }
                 }
             }
 
-            // Side Mark Attendance Button (Only for students)
+            // Floating "Mark Attendance" for Students
             if (normalizedRole == "student") {
-                MarkAttendanceSideButton(
+                ExtendedFloatingActionButton(
+                    onClick = { navController.navigate("mark_attendance") },
                     modifier = Modifier
-                        .align(Alignment.CenterEnd)
-                        .offset(x = 20.dp),
-                    onClick = { navController.navigate("mark_attendance") }
+                        .align(Alignment.BottomEnd)
+                        .padding(bottom = 24.dp, end = 16.dp)
+                        .shadow(12.dp, CircleShape, spotColor = AccentBlue),
+                    containerColor = AccentBlue,
+                    contentColor = Color.White,
+                    icon = { Icon(Icons.Default.QrCodeScanner, null) },
+                    text = { Text("Mark Attendance", fontWeight = FontWeight.Bold) }
                 )
             }
         }
@@ -211,7 +218,7 @@ fun DashboardScreen(navController: NavController, role: String) {
 }
 
 @Composable
-fun HeaderSection(navController: NavController, title: String) {
+fun HeaderSection(navController: NavController) {
     val context = LocalContext.current
     val sessionManager = remember { SessionManager(context) }
     
@@ -227,52 +234,66 @@ fun HeaderSection(navController: NavController, title: String) {
                     popUpTo(0) { inclusive = true }
                 }
             },
-            modifier = Modifier.background(Color.White.copy(alpha = 0.1f), CircleShape)
+            modifier = Modifier.size(44.dp).background(CardBg, CircleShape).border(1.dp, GlassBorder, CircleShape)
         ) {
-            Icon(Icons.Default.Logout, contentDescription = "Logout", tint = AccentRed)
+            Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Logout", tint = AccentRed, modifier = Modifier.size(20.dp))
         }
-        
-        Text(
-            text = title,
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Bold,
-            color = TextWhite
-        )
 
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(CircleShape)
-                .background(Brush.linearGradient(listOf(AccentBlue, Color(0xFF8B5CF6))))
-                .clickable { navController.navigate("profile") },
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(Icons.Default.Person, contentDescription = "Profile", tint = TextWhite)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = { /* Notifications */ }) {
+                Icon(Icons.Outlined.Notifications, null, tint = TextMuted)
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(Brush.linearGradient(listOf(AccentBlue, AccentPurple)))
+                    .clickable { navController.navigate("profile") }
+                    .border(2.dp, Color.White.copy(alpha = 0.2f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.Person, null, tint = TextWhite)
+            }
         }
     }
 }
 
 @Composable
-fun GreetingSection(role: String, name: String, userId: String) {
+fun GreetingSection(role: String, name: String, userId: String, modifier: Modifier = Modifier) {
     val subtext = when (role.lowercase()) {
         "student" -> "S.Y. B.Tech (I.T.) • $userId"
-        "faculty" -> "Information Technology Department"
-        "hod" -> "Head of IT Department"
-        else -> ""
+        "faculty" -> "Information Technology Dept."
+        else -> "Portal Access"
     }
-    Column {
+    Column(modifier = modifier) {
         Text(
-            text = "Welcome back, $name",
-            fontSize = 28.sp,
-            fontWeight = FontWeight.Bold,
-            color = TextWhite
-        )
-        Text(
-            text = subtext,
-            fontSize = 14.sp,
+            text = "Hello,",
+            fontSize = 16.sp,
             color = TextMuted,
-            modifier = Modifier.padding(top = 4.dp)
+            fontWeight = FontWeight.Medium
         )
+        Text(
+            text = name,
+            fontSize = 32.sp,
+            fontWeight = FontWeight.ExtraBold,
+            color = TextWhite,
+            letterSpacing = (-0.5).sp
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        Surface(
+            color = AccentBlue.copy(alpha = 0.1f),
+            shape = RoundedCornerShape(8.dp),
+            modifier = Modifier.wrapContentSize()
+        ) {
+            Text(
+                text = subtext,
+                fontSize = 12.sp,
+                color = AccentBlue,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+            )
+        }
     }
 }
 
@@ -284,76 +305,89 @@ fun StudentStatsRow(history: List<AttendanceRecord>) {
     val formattedPercent = "%.1f%%".format(percentage)
 
     LazyRow(
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        contentPadding = PaddingValues(horizontal = 24.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
-        item { StatCard("Overall Attendance", formattedPercent, if (percentage >= 75) "Eligible" else "Low", if (percentage >= 75) AccentBlue else AccentRed) }
-        item { StatCard("Sessions Attended", present.toString(), "of $total total", Color(0xFF10B981)) }
-        item { StatCard("Sessions Missed", (total - present).toString(), "Total", AccentOrange) }
+        item { ModernStatCard("Attendance", formattedPercent, if (percentage >= 75) "Stable" else "At Risk", if (percentage >= 75) SuccessGreen else AccentRed) }
+        item { ModernStatCard("Present", present.toString(), "Sessions", AccentBlue) }
+        item { ModernStatCard("Missed", (total - present).toString(), "Sessions", AccentOrange) }
     }
 }
 
 @Composable
-fun StatsRow(role: String) {
+fun FacultyStatsRow(sessions: List<FacultySessionRecord>, schedule: List<ScheduleRecord>) {
     LazyRow(
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        contentPadding = PaddingValues(horizontal = 24.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
-        if (role.lowercase() == "student") {
-            item { StatCard("Overall Attendance", "83.2%", "Eligible", AccentBlue) }
-            item { StatCard("Sessions Attended", "124", "of 149 total", Color(0xFF10B981)) }
-            item { StatCard("Sessions Missed", "25", "3 this week", AccentOrange) }
-            item { StatCard("At-Risk Subjects", "2", "Below 75%", AccentRed) }
-        } else {
-            item { StatCard("Active Classes", "4", "Today", AccentBlue) }
-            item { StatCard("Avg. Attendance", "88%", "Across subjects", Color(0xFF10B981)) }
-            item { StatCard("Pending Alerts", "12", "Flagged students", AccentOrange) }
-            item { StatCard("Upcoming Exams", "1", "Internal Assessment", AccentRed) }
+        item { ModernStatCard("Classes", schedule.size.toString(), "Today", AccentBlue) }
+        item { ModernStatCard("Sessions", sessions.size.toString(), "Conducted", SuccessGreen) }
+        item { ModernStatCard("Alerts", "0", "Students", AccentOrange) }
+    }
+}
+
+@Composable
+fun ModernStatCard(title: String, value: String, subtitle: String, color: Color) {
+    Card(
+        modifier = Modifier.width(130.dp).height(160.dp),
+        colors = CardDefaults.cardColors(containerColor = CardBg),
+        shape = RoundedCornerShape(24.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, GlassBorder)
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp).fillMaxSize(),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Box(modifier = Modifier.size(8.dp).background(color, CircleShape))
+            Column {
+                Text(value, fontSize = 26.sp, fontWeight = FontWeight.Black, color = TextWhite)
+                Text(title, fontSize = 12.sp, color = TextMuted, fontWeight = FontWeight.Medium)
+                Text(subtitle, fontSize = 11.sp, color = color, fontWeight = FontWeight.Bold)
+            }
         }
     }
 }
 
 @Composable
-fun QuickActionsSection(navController: NavController) {
-    Column {
+fun QuickActionsSection(navController: NavController, modifier: Modifier = Modifier) {
+    Column(modifier = modifier) {
         Text("Quick Actions", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextWhite)
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(16.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            QuickActionCard("History", Icons.Default.History, AccentBlue, modifier = Modifier.weight(1f)) {
+            ModernActionItem("History", Icons.Default.History, AccentBlue, Modifier.weight(1f)) {
                 navController.navigate("attendance_history")
             }
-            QuickActionCard("Leave", Icons.Default.EventBusy, AccentOrange, modifier = Modifier.weight(1f)) {
-                /* TODO */
+            ModernActionItem("Schedule", Icons.Default.CalendarMonth, SuccessGreen, Modifier.weight(1f)) {
+                 /* TODO */
             }
-            QuickActionCard("Support", Icons.Default.SupportAgent, Color(0xFF8B5CF6), modifier = Modifier.weight(1f)) {
-                /* TODO */
+            ModernActionItem("More", Icons.Default.MoreHoriz, TextMuted, Modifier.weight(1f)) {
+                navController.navigate("profile")
             }
         }
     }
 }
 
 @Composable
-fun FacultyQuickActionsSection(navController: NavController) {
-    Column {
+fun FacultyManagementSection(navController: NavController, modifier: Modifier = Modifier) {
+    Column(modifier = modifier) {
         Text("Management", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextWhite)
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(16.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            QuickActionCard("Start Session", Icons.Default.QrCode, AccentBlue, modifier = Modifier.weight(1f)) {
+            ModernActionItem("Start", Icons.Default.AddCircle, AccentBlue, Modifier.weight(1f)) {
                 navController.navigate("start_session")
             }
-            QuickActionCard("History", Icons.Default.History, AccentOrange, modifier = Modifier.weight(1f)) {
+            ModernActionItem("History", Icons.Default.BarChart, SuccessGreen, Modifier.weight(1f)) {
                 navController.navigate("faculty_history")
             }
-            QuickActionCard("Schedule", Icons.Default.CalendarMonth, Color(0xFF10B981), modifier = Modifier.weight(1f)) {
-                navController.navigate("manage_schedule")
-            }
-            QuickActionCard("Classes", Icons.AutoMirrored.Filled.Assignment, Color(0xFF8B5CF6), modifier = Modifier.weight(1f)) {
+            ModernActionItem("Classes", Icons.Default.School, AccentPurple, Modifier.weight(1f)) {
                 navController.navigate("faculty_classes")
             }
         }
@@ -361,93 +395,59 @@ fun FacultyQuickActionsSection(navController: NavController) {
 }
 
 @Composable
-fun QuickActionCard(title: String, icon: ImageVector, color: Color, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    Card(
-        modifier = modifier.clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(containerColor = CardBg),
-        shape = RoundedCornerShape(16.dp)
+fun ModernActionItem(label: String, icon: ImageVector, color: Color, modifier: Modifier, onClick: () -> Unit) {
+    Column(
+        modifier = modifier.clickable { onClick() },
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Column(
-            modifier = Modifier.padding(12.dp).fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+        Box(
+            modifier = Modifier
+                .aspectRatio(1f)
+                .background(color.copy(alpha = 0.12f), RoundedCornerShape(20.dp))
+                .border(1.dp, color.copy(alpha = 0.2f), RoundedCornerShape(20.dp)),
+            contentAlignment = Alignment.Center
         ) {
-            Box(
-                modifier = Modifier.size(40.dp).background(color.copy(alpha = 0.1f), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(20.dp))
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(title, fontSize = 12.sp, color = TextWhite, fontWeight = FontWeight.Medium)
+            Icon(icon, null, tint = color, modifier = Modifier.size(28.dp))
         }
+        Spacer(modifier = Modifier.height(10.dp))
+        Text(label, fontSize = 13.sp, color = TextWhite, fontWeight = FontWeight.SemiBold)
     }
 }
 
 @Composable
-fun StatCard(title: String, value: String, subtitle: String, color: Color) {
-    Card(
-        modifier = Modifier.width(110.dp).height(150.dp),
-        colors = CardDefaults.cardColors(containerColor = CardBg),
-        shape = RoundedCornerShape(16.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(12.dp).fillMaxSize(),
-            verticalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(title, fontSize = 12.sp, color = TextMuted, lineHeight = 14.sp)
-            Column {
-                Text(value, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = color)
-                Text(subtitle, fontSize = 10.sp, color = TextMuted)
-            }
-        }
-    }
-}
-
-@Composable
-fun RecentAttendanceCard(modifier: Modifier = Modifier, role: String, history: List<AttendanceRecord>) {
+fun ModernRecentAttendanceCard(modifier: Modifier = Modifier, history: List<AttendanceRecord>) {
     Card(
         modifier = modifier.height(200.dp),
         colors = CardDefaults.cardColors(containerColor = CardBg),
-        shape = RoundedCornerShape(20.dp)
+        shape = RoundedCornerShape(28.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, GlassBorder)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text("Recent Attendance", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextWhite)
-            Text("Latest records", fontSize = 12.sp, color = TextMuted)
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text("Latest Log", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextWhite)
             Spacer(modifier = Modifier.height(16.dp))
             
             if (history.isEmpty()) {
-                Text("No records found", color = TextMuted, fontSize = 12.sp)
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("No logs", color = TextMuted, fontSize = 12.sp)
+                }
             } else {
                 val latest = history.first()
-                val date = try {
-                    if (latest.timestamp.length >= 10) {
-                        val parts = latest.timestamp.substring(0, 10).split("-")
-                        if (parts.size == 3) {
-                            val months = listOf("", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
-                            "${parts[2]} ${months[parts[1].toInt()]}"
-                        } else latest.timestamp.take(10)
-                    } else latest.timestamp
-                } catch (e: Exception) {
-                    latest.timestamp.take(10)
-                }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(date, fontSize = 12.sp, color = TextMuted)
-                        Text(latest.subject_id, fontSize = 14.sp, color = TextWhite)
-                    }
-                    val isPresent = latest.status.lowercase() == "present"
-                    val statusColor = if (isPresent) Color(0xFF10B981) else AccentRed
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(latest.subject_id, fontSize = 18.sp, fontWeight = FontWeight.Black, color = TextWhite, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(latest.timestamp.take(10), fontSize = 12.sp, color = TextMuted)
                     
-                    Box(
-                        modifier = Modifier.background(statusColor.copy(alpha = 0.2f), RoundedCornerShape(8.dp)).padding(horizontal = 8.dp, vertical = 4.dp)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Surface(
+                        color = if (latest.status.lowercase() == "present") SuccessGreen.copy(alpha = 0.15f) else AccentRed.copy(alpha = 0.15f),
+                        shape = RoundedCornerShape(8.dp)
                     ) {
-                        Text(latest.status, fontSize = 10.sp, color = statusColor, fontWeight = FontWeight.Bold)
+                        Text(
+                            latest.status.uppercase(),
+                            color = if (latest.status.lowercase() == "present") SuccessGreen else AccentRed,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Black,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
                     }
                 }
             }
@@ -456,36 +456,28 @@ fun RecentAttendanceCard(modifier: Modifier = Modifier, role: String, history: L
 }
 
 @Composable
-fun RecentSessionsCard(modifier: Modifier = Modifier, sessions: List<FacultySessionRecord>) {
+fun ModernRecentSessionsCard(modifier: Modifier = Modifier, sessions: List<FacultySessionRecord>) {
     Card(
         modifier = modifier.height(200.dp),
         colors = CardDefaults.cardColors(containerColor = CardBg),
-        shape = RoundedCornerShape(20.dp)
+        shape = RoundedCornerShape(28.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, GlassBorder)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text("Recent Sessions", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextWhite)
-            Text("Engagement data", fontSize = 12.sp, color = TextMuted)
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text("Last Class", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextWhite)
             Spacer(modifier = Modifier.height(16.dp))
             
             if (sessions.isEmpty()) {
-                Text("No sessions started", color = TextMuted, fontSize = 12.sp)
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Text("No sessions", color = TextMuted, fontSize = 12.sp)
+                }
             } else {
                 val latest = sessions.first()
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(latest.subject_id, fontSize = 14.sp, color = TextWhite)
-                        Text("${latest.student_count} Students", fontSize = 12.sp, color = AccentBlue)
-                    }
-                    
-                    Box(
-                        modifier = Modifier.background(Color(0xFF10B981).copy(alpha = 0.2f), RoundedCornerShape(8.dp)).padding(horizontal = 8.dp, vertical = 4.dp)
-                    ) {
-                        Text("Active", fontSize = 10.sp, color = Color(0xFF10B981), fontWeight = FontWeight.Bold)
-                    }
+                Column {
+                    Text(latest.subject_id, fontSize = 18.sp, fontWeight = FontWeight.Black, color = TextWhite, maxLines = 1)
+                    Text("${latest.student_count} Present", fontSize = 14.sp, color = AccentBlue, fontWeight = FontWeight.Bold)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text("COMPLETED", fontSize = 10.sp, color = SuccessGreen, fontWeight = FontWeight.Black)
                 }
             }
         }
@@ -493,87 +485,29 @@ fun RecentSessionsCard(modifier: Modifier = Modifier, sessions: List<FacultySess
 }
 
 @Composable
-fun TodayScheduleCard(
-    modifier: Modifier = Modifier,
-    role: String,
-    schedule: List<ScheduleRecord> = emptyList(),
-    onViewAll: () -> Unit = {},
-    onSync: () -> Unit = {}
-) {
+fun ModernScheduleCard(modifier: Modifier = Modifier, schedule: List<ScheduleRecord>, onViewAll: () -> Unit) {
     Card(
-        modifier = modifier.height(200.dp).clickable(onClick = onViewAll),
+        modifier = modifier.height(200.dp).clickable { onViewAll() },
         colors = CardDefaults.cardColors(containerColor = CardBg),
-        shape = RoundedCornerShape(20.dp)
+        shape = RoundedCornerShape(28.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, GlassBorder)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                val title = if (role.lowercase() == "student") "Today's Classes" else "Today's Teaching"
-                Text(title, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextWhite)
-                
-                if (schedule.isEmpty() && role.lowercase() == "faculty") {
-                    IconButton(
-                        onClick = onSync,
-                        modifier = Modifier.size(24.dp)
-                    ) {
-                        Icon(Icons.Default.Sync, "Sync", tint = AccentBlue, modifier = Modifier.size(16.dp))
-                    }
-                }
-            }
-            Spacer(modifier = Modifier.height(12.dp))
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text("Up Next", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextWhite)
+            Spacer(modifier = Modifier.height(16.dp))
             
             if (schedule.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("No classes today", color = TextMuted, fontSize = 12.sp)
-                        if (role.lowercase() == "faculty") {
-                            Text("Tap sync to fetch", color = AccentBlue, fontSize = 10.sp)
-                        }
-                    }
+                    Text("Free Day", color = SuccessGreen, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                 }
             } else {
-                val nextItem = schedule.first()
-                Text(nextItem.time, fontSize = 12.sp, color = TextMuted)
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text(nextItem.subject, fontSize = 14.sp, color = TextWhite, modifier = Modifier.weight(1f), maxLines = 1)
-                    Text(nextItem.room, fontSize = 12.sp, color = AccentBlue)
+                val next = schedule.first()
+                Column {
+                    Text(next.time, fontSize = 11.sp, color = AccentOrange, fontWeight = FontWeight.Bold)
+                    Text(next.subject, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextWhite, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(next.room, fontSize = 12.sp, color = TextMuted)
                 }
-                
-                if (schedule.size > 1) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text("+ ${schedule.size - 1} more sessions", color = TextMuted, fontSize = 10.sp)
-                }
-                
-                Spacer(modifier = Modifier.weight(1f))
-                Text("View Full Schedule →", color = AccentBlue, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-            }
-        }
-    }
-}
-
-@Composable
-fun MarkAttendanceSideButton(modifier: Modifier = Modifier, onClick: () -> Unit) {
-    Box(
-        modifier = modifier
-            .width(60.dp)
-            .height(200.dp)
-            .clip(RoundedCornerShape(topStart = 30.dp, bottomStart = 30.dp))
-            .background(AccentBlue)
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            "Mark Attendance".forEach { char ->
-                Text(
-                    text = char.toString().uppercase(),
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = Color.White,
-                    lineHeight = 12.sp
-                )
             }
         }
     }
@@ -582,57 +516,62 @@ fun MarkAttendanceSideButton(modifier: Modifier = Modifier, onClick: () -> Unit)
 @Composable
 fun BottomNavBar(navController: NavController, role: String) {
     NavigationBar(
-        containerColor = Color(0xFF151F32),
-        tonalElevation = 8.dp
+        containerColor = Color(0xFF111827),
+        tonalElevation = 0.dp,
+        modifier = Modifier
+            .navigationBarsPadding()
+            .height(72.dp)
+            .border(
+                1.dp,
+                Color.White.copy(alpha = 0.05f),
+                RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+            )
     ) {
-        val items = if (role.lowercase() == "student") {
-            listOf(
-                Triple("Dashboard", Icons.Default.Dashboard, "dashboard/student"),
-                Triple("Attendance", Icons.AutoMirrored.Filled.Assignment, "attendance_history"),
-                Triple("Mark", Icons.Default.QrCodeScanner, "mark_attendance"),
-                Triple("Alerts", Icons.Default.Notifications, "alerts")
-            )
-        } else {
-            listOf(
-                Triple("Dashboard", Icons.Default.Dashboard, "dashboard/$role"),
-                Triple("My Classes", Icons.AutoMirrored.Filled.Assignment, "faculty_classes"),
-                Triple("History", Icons.Default.History, "faculty_history"),
-                Triple("Alerts", Icons.Default.Notifications, "alerts")
-            )
+        val currentRoute = "dashboard/${role.lowercase()}"
+        val items = when (role.lowercase()) {
+            "student" -> {
+                listOf(
+                    Triple("Home", Icons.Default.GridView, "dashboard/student"),
+                    Triple("Log", Icons.AutoMirrored.Filled.Assignment, "attendance_history"),
+                    Triple("Alert", Icons.Default.NotificationsNone, "alerts")
+                )
+            }
+            "faculty" -> {
+                listOf(
+                    Triple("Home", Icons.Default.GridView, "dashboard/faculty"),
+                    Triple("Manage", Icons.Default.Dataset, "faculty_classes"),
+                    Triple("History", Icons.Default.History, "faculty_history")
+                )
+            }
+            "hod" -> {
+                listOf(
+                    Triple("Home", Icons.Default.GridView, "dashboard/hod"),
+                    Triple("Analytics", Icons.Default.BarChart, "hod_analytics"),
+                    Triple("Manage", Icons.Default.Domain, "hod_manage")
+                )
+            }
+            else -> {
+                listOf(
+                    Triple("Home", Icons.Default.GridView, "dashboard/$role")
+                )
+            }
         }
 
         items.forEach { (label, icon, route) ->
+            val selected = currentRoute == route
             NavigationBarItem(
-                icon = { Icon(icon, contentDescription = label) },
-                label = { Text(label, fontSize = 10.sp) },
-                selected = route == "dashboard/$role",
-                onClick = { 
-                    if (route.isNotEmpty()) {
-                        navController.navigate(route)
-                    }
-                },
+                icon = { Icon(icon, null, modifier = Modifier.size(24.dp)) },
+                label = { Text(label, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal) },
+                selected = selected,
+                onClick = { if (route.isNotEmpty()) navController.navigate(route) },
                 colors = NavigationBarItemDefaults.colors(
+                    selectedIconColor = AccentBlue,
+                    selectedTextColor = AccentBlue,
                     unselectedIconColor = TextMuted,
                     unselectedTextColor = TextMuted,
-                    selectedIconColor = AccentBlue,
-                    indicatorColor = AccentBlue.copy(alpha = 0.1f)
+                    indicatorColor = Color.Transparent
                 )
             )
         }
     }
 }
-
-
-data class AttendanceStats(
-    val totalClasses: Int,
-    val presentClasses: Int,
-    val absentClasses: Int,
-    val percentage: Double
-)
-
-
-data class ScheduleItem(
-    val subject: String,
-    val time: String,
-    val status: String
-)

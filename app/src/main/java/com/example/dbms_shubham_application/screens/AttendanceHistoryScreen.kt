@@ -1,6 +1,7 @@
 package com.example.dbms_shubham_application.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -12,6 +13,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -87,8 +89,10 @@ fun AttendanceHistoryScreen(navController: NavController) {
 @Composable
 fun HistoryStatsCard() {
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = CardBg),
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(24.dp)),
+        colors = CardDefaults.cardColors(containerColor = CardBg.copy(alpha = 0.7f)),
         shape = RoundedCornerShape(24.dp)
     ) {
         Column(modifier = Modifier.padding(24.dp)) {
@@ -99,7 +103,7 @@ fun HistoryStatsCard() {
             ) {
                 Column {
                     Text("Overall Rate", fontSize = 14.sp, color = TextMuted)
-                    Text("83.2%", fontSize = 28.sp, fontWeight = FontWeight.Bold, color = TextWhite)
+                    Text("83.2%", fontSize = 32.sp, fontWeight = FontWeight.ExtraBold, color = TextWhite)
                 }
                 Box(
                     modifier = Modifier
@@ -111,20 +115,31 @@ fun HistoryStatsCard() {
                 }
             }
             
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(24.dp))
             
             LinearProgressIndicator(
                 progress = { 0.832f },
-                modifier = Modifier.fillMaxWidth().height(8.dp).background(Color.White.copy(alpha = 0.05f), RoundedCornerShape(4.dp)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(8.dp)
+                    .clip(RoundedCornerShape(4.dp)),
                 color = AccentBlue,
-                trackColor = Color.Transparent
+                trackColor = Color.White.copy(alpha = 0.1f)
             )
             
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(24.dp))
             
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.Black.copy(alpha = 0.2f), RoundedCornerShape(16.dp))
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
                 MiniStatItem("Present", "124", AccentGreen)
+                Box(modifier = Modifier.width(1.dp).height(24.dp).background(TextMuted.copy(alpha = 0.2f)))
                 MiniStatItem("Absent", "25", AccentRed)
+                Box(modifier = Modifier.width(1.dp).height(24.dp).background(TextMuted.copy(alpha = 0.2f)))
                 MiniStatItem("Total", "149", TextWhite)
             }
         }
@@ -141,9 +156,12 @@ fun MiniStatItem(label: String, value: String, color: Color) {
 
 @Composable
 fun HistoryRecordCard(record: AttendanceRecord) {
+    val isPresent = record.status == "Present"
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = CardBg),
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, Color.White.copy(alpha = 0.05f), RoundedCornerShape(20.dp)),
+        colors = CardDefaults.cardColors(containerColor = CardBg.copy(alpha = 0.5f)),
         shape = RoundedCornerShape(20.dp)
     ) {
         Row(
@@ -154,15 +172,15 @@ fun HistoryRecordCard(record: AttendanceRecord) {
                 modifier = Modifier
                     .size(48.dp)
                     .background(
-                        if (record.status == "Present") AccentGreen.copy(alpha = 0.1f) else AccentRed.copy(alpha = 0.1f),
+                        if (isPresent) AccentGreen.copy(alpha = 0.1f) else AccentRed.copy(alpha = 0.1f),
                         RoundedCornerShape(12.dp)
                     ),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = if (record.status == "Present") Icons.Default.CheckCircle else Icons.Default.Cancel,
+                    imageVector = if (isPresent) Icons.Default.CheckCircle else Icons.Default.Cancel,
                     contentDescription = null,
-                    tint = if (record.status == "Present") AccentGreen else AccentRed,
+                    tint = if (isPresent) AccentGreen else AccentRed,
                     modifier = Modifier.size(24.dp)
                 )
             }
@@ -179,12 +197,19 @@ fun HistoryRecordCard(record: AttendanceRecord) {
             }
             
             Column(horizontalAlignment = Alignment.End) {
-                Text(
-                    text = record.status,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (record.status == "Present") AccentGreen else AccentRed
-                )
+                Surface(
+                    color = (if (isPresent) AccentGreen else AccentRed).copy(alpha = 0.1f),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text(
+                        text = record.status,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isPresent) AccentGreen else AccentRed,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(record.method, fontSize = 10.sp, color = TextMuted)
             }
         }

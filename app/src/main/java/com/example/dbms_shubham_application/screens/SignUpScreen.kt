@@ -2,16 +2,22 @@ package com.example.dbms_shubham_application.screens
 
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -25,10 +31,13 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 private val DarkBg = Color(0xFF0F172A)
+private val CardBg = Color(0xFF1E293B)
 private val TextWhite = Color(0xFFFFFFFF)
 private val TextMuted = Color(0xFF94A3B8)
 private val AccentBlue = Color(0xFF3B82F6)
+private val AccentPurple = Color(0xFF8B5CF6)
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SignUpScreen(navController: NavController, role: String) {
     var userIdInput by remember { mutableStateOf("") }
@@ -36,6 +45,8 @@ fun SignUpScreen(navController: NavController, role: String) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
+    var passwordVisible by remember { mutableStateOf(false) }
+
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -44,23 +55,48 @@ fun SignUpScreen(navController: NavController, role: String) {
             .fillMaxSize()
             .background(DarkBg)
     ) {
+        // Decorative background elements
+        Box(
+            modifier = Modifier
+                .size(300.dp)
+                .offset(x = 200.dp, y = (-100).dp)
+                .background(AccentPurple.copy(alpha = 0.1f), CircleShape)
+        )
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+                .padding(horizontal = 24.dp)
+                .verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            Spacer(modifier = Modifier.height(60.dp))
+
+            // Rebranded Logo/Header
+            Box(
+                modifier = Modifier
+                    .size(80.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Brush.linearGradient(listOf(AccentBlue, AccentPurple)))
+                    .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(20.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.PersonAdd, null, tint = Color.White, modifier = Modifier.size(40.dp))
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
             Text(
-                text = "Create ${role.replaceFirstChar { it.uppercase() }} Account",
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold,
-                color = TextWhite
+                text = "Join AttendX",
+                fontSize = 32.sp,
+                fontWeight = FontWeight.Black,
+                color = TextWhite,
+                letterSpacing = (-1).sp
             )
             
             Text(
-                text = "Join our smart attendance system",
-                fontSize = 16.sp,
+                text = "Create your ${role} account to get started",
+                fontSize = 15.sp,
                 color = TextMuted,
                 modifier = Modifier.padding(top = 8.dp, bottom = 40.dp)
             )
@@ -69,7 +105,7 @@ fun SignUpScreen(navController: NavController, role: String) {
                 value = userIdInput,
                 onValueChange = { userIdInput = it },
                 label = if (role.lowercase() == "student") "Registration Number" else "Employee ID",
-                icon = Icons.Default.Info
+                icon = Icons.Default.Badge
             )
 
             Spacer(modifier = Modifier.height(20.dp))
@@ -86,7 +122,7 @@ fun SignUpScreen(navController: NavController, role: String) {
             ModernTextField(
                 value = email,
                 onValueChange = { email = it },
-                label = "Email Address",
+                label = "Institutional Email",
                 icon = Icons.Default.Email,
                 keyboardType = KeyboardType.Email
             )
@@ -99,7 +135,9 @@ fun SignUpScreen(navController: NavController, role: String) {
                 label = "Password",
                 icon = Icons.Default.Lock,
                 keyboardType = KeyboardType.Password,
-                isPassword = true
+                isPassword = true,
+                passwordVisible = passwordVisible,
+                onPasswordToggle = { passwordVisible = !passwordVisible }
             )
 
             Spacer(modifier = Modifier.height(40.dp))
@@ -136,7 +174,6 @@ fun SignUpScreen(navController: NavController, role: String) {
                             } else {
                                 val errorMsg = response.errorBody()?.string() ?: "Unknown Error"
                                 Toast.makeText(context, "Signup Failed: $errorMsg", Toast.LENGTH_LONG).show()
-                                println("Signup Error: $errorMsg")
                             }
                         } catch (e: Exception) {
                             Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
@@ -155,21 +192,25 @@ fun SignUpScreen(navController: NavController, role: String) {
                 if (isLoading) {
                     CircularProgressIndicator(color = TextWhite, modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
                 } else {
-                    Text("Sign Up", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text("Create Account", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
                 }
             }
 
             Spacer(modifier = Modifier.height(32.dp))
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Already have an account?", color = TextMuted)
+                Text("Already have an account?", color = TextMuted, fontSize = 14.sp)
                 Text(
                     text = " Sign In",
                     color = AccentBlue,
-                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.ExtraBold,
                     modifier = Modifier.clickable { navController.navigateUp() }
                 )
             }
+            
+            Spacer(modifier = Modifier.height(40.dp))
         }
     }
 }
+

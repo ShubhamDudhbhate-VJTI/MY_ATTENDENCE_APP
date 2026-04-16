@@ -1,20 +1,23 @@
 package com.example.dbms_shubham_application.screens
 
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -30,186 +33,180 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 
+// --- THEME CONSISTENCY ---
+private val DarkBg = Color(0xFF0F172A)
+private val CardBg = Color(0xFF1E293B).copy(alpha = 0.8f)
+private val GlassBorder = Color(0xFF334155)
+private val AccentBlue = Color(0xFF3B82F6)
+private val AccentPurple = Color(0xFF8B5CF6)
+private val TextWhite = Color(0xFFF8FAFC)
+private val TextMuted = Color(0xFF94A3B8)
+
 @Composable
 fun RoleSelectionScreen(navController: NavController) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        Color(0xFF1E3A8A),
-                        Color(0xFF1E1B4B),
-                        Color(0xFF0F172A)
-                    )
-                )
-            )
+            .background(DarkBg)
     ) {
-        // Background decoration
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(20.dp)
-        ) {
-            // Floating circles
-            repeat(3) { index ->
-                Box(
-                    modifier = Modifier
-                        .size(120.dp + (index * 40).dp)
-                        .offset(
-                            x = (if (index % 2 == 0) -100 else 100).dp,
-                            y = (-50 + index * 60).dp
-                        )
-                        .background(
-                            Color.White.copy(alpha = 0.02f),
-                            CircleShape
-                        )
-                )
-            }
+        // --- DECORATIVE AMBIENT GLOWS ---
+        Box(modifier = Modifier.fillMaxSize()) {
+            Box(
+                modifier = Modifier
+                    .size(300.dp)
+                    .offset(x = (-100).dp, y = (-50).dp)
+                    .background(AccentBlue.copy(alpha = 0.15f), CircleShape)
+            )
+            Box(
+                modifier = Modifier
+                    .size(250.dp)
+                    .align(Alignment.BottomEnd)
+                    .offset(x = 100.dp, y = 50.dp)
+                    .background(AccentPurple.copy(alpha = 0.15f), CircleShape)
+            )
         }
         
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 24.dp, vertical = 40.dp),
+                .systemBarsPadding()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 28.dp, vertical = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.SpaceBetween
+            verticalArrangement = Arrangement.spacedBy(32.dp)
         ) {
-            // Header Section
+            // --- HEADER SECTION ---
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // App Logo
+                // Modern Logo Container
                 Box(
                     modifier = Modifier
-                        .size(90.dp)
-                        .clip(RoundedCornerShape(24.dp))
+                        .size(100.dp)
+                        .clip(RoundedCornerShape(30.dp))
                         .background(
                             Brush.linearGradient(
-                                colors = listOf(
-                                    Color(0xFF3B82F6),
-                                    Color(0xFF8B5CF6),
-                                    Color(0xFFEC4899)
-                                )
+                                colors = listOf(AccentBlue, AccentPurple)
                             )
-                        ),
+                        )
+                        .border(1.dp, Color.White.copy(alpha = 0.3f), RoundedCornerShape(30.dp)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        imageVector = Icons.Default.School,
+                        imageVector = Icons.Default.VerifiedUser,
                         contentDescription = null,
-                        modifier = Modifier.size(45.dp),
+                        modifier = Modifier.size(48.dp),
                         tint = Color.White
                     )
                 }
                 
-                // App Name
+                Spacer(modifier = Modifier.height(12.dp))
+                
                 Text(
-                    text = "SmartAttend",
-                    fontSize = 42.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                    letterSpacing = (-1).sp
+                    text = "AttendX",
+                    fontSize = 48.sp,
+                    fontWeight = FontWeight.Black,
+                    color = TextWhite,
+                    letterSpacing = (-1.5).sp
                 )
                 
-                // Subtitle
                 Text(
-                    text = "Intelligent Attendance Management",
+                    text = "Secure Biometric Attendance",
                     fontSize = 16.sp,
-                    color = Color(0xFF94A3B8),
-                    fontWeight = FontWeight.Medium
+                    color = TextMuted,
+                    fontWeight = FontWeight.Medium,
+                    textAlign = TextAlign.Center
                 )
                 
-                Spacer(modifier = Modifier.height(8.dp))
-                
-                // Version badge
-                Box(
-                    modifier = Modifier
-                        .background(
-                            Color.White.copy(alpha = 0.1f),
-                            RoundedCornerShape(20.dp)
-                        )
-                        .padding(horizontal = 16.dp, vertical = 6.dp)
+                Surface(
+                    color = AccentBlue.copy(alpha = 0.1f),
+                    shape = RoundedCornerShape(20.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, AccentBlue.copy(alpha = 0.2f))
                 ) {
                     Text(
                         text = "v2.0 Professional",
-                        fontSize = 12.sp,
-                        color = Color(0xFF60A5FA),
-                        fontWeight = FontWeight.SemiBold
+                        fontSize = 11.sp,
+                        color = AccentBlue,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
                     )
                 }
             }
             
-            // Role Selection Cards
+            // --- ROLE CARDS SECTION ---
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                modifier = Modifier.weight(1f)
+                verticalArrangement = Arrangement.spacedBy(18.dp),
+                modifier = Modifier.fillMaxWidth()
             ) {
-                ModernRoleCard(
+                ProfessionalRoleCard(
                     icon = Icons.Default.Person,
                     title = "Student",
-                    subtitle = "Mark attendance & view reports",
-                    color = Color(0xFF3B82F6),
-                    gradientColors = listOf(Color(0xFF3B82F6), Color(0xFF1E40AF)),
+                    description = "Verify identity & track records",
+                    accentColor = AccentBlue,
                     onClick = { navController.navigate("login/student") }
                 )
                 
-                ModernRoleCard(
+                ProfessionalRoleCard(
                     icon = Icons.Default.School,
                     title = "Faculty",
-                    subtitle = "Manage sessions & generate reports",
-                    color = Color(0xFF10B981),
-                    gradientColors = listOf(Color(0xFF10B981), Color(0xFF047857)),
+                    description = "Initialize & monitor sessions",
+                    accentColor = Color(0xFF10B981),
                     onClick = { navController.navigate("login/faculty") }
                 )
                 
-                ModernRoleCard(
-                    icon = Icons.Default.Business,
+                ProfessionalRoleCard(
+                    icon = Icons.Default.AdminPanelSettings,
                     title = "HOD",
-                    subtitle = "Department oversight & approvals",
-                    color = Color(0xFF8B5CF6),
-                    gradientColors = listOf(Color(0xFF8B5CF6), Color(0xFF6D28D9)),
+                    description = "Departmental management",
+                    accentColor = AccentPurple,
                     onClick = { navController.navigate("login/hod") }
                 )
             }
             
-            // Footer
-            Text(
-                text = "© 2026 College of Engineering, IT Department",
-                color = Color(0xFF64748B),
-                fontSize = 12.sp,
-                textAlign = TextAlign.Center
-            )
+            // --- FOOTER ---
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.padding(top = 20.dp)
+            ) {
+                HorizontalDivider(
+                    color = GlassBorder,
+                    modifier = Modifier.width(40.dp).padding(bottom = 12.dp)
+                )
+                Text(
+                    text = "Faculty of Information Technology",
+                    color = TextMuted,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    text = "Engineering College Portal",
+                    color = TextMuted.copy(alpha = 0.6f),
+                    fontSize = 10.sp
+                )
+            }
         }
     }
 }
 
 @Composable
-fun ModernRoleCard(
+fun ProfessionalRoleCard(
     icon: ImageVector,
     title: String,
-    subtitle: String,
-    color: Color,
-    gradientColors: List<Color>,
+    description: String,
+    accentColor: Color,
     onClick: () -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.95f else 1f,
+        targetValue = if (isPressed) 0.96f else 1f,
         animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
         label = "scale"
     )
-    
-    val animatedColor by animateColorAsState(
-        targetValue = if (isPressed) color.copy(alpha = 0.8f) else color,
-        animationSpec = tween(durationMillis = 200),
-        label = "color"
-    )
-    
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -217,80 +214,58 @@ fun ModernRoleCard(
             .scale(scale)
             .clickable(
                 interactionSource = interactionSource,
+                indication = null,
                 onClick = onClick
             ),
-        colors = CardDefaults.cardColors(
-            containerColor = Color.Transparent
-        ),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = if (isPressed) 12.dp else 8.dp
-        ),
-        shape = RoundedCornerShape(20.dp)
+        colors = CardDefaults.cardColors(containerColor = CardBg),
+        shape = RoundedCornerShape(24.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, GlassBorder)
     ) {
-        Box(
+        Row(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    Brush.horizontalGradient(
-                        colors = gradientColors
-                    ),
-                    RoundedCornerShape(20.dp)
-                )
-                .padding(20.dp)
+                .padding(horizontal = 20.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier.fillMaxSize(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+            // Icon Container
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .background(accentColor.copy(alpha = 0.12f), RoundedCornerShape(18.dp))
+                    .border(1.dp, accentColor.copy(alpha = 0.25f), RoundedCornerShape(18.dp)),
+                contentAlignment = Alignment.Center
             ) {
-                // Icon and Text
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(50.dp)
-                            .background(
-                                Color.White.copy(alpha = 0.2f),
-                                CircleShape
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = icon,
-                            contentDescription = null,
-                            modifier = Modifier.size(28.dp),
-                            tint = Color.White
-                        )
-                    }
-                    
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Text(
-                            text = title,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                        Text(
-                            text = subtitle,
-                            fontSize = 14.sp,
-                            color = Color.White.copy(alpha = 0.8f),
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                }
-                
-                // Arrow icon
                 Icon(
-                    imageVector = Icons.Default.ArrowForward,
+                    imageVector = icon,
                     contentDescription = null,
-                    modifier = Modifier.size(24.dp),
-                    tint = Color.White.copy(alpha = 0.8f)
+                    modifier = Modifier.size(28.dp),
+                    tint = accentColor
                 )
             }
+            
+            Spacer(modifier = Modifier.width(20.dp))
+            
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = TextWhite
+                )
+                Text(
+                    text = description,
+                    fontSize = 13.sp,
+                    color = TextMuted,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+            
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = TextMuted
+            )
         }
     }
 }

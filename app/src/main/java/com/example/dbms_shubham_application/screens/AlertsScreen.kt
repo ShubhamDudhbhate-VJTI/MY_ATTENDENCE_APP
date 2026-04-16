@@ -1,6 +1,7 @@
 package com.example.dbms_shubham_application.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -11,6 +12,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,6 +29,7 @@ private val AccentBlue = Color(0xFF3B82F6)
 private val TextWhite = Color(0xFFFFFFFF)
 private val TextMuted = Color(0xFF94A3B8)
 private val AccentOrange = Color(0xFFF59E0B)
+private val AccentRed = Color(0xFFEF4444)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -44,10 +47,20 @@ fun AlertsScreen(navController: NavController) {
         containerColor = DarkBg,
         topBar = {
             TopAppBar(
-                title = { Text("Alerts & Notifications", color = TextWhite, fontWeight = FontWeight.Bold) },
+                title = { 
+                    Column {
+                        Text("Alerts & Notifications", color = TextWhite, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                        Text("Important updates and reminders", color = TextMuted, fontSize = 12.sp, fontWeight = FontWeight.Normal)
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = { navController.navigateUp() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextWhite)
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { /* Clear All */ }) {
+                        Icon(Icons.Default.History, contentDescription = "History", tint = AccentBlue)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = DarkBg)
@@ -55,7 +68,7 @@ fun AlertsScreen(navController: NavController) {
         }
     ) { padding ->
         LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 24.dp),
+            modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
             contentPadding = PaddingValues(top = 16.dp, bottom = 24.dp)
         ) {
@@ -73,22 +86,27 @@ fun AlertCard(alert: AlertItem) {
         else -> Icons.Default.Info
     }
     val iconColor = when (alert.type) {
-        "High" -> Color(0xFFEF4444)
+        "High" -> AccentRed
         "Medium" -> AccentOrange
         else -> AccentBlue
     }
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = CardBg),
-        shape = RoundedCornerShape(20.dp)
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, Color.White.copy(alpha = 0.05f), RoundedCornerShape(24.dp)),
+        colors = CardDefaults.cardColors(containerColor = CardBg.copy(alpha = 0.7f)),
+        shape = RoundedCornerShape(24.dp)
     ) {
         Row(
             modifier = Modifier.padding(20.dp),
             verticalAlignment = Alignment.Top
         ) {
             Box(
-                modifier = Modifier.size(40.dp).background(iconColor.copy(alpha = 0.1f), CircleShape),
+                modifier = Modifier
+                    .size(44.dp)
+                    .background(iconColor.copy(alpha = 0.1f), CircleShape)
+                    .border(1.dp, iconColor.copy(alpha = 0.2f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(icon, contentDescription = null, tint = iconColor, modifier = Modifier.size(20.dp))
@@ -103,10 +121,26 @@ fun AlertCard(alert: AlertItem) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(alert.title, color = TextWhite, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                    Text(alert.time, color = TextMuted, fontSize = 12.sp)
+                    Text(alert.time, color = TextMuted, fontSize = 11.sp)
                 }
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(alert.description, color = TextMuted, fontSize = 14.sp, lineHeight = 20.sp)
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = alert.description,
+                    color = TextMuted,
+                    fontSize = 13.sp,
+                    lineHeight = 20.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                
+                if (alert.type == "High") {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "Take Action →",
+                        color = iconColor,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                }
             }
         }
     }

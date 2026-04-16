@@ -2,10 +2,12 @@ package com.example.dbms_shubham_application.screens
 
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -56,7 +58,6 @@ fun ManageScheduleScreen(navController: NavController) {
         scope.launch {
             isLoading = true
             try {
-                // Modified: Filter by current day
                 val currentDay = SimpleDateFormat("EEEE", Locale.getDefault()).format(Date())
                 val schedRes = RetrofitClient.apiService.getFacultySchedule(facultyId, currentDay)
                 if (schedRes.isSuccessful) schedule = schedRes.body() ?: emptyList()
@@ -80,18 +81,21 @@ fun ManageScheduleScreen(navController: NavController) {
         containerColor = DarkBg,
         topBar = {
             TopAppBar(
-                title = { Text("Manage Schedule", color = TextWhite) },
+                title = {
+                    Column {
+                        Text("Manage Schedule", color = TextWhite, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                        Text("Configure your class template", color = TextMuted, fontSize = 12.sp, fontWeight = FontWeight.Normal)
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = { navController.navigateUp() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = TextWhite)
                     }
                 },
                 actions = {
-                    // Changed: Now a Refresh button that fetches ALL records (including manual ones)
                     IconButton(onClick = { loadData() }) {
-                        Icon(Icons.Default.Refresh, "Refresh", tint = TextWhite)
+                        Icon(Icons.Default.Refresh, "Refresh", tint = AccentBlue)
                     }
-                    // Optional: Keep Sync but make it clear it's for Official template
                     IconButton(onClick = {
                         scope.launch {
                             isLoading = true
@@ -120,33 +124,50 @@ fun ManageScheduleScreen(navController: NavController) {
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { showAddDialog = true }, containerColor = AccentBlue) {
+            FloatingActionButton(
+                onClick = { showAddDialog = true },
+                containerColor = AccentBlue,
+                shape = RoundedCornerShape(20.dp)
+            ) {
                 Icon(Icons.Default.Add, "Add", tint = TextWhite)
             }
         }
     ) { padding ->
-        if (isLoading) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = AccentBlue)
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(schedule) { record ->
-                    ScheduleEditCard(
-                        record = record,
-                        onEdit = { editingRecord = record },
-                        onDelete = {
-                            scope.launch {
-                                record.id?.let { id ->
-                                    val res = RetrofitClient.apiService.deleteScheduleRecord(id)
-                                    if (res.isSuccessful) loadData()
+        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+            if (isLoading) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = AccentBlue)
+                }
+            } else if (schedule.isEmpty()) {
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Icon(Icons.Default.CalendarToday, null, tint = TextMuted.copy(alpha = 0.3f), modifier = Modifier.size(64.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("No records found for today", color = TextMuted)
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    contentPadding = PaddingValues(top = 16.dp, bottom = 80.dp)
+                ) {
+                    items(schedule) { record ->
+                        ScheduleEditCard(
+                            record = record,
+                            onEdit = { editingRecord = record },
+                            onDelete = {
+                                scope.launch {
+                                    record.id?.let { id ->
+                                        val res = RetrofitClient.apiService.deleteScheduleRecord(id)
+                                        if (res.isSuccessful) loadData()
+                                    }
                                 }
                             }
-                        }
-                    )
+                        )
+                    }
                 }
             }
         }
@@ -181,14 +202,25 @@ fun ManageScheduleScreen(navController: NavController) {
 @Composable
 fun ScheduleEditCard(record: ScheduleRecord, onEdit: () -> Unit, onDelete: () -> Unit) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = CardBg),
-        shape = RoundedCornerShape(12.dp)
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, Color.White.copy(alpha = 0.05f), RoundedCornerShape(24.dp)),
+        colors = CardDefaults.cardColors(containerColor = CardBg.copy(alpha = 0.7f)),
+        shape = RoundedCornerShape(24.dp)
     ) {
-        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier.padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(record.day, color = AccentBlue, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    Text(
+                        text = record.day.uppercase(),
+                        color = AccentBlue,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 11.sp,
+                        letterSpacing = 1.sp
+                    )
                     if (record.is_official) {
                         Spacer(Modifier.width(8.dp))
                         Icon(
@@ -199,14 +231,39 @@ fun ScheduleEditCard(record: ScheduleRecord, onEdit: () -> Unit, onDelete: () ->
                         )
                     }
                 }
-                Text(record.subject, color = TextWhite, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                Text("${record.time} • ${record.room}", color = TextMuted, fontSize = 12.sp)
+                Spacer(Modifier.height(4.dp))
+                Text(record.subject, color = TextWhite, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                Spacer(Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Schedule, null, tint = TextMuted, modifier = Modifier.size(12.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text(record.time, color = TextMuted, fontSize = 12.sp)
+                    Spacer(Modifier.width(12.dp))
+                    Icon(Icons.Default.Place, null, tint = TextMuted, modifier = Modifier.size(12.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text(record.room, color = TextMuted, fontSize = 12.sp)
+                }
             }
-            IconButton(onClick = onEdit) { Icon(Icons.Default.Edit, "Edit", tint = TextMuted) }
-            IconButton(onClick = onDelete) { Icon(Icons.Default.Delete, "Delete", tint = AccentRed) }
+            
+            Row {
+                IconButton(
+                    onClick = onEdit,
+                    modifier = Modifier.background(Color.White.copy(alpha = 0.05f), CircleShape).size(36.dp)
+                ) {
+                    Icon(Icons.Default.Edit, "Edit", tint = TextMuted, modifier = Modifier.size(18.dp))
+                }
+                Spacer(Modifier.width(8.dp))
+                IconButton(
+                    onClick = onDelete,
+                    modifier = Modifier.background(AccentRed.copy(alpha = 0.1f), CircleShape).size(36.dp)
+                ) {
+                    Icon(Icons.Default.Delete, "Delete", tint = AccentRed, modifier = Modifier.size(18.dp))
+                }
+            }
         }
     }
 }
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

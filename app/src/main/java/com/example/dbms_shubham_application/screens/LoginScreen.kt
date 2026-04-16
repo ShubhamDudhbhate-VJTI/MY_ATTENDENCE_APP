@@ -1,9 +1,13 @@
 package com.example.dbms_shubham_application.screens
 
 import android.widget.Toast
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -13,12 +17,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -26,10 +32,13 @@ import com.example.dbms_shubham_application.data.local.SessionManager
 import com.example.dbms_shubham_application.network.RetrofitClient
 import kotlinx.coroutines.launch
 
+// --- THEME CONSISTENCY ---
 private val DarkBg = Color(0xFF0F172A)
 private val CardBg = Color(0xFF1E293B)
+private val GlassBorder = Color(0xFF334155)
 private val AccentBlue = Color(0xFF3B82F6)
-private val TextWhite = Color(0xFFFFFFFF)
+private val AccentPurple = Color(0xFF8B5CF6)
+private val TextWhite = Color(0xFFF8FAFC)
 private val TextMuted = Color(0xFF94A3B8)
 
 @Composable
@@ -37,6 +46,8 @@ fun LoginScreen(navController: NavController, role: String) {
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
+    var passwordVisible by remember { mutableStateOf(false) }
+    
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     
@@ -44,54 +55,69 @@ fun LoginScreen(navController: NavController, role: String) {
         modifier = Modifier
             .fillMaxSize()
             .background(DarkBg)
+            .systemBarsPadding()
     ) {
         // Decorative background elements
         Box(
             modifier = Modifier
-                .size(300.dp)
-                .offset(x = (-100).dp, y = (-100).dp)
-                .background(AccentBlue.copy(alpha = 0.1f), CircleShape)
+                .size(350.dp)
+                .offset(x = (-120).dp, y = (-120).dp)
+                .background(AccentBlue.copy(alpha = 0.12f), CircleShape)
         )
-        
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(24.dp),
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 32.dp, vertical = 40.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // Logo/Icon
+            // Logo/Icon with Gradient
             Box(
                 modifier = Modifier
-                    .size(80.dp)
-                    .background(Brush.linearGradient(listOf(AccentBlue, Color(0xFF8B5CF6))), RoundedCornerShape(20.dp)),
+                    .size(90.dp)
+                    .clip(RoundedCornerShape(24.dp))
+                    .background(Brush.linearGradient(listOf(AccentBlue, AccentPurple)))
+                    .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(24.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.School, contentDescription = null, tint = TextWhite, modifier = Modifier.size(40.dp))
+                Icon(
+                    imageVector = when(role.lowercase()) {
+                        "student" -> Icons.Default.Person
+                        "faculty" -> Icons.Default.School
+                        else -> Icons.Default.AdminPanelSettings
+                    },
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(44.dp)
+                )
             }
             
             Spacer(modifier = Modifier.height(32.dp))
             
             Text(
-                text = "${role.replaceFirstChar { it.uppercase() }} Login",
+                text = "${role.replaceFirstChar { it.uppercase() }} Portal",
                 fontSize = 32.sp,
-                fontWeight = FontWeight.Bold,
-                color = TextWhite
+                fontWeight = FontWeight.Black,
+                color = TextWhite,
+                letterSpacing = (-1).sp
             )
             
             Text(
-                text = "Sign in to your account",
-                fontSize = 16.sp,
+                text = "Secure access to your dashboard",
+                fontSize = 15.sp,
                 color = TextMuted,
-                modifier = Modifier.padding(top = 8.dp, bottom = 40.dp)
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.padding(top = 8.dp, bottom = 48.dp)
             )
             
             // Input Fields
             ModernTextField(
                 value = username,
                 onValueChange = { username = it },
-                label = "Username",
-                icon = Icons.Default.Person,
+                label = "Username / ID",
+                icon = Icons.Default.AlternateEmail,
                 keyboardType = KeyboardType.Text
             )
             
@@ -101,22 +127,25 @@ fun LoginScreen(navController: NavController, role: String) {
                 value = password,
                 onValueChange = { password = it },
                 label = "Password",
-                icon = Icons.Default.Lock,
+                icon = Icons.Default.LockOpen,
                 keyboardType = KeyboardType.Password,
-                isPassword = true
+                isPassword = true,
+                passwordVisible = passwordVisible,
+                onPasswordToggle = { passwordVisible = !passwordVisible }
             )
             
             Text(
                 text = "Forgot Password?",
                 color = AccentBlue,
                 fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
                 modifier = Modifier
                     .align(Alignment.End)
-                    .padding(top = 12.dp)
+                    .padding(top = 16.dp)
                     .clickable { navController.navigate("forgot_password") }
             )
             
-            Spacer(modifier = Modifier.height(40.dp))
+            Spacer(modifier = Modifier.height(48.dp))
             
             // Sign In Button
             Button(
@@ -124,7 +153,6 @@ fun LoginScreen(navController: NavController, role: String) {
                     isLoading = true
                     scope.launch {
                         try {
-                            // Trim spaces to avoid accidental login failures
                             val credentials = mapOf(
                                 "username" to username.trim(),
                                 "password" to password.trim()
@@ -140,7 +168,6 @@ fun LoginScreen(navController: NavController, role: String) {
                                 
                                 sessionManager.saveSession(userId, userRole, userName)
 
-                                // If student, try to download and cache their master face
                                 if (userRole == "student") {
                                     scope.launch {
                                         try {
@@ -161,10 +188,10 @@ fun LoginScreen(navController: NavController, role: String) {
                                     popUpTo("role_selection") { inclusive = false }
                                 }
                             } else {
-                                Toast.makeText(context, "Login Failed: ${response.message()}", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "Authentication Failed", Toast.LENGTH_SHORT).show()
                             }
                         } catch (e: Exception) {
-                            Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Network Error: ${e.message}", Toast.LENGTH_SHORT).show()
                         } finally {
                             isLoading = false
                         }
@@ -172,26 +199,28 @@ fun LoginScreen(navController: NavController, role: String) {
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp),
+                    .height(60.dp)
+                    .clip(RoundedCornerShape(20.dp)),
                 colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
-                shape = RoundedCornerShape(16.dp),
-                enabled = !isLoading
+                shape = RoundedCornerShape(20.dp),
+                enabled = !isLoading && username.isNotBlank() && password.isNotBlank()
             ) {
                 if (isLoading) {
-                    CircularProgressIndicator(color = TextWhite, modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                    CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp), strokeWidth = 3.dp)
                 } else {
-                    Text("Sign In", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text("Secure Login", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
                 }
             }
             
             Spacer(modifier = Modifier.height(32.dp))
             
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("New here?", color = TextMuted)
+                Text("Not registered yet?", color = TextMuted, fontSize = 14.sp)
                 Text(
                     text = " Create Account",
                     color = AccentBlue,
-                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.ExtraBold,
                     modifier = Modifier.clickable { navController.navigate("signup/$role") }
                 )
             }
@@ -199,6 +228,7 @@ fun LoginScreen(navController: NavController, role: String) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ModernTextField(
     value: String,
@@ -206,32 +236,44 @@ fun ModernTextField(
     label: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     keyboardType: KeyboardType = KeyboardType.Text,
-    isPassword: Boolean = false
+    isPassword: Boolean = false,
+    passwordVisible: Boolean = false,
+    onPasswordToggle: () -> Unit = {}
 ) {
-    TextField(
+    OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
-        label = { Text(label, color = TextMuted) },
-        leadingIcon = { Icon(icon, contentDescription = null, tint = AccentBlue) },
+        label = { Text(label, color = TextMuted, fontSize = 14.sp) },
+        leadingIcon = { Icon(icon, contentDescription = null, tint = AccentBlue, modifier = Modifier.size(20.dp)) },
+        trailingIcon = {
+            if (isPassword) {
+                IconButton(onClick = onPasswordToggle) {
+                    Icon(
+                        imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                        contentDescription = null,
+                        tint = TextMuted,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        },
         modifier = Modifier.fillMaxWidth(),
-        visualTransformation = if (isPassword) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
+        visualTransformation = if (isPassword && !passwordVisible) PasswordVisualTransformation() else VisualTransformation.None,
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-        colors = TextFieldDefaults.colors(
-            focusedContainerColor = CardBg,
-            unfocusedContainerColor = CardBg,
-            disabledContainerColor = CardBg,
-            focusedIndicatorColor = AccentBlue,
-            unfocusedIndicatorColor = Color.Transparent,
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = AccentBlue,
+            unfocusedBorderColor = GlassBorder,
+            cursorColor = AccentBlue,
             focusedTextColor = TextWhite,
-            unfocusedTextColor = TextWhite
+            unfocusedTextColor = TextWhite,
+            focusedContainerColor = CardBg.copy(alpha = 0.5f),
+            unfocusedContainerColor = CardBg.copy(alpha = 0.5f)
         ),
-        shape = RoundedCornerShape(16.dp)
+        shape = RoundedCornerShape(20.dp),
+        singleLine = true
     )
 }
 
-/**
- * Downloads the student's registered face image from the backend and saves it locally.
- */
 private suspend fun downloadAndSaveFace(context: android.content.Context, userId: String, url: String) {
     kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
         try {
@@ -245,15 +287,11 @@ private suspend fun downloadAndSaveFace(context: android.content.Context, userId
                 if (!faceDir.exists()) faceDir.mkdirs()
 
                 val masterFile = java.io.File(faceDir, "master_face_${userId}.jpg")
-                if (!masterFile.exists()) {
-                    masterFile.writeBytes(bytes)
-                    android.util.Log.d("Login", "Master face cached at: ${masterFile.absolutePath}")
-                } else {
-                    android.util.Log.d("Login", "Master face already exists at: ${masterFile.absolutePath}")
-                }
+                masterFile.writeBytes(bytes)
+                android.util.Log.d("Login", "Master face cached: ${masterFile.absolutePath}")
             }
         } catch (e: Exception) {
-            android.util.Log.e("Login", "Error downloading face: ${e.message}")
+            android.util.Log.e("Login", "Error caching face: ${e.message}")
         }
     }
 }

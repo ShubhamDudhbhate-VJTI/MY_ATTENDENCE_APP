@@ -2,6 +2,7 @@ package com.example.dbms_shubham_application.screens
 
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -22,6 +23,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -164,8 +166,10 @@ fun ProfileScreen(navController: NavController) {
 @Composable
 fun ProfileHeaderCard(profile: UserProfile?) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = CardBg),
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(24.dp)),
+        colors = CardDefaults.cardColors(containerColor = CardBg.copy(alpha = 0.7f)),
         shape = RoundedCornerShape(24.dp)
     ) {
         Column(
@@ -176,13 +180,14 @@ fun ProfileHeaderCard(profile: UserProfile?) {
                 modifier = Modifier
                     .size(100.dp)
                     .clip(CircleShape)
-                    .background(Brush.linearGradient(listOf(AccentBlue, Color(0xFF8B5CF6)))),
+                    .background(Brush.linearGradient(listOf(AccentBlue, Color(0xFF6366F1))))
+                    .border(4.dp, Color.White.copy(alpha = 0.2f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = (profile?.full_name?.take(1) ?: profile?.username?.take(1) ?: "U").uppercase(),
                     fontSize = 40.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.ExtraBold,
                     color = TextWhite
                 )
             }
@@ -191,21 +196,26 @@ fun ProfileHeaderCard(profile: UserProfile?) {
             
             Text(
                 text = profile?.full_name ?: "User Name",
-                fontSize = 22.sp,
+                fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
-                color = TextWhite
+                color = TextWhite,
+                textAlign = TextAlign.Center
             )
             
             Text(
                 text = profile?.email ?: "vjti.student@vjti.ac.in",
                 fontSize = 14.sp,
-                color = TextMuted
+                color = TextMuted,
+                textAlign = TextAlign.Center
             )
             
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(24.dp))
             
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.Black.copy(alpha = 0.2f), RoundedCornerShape(16.dp))
+                    .padding(vertical = 12.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 ProfileMiniStat("Role", profile?.role?.replaceFirstChar { it.uppercase() } ?: "User")
@@ -238,8 +248,10 @@ fun ProfileSectionTitle(title: String) {
 @Composable
 fun ProfileInfoCard(items: List<Triple<ImageVector, String, String>>) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = CardBg),
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, Color.White.copy(alpha = 0.05f), RoundedCornerShape(20.dp)),
+        colors = CardDefaults.cardColors(containerColor = CardBg.copy(alpha = 0.5f)),
         shape = RoundedCornerShape(20.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -275,8 +287,10 @@ fun ProfileInfoCard(items: List<Triple<ImageVector, String, String>>) {
 @Composable
 fun SettingsCard(navController: NavController, sessionManager: SessionManager) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = CardBg),
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, Color.White.copy(alpha = 0.05f), RoundedCornerShape(20.dp)),
+        colors = CardDefaults.cardColors(containerColor = CardBg.copy(alpha = 0.5f)),
         shape = RoundedCornerShape(20.dp)
     ) {
         Column(modifier = Modifier.padding(8.dp)) {
@@ -289,6 +303,7 @@ fun SettingsCard(navController: NavController, sessionManager: SessionManager) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
                     .clickable { 
                         // 1. Clear the local user session
                         sessionManager.logout()

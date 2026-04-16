@@ -195,18 +195,47 @@ fun EnvironmentDetectionStep(onDetected: (String, String, Double?, Double?) -> U
             Log.e("Detection", "GPS failed", e)
         }
 
-        delay(1000)
+        delay(1500)
         onDetected(bssid, ssid, lat, lon)
     }
 
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Icon(Icons.Default.LocationOn, null, tint = AccentBlue, modifier = Modifier.size(80.dp))
-        Spacer(modifier = Modifier.height(24.dp))
-        Text("Detecting Location...", color = TextWhite, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-        Spacer(modifier = Modifier.height(16.dp))
-        CircularProgressIndicator(color = AccentBlue)
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(status, color = TextMuted)
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(24.dp)),
+        colors = CardDefaults.cardColors(containerColor = CardBg.copy(alpha = 0.7f)),
+        shape = RoundedCornerShape(24.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(100.dp)
+                    .background(AccentBlue.copy(alpha = 0.1f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.LocationOn, null, tint = AccentBlue, modifier = Modifier.size(48.dp))
+            }
+            Spacer(modifier = Modifier.height(24.dp))
+            Text("Environment Scan", color = TextWhite, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                "We're verifying your location and classroom network connection.",
+                color = TextMuted,
+                textAlign = TextAlign.Center,
+                fontSize = 14.sp
+            )
+            Spacer(modifier = Modifier.height(32.dp))
+            CircularProgressIndicator(
+                color = AccentBlue,
+                strokeWidth = 3.dp,
+                modifier = Modifier.size(40.dp)
+            )
+            Spacer(modifier = Modifier.height(24.dp))
+            Text(status, color = AccentBlue, fontWeight = FontWeight.Medium, fontSize = 14.sp)
+        }
     }
 }
 
@@ -242,7 +271,7 @@ fun QrScanningStep(
                 
                 Log.d("Attendance", "QR Scanned! Session ID: $sid")
 
-                // 2. Fire-and-forget the backend checks (Don't wait for them here)
+                // 2. Fire-and-forget the backend checks
                 scope.launch {
                     try {
                         RetrofitClient.apiService.verifyWifi(WifiRequest(sid, bssid, ssid, lat, lon))
@@ -252,61 +281,115 @@ fun QrScanningStep(
                     }
                 }
                 
-                // 3. Move to next step IMMEDIATELY for better UX
+                // 3. Move to next step IMMEDIATELY
                 delay(300) 
                 onSuccess(sid)
             } catch (e: Exception) {
                 Log.e("Attendance", "Scan error", e)
-                qrDetected = false // Allow retry
+                qrDetected = false
                 isVerifying = false
             }
         }
     }
 
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Icon(Icons.Default.QrCodeScanner, null, tint = AccentBlue, modifier = Modifier.size(80.dp))
-        Spacer(modifier = Modifier.height(24.dp))
-        Text("Scan Faculty QR", color = TextWhite, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-        Text("Scan the QR code shown on the faculty screen.", color = TextMuted)
-        Spacer(modifier = Modifier.height(40.dp))
-
-        Box(
-            modifier = Modifier.size(280.dp).clip(RoundedCornerShape(24.dp)).border(2.dp, AccentBlue, RoundedCornerShape(24.dp)),
-            contentAlignment = Alignment.Center
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(24.dp)),
+        colors = CardDefaults.cardColors(containerColor = CardBg.copy(alpha = 0.7f)),
+        shape = RoundedCornerShape(24.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            AndroidView(
-                factory = { ctx ->
-                    val previewView = PreviewView(ctx)
-                    val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
-                    cameraProviderFuture.addListener({
-                        val cameraProvider = cameraProviderFuture.get()
-                        val preview = Preview.Builder().build()
-                        val imageAnalysis = ImageAnalysis.Builder().setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST).build()
-
-                        imageAnalysis.setAnalyzer(Executors.newSingleThreadExecutor()) { imageProxy ->
-                            val mediaImage = imageProxy.image
-                            if (mediaImage != null && !qrDetected) {
-                                val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
-                                scanner.process(image).addOnSuccessListener { barcodes ->
-                                    for (barcode in barcodes) {
-                                        barcode.rawValue?.let { value ->
-                                            qrDetected = true
-                                            verifyEverything(value)
-                                        }
-                                    }
-                                }.addOnCompleteListener { imageProxy.close() }
-                            } else { imageProxy.close() }
-                        }
-                        cameraProvider.unbindAll()
-                        cameraProvider.bindToLifecycle(lifecycleOwner, CameraSelector.DEFAULT_BACK_CAMERA, preview, imageAnalysis)
-                        preview.surfaceProvider = previewView.surfaceProvider
-                    }, ContextCompat.getMainExecutor(ctx))
-                    previewView
-                },
-                modifier = Modifier.fillMaxSize()
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .background(AccentBlue.copy(alpha = 0.1f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.QrCodeScanner, null, tint = AccentBlue, modifier = Modifier.size(32.dp))
+            }
+            Spacer(modifier = Modifier.height(24.dp))
+            Text("Scan Faculty QR", color = TextWhite, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                "Align the faculty's QR code within the frame.",
+                color = TextMuted,
+                textAlign = TextAlign.Center,
+                fontSize = 14.sp
             )
-            if (isVerifying) {
-                CircularProgressIndicator(color = SuccessGreen)
+            Spacer(modifier = Modifier.height(32.dp))
+
+            Box(
+                modifier = Modifier
+                    .size(260.dp)
+                    .clip(RoundedCornerShape(24.dp))
+                    .border(2.dp, AccentBlue.copy(alpha = 0.5f), RoundedCornerShape(24.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                AndroidView(
+                    factory = { ctx ->
+                        val previewView = PreviewView(ctx)
+                        val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
+                        cameraProviderFuture.addListener({
+                            val cameraProvider = cameraProviderFuture.get()
+                            val preview = Preview.Builder().build()
+                            val imageAnalysis = ImageAnalysis.Builder().setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST).build()
+
+                            imageAnalysis.setAnalyzer(Executors.newSingleThreadExecutor()) { imageProxy ->
+                                val mediaImage = imageProxy.image
+                                if (mediaImage != null && !qrDetected) {
+                                    val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
+                                    scanner.process(image).addOnSuccessListener { barcodes ->
+                                        for (barcode in barcodes) {
+                                            barcode.rawValue?.let { value ->
+                                                qrDetected = true
+                                                verifyEverything(value)
+                                            }
+                                        }
+                                    }.addOnCompleteListener { imageProxy.close() }
+                                } else { imageProxy.close() }
+                            }
+                            cameraProvider.unbindAll()
+                            cameraProvider.bindToLifecycle(lifecycleOwner, CameraSelector.DEFAULT_BACK_CAMERA, preview, imageAnalysis)
+                            preview.surfaceProvider = previewView.surfaceProvider
+                        }, ContextCompat.getMainExecutor(ctx))
+                        previewView
+                    },
+                    modifier = Modifier.fillMaxSize()
+                )
+                
+                // Scanner Animation Overlay
+                val infiniteTransition = rememberInfiniteTransition()
+                val scanOffset by infiniteTransition.animateFloat(
+                    initialValue = 0f,
+                    targetValue = 260f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(2000, easing = LinearEasing),
+                        repeatMode = RepeatMode.Reverse
+                    ), label = "scan_animation"
+                )
+                
+                if (!isVerifying) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(2.dp)
+                            .offset(y = (-130).dp + scanOffset.dp)
+                            .background(AccentBlue.copy(alpha = 0.5f))
+                    )
+                }
+
+                if (isVerifying) {
+                    Box(
+                        modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.4f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(color = SuccessGreen)
+                    }
+                }
             }
         }
     }
@@ -418,8 +501,6 @@ fun FaceVerificationStep(sessionId: String, onSuccess: () -> Unit, onFailure: (S
                     errorMessage = displayError
                     statusMessage = "Verification Failed"
                     isUploading = false
-                    // We REMOVE: capturedBitmap = null and faceDetected = false
-                    // So the "Retake/Upload" buttons stay on screen for the user
                     countdown = 5
                 }
             } catch (e: Exception) {
@@ -434,301 +515,399 @@ fun FaceVerificationStep(sessionId: String, onSuccess: () -> Unit, onFailure: (S
                 }
                 statusMessage = "Error occurred"
                 isUploading = false
-                // Keep the captured image visible even on network error
                 countdown = 3
             }
         }
     }
 
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(24.dp)),
+        colors = CardDefaults.cardColors(containerColor = CardBg.copy(alpha = 0.7f)),
+        shape = RoundedCornerShape(24.dp)
     ) {
-        Text(
-            "Face Verification",
-            color = TextWhite,
-            fontSize = 22.sp,
-            fontWeight = FontWeight.Bold
-        )
-        
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Help Box
-        Card(
-            colors = CardDefaults.cardColors(containerColor = CardBg.copy(alpha = 0.5f)),
-            shape = RoundedCornerShape(12.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Row(
-                modifier = Modifier.padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(Icons.Default.Lightbulb, contentDescription = null, tint = Color.Yellow, modifier = Modifier.size(20.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    "Hold phone at eye level in a well-lit area.",
-                    color = TextMuted,
-                    fontSize = 12.sp
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Box(
-            modifier = Modifier
-                .size(250.dp)
-                .clip(CircleShape)
-                .border(4.dp, 
-                    when {
-                        isUploading -> AccentBlue
-                        errorMessage != null -> Color.Red
-                        capturedBitmap != null -> SuccessGreen
-                        faceDetected -> SuccessGreen 
-                        else -> AccentBlue.copy(alpha = 0.5f)
-                    }, 
-                    CircleShape
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            if (capturedBitmap != null) {
-                androidx.compose.foundation.Image(
-                    bitmap = capturedBitmap!!.asImageBitmap(),
-                    contentDescription = "Captured Face",
-                    modifier = Modifier.fillMaxSize().clip(CircleShape),
-                    contentScale = androidx.compose.ui.layout.ContentScale.Crop
-                )
-            } else {
-                AndroidView(
-                    factory = { ctx ->
-                        val previewView = PreviewView(ctx)
-                        val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
-                        cameraProviderFuture.addListener({
-                            val cameraProvider = cameraProviderFuture.get()
-                            val preview = Preview.Builder().build()
-                            val imageAnalysis = ImageAnalysis.Builder()
-                                .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                                .build()
-
-                            imageAnalysis.setAnalyzer(Executors.newSingleThreadExecutor()) { imageProxy ->
-                                val mediaImage = imageProxy.image
-                                if (mediaImage != null && capturedBitmap == null && countdown == 0) {
-                                    val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
-                                    faceDetector.process(image)
-                                        .addOnSuccessListener { faces ->
-                                            if (faces.isNotEmpty()) {
-                                                faceDetected = true
-                                                statusMessage = "Face Found! Tap capture when ready."
-                                                // Update pending proxy for capture
-                                                pendingImageProxy?.close()
-                                                pendingImageProxy = imageProxy
-                                            } else {
-                                                faceDetected = false
-                                                if (errorMessage == null && countdown == 0) statusMessage = "Looking for face..."
-                                                // Still keep the proxy so user can capture even if detector is flicking
-                                                pendingImageProxy?.close()
-                                                pendingImageProxy = imageProxy
-                                            }
-                                        }
-                                        .addOnFailureListener {
-                                            imageProxy.close()
-                                        }
-                                } else {
-                                    imageProxy.close()
-                                }
-                            }
-
-                            val cameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
-                            try {
-                                cameraProvider.unbindAll()
-                                cameraProvider.bindToLifecycle(
-                                    lifecycleOwner,
-                                    cameraSelector,
-                                    preview,
-                                    imageAnalysis
-                                )
-                                preview.surfaceProvider = previewView.surfaceProvider
-                            } catch (e: Exception) {
-                                Log.e("Camera", "Use case binding failed", e)
-                            }
-                        }, ContextCompat.getMainExecutor(ctx))
-                        previewView
-                    },
-                    modifier = Modifier.fillMaxSize()
-                )
-            }
-
-            if (isUploading) {
-                CircularProgressIndicator(color = SuccessGreen, modifier = Modifier.size(60.dp))
-            }
-        }
-
-        Spacer(modifier = Modifier.height(32.dp))
-        
-        Text(
-            statusMessage,
-            color = when {
-                errorMessage != null -> Color.Red
-                capturedBitmap != null -> SuccessGreen
-                faceDetected -> SuccessGreen
-                else -> TextWhite
-            },
-            fontSize = 18.sp,
-            fontWeight = FontWeight.SemiBold,
-            textAlign = TextAlign.Center
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        if (capturedBitmap != null && !isUploading) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                Button(
-                    onClick = { 
-                        capturedBitmap = null
-                        faceDetected = false
-                        errorMessage = null
-                        statusMessage = "Position your face in the circle"
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = CardBg),
-                    modifier = Modifier.weight(1f).padding(horizontal = 8.dp).height(56.dp),
-                    shape = RoundedCornerShape(28.dp)
-                ) {
-                    Icon(Icons.Default.Refresh, null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Retake")
-                }
-
-                Button(
-                    onClick = { uploadAndVerify() },
-                    colors = ButtonDefaults.buttonColors(containerColor = SuccessGreen),
-                    modifier = Modifier.weight(1f).padding(horizontal = 8.dp).height(56.dp),
-                    shape = RoundedCornerShape(28.dp)
-                ) {
-                    Icon(Icons.Default.CloudUpload, null)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Upload")
-                }
-            }
-        } else if (capturedBitmap == null && !isUploading && countdown == 0) {
-            Button(
-                onClick = { 
-                    pendingImageProxy?.let { processCapture(it) } ?: run {
-                        statusMessage = "Waiting for camera..."
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth(0.8f)
-                    .height(56.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (faceDetected) SuccessGreen else AccentBlue
-                ),
-                shape = RoundedCornerShape(28.dp)
-            ) {
-                Icon(Icons.Default.CameraAlt, null)
-                Spacer(modifier = Modifier.width(12.dp))
-                Text(
-                    if (faceDetected) "Capture Photo" else "Manual Capture", 
-                    fontSize = 18.sp, 
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
-
-        if (errorMessage != null) {
-            Text(
-                errorMessage!!,
-                color = Color.Red.copy(alpha = 0.8f),
-                fontSize = 14.sp,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(start = 32.dp, end = 32.dp, top = 8.dp)
-            )
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            if (countdown > 0) {
-                Text(
-                    "Please wait ${countdown}s...",
-                    color = TextMuted,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            } else {
-                Button(
-                    onClick = { 
-                        errorMessage = null
-                        faceDetected = false
-                        capturedBitmap = null
-                        countdown = 0
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = SuccessGreen),
-                    modifier = Modifier.fillMaxWidth(0.6f).height(48.dp),
-                    shape = RoundedCornerShape(24.dp)
-                ) {
-                    Icon(Icons.Default.Refresh, null, modifier = Modifier.size(20.dp))
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text("Try Again Now", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                }
-            }
-        }
-        
-        Spacer(modifier = Modifier.height(16.dp))
-        
         Column(
-            modifier = Modifier.padding(horizontal = 32.dp),
+            modifier = Modifier.padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                "Tips for better verification:",
+                "Face Verification",
                 color = TextWhite,
-                fontSize = 14.sp,
+                fontSize = 22.sp,
                 fontWeight = FontWeight.Bold
             )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text("• Avoid strong backlighting", color = TextMuted, fontSize = 12.sp)
-            Text("• Remove glasses/sunglasses", color = TextMuted, fontSize = 12.sp)
-            Text("• Keep a neutral expression", color = TextMuted, fontSize = 12.sp)
+            
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Help Box
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.Black.copy(alpha = 0.2f), RoundedCornerShape(12.dp))
+                    .padding(12.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.Lightbulb, contentDescription = null, tint = Color.Yellow, modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        "Hold phone at eye level in a well-lit area.",
+                        color = TextMuted,
+                        fontSize = 12.sp
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Box(
+                modifier = Modifier
+                    .size(220.dp)
+                    .clip(CircleShape)
+                    .border(4.dp, 
+                        when {
+                            isUploading -> AccentBlue
+                            errorMessage != null -> Color.Red
+                            capturedBitmap != null -> SuccessGreen
+                            faceDetected -> SuccessGreen 
+                            else -> AccentBlue.copy(alpha = 0.5f)
+                        }, 
+                        CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                if (capturedBitmap != null) {
+                    androidx.compose.foundation.Image(
+                        bitmap = capturedBitmap!!.asImageBitmap(),
+                        contentDescription = "Captured Face",
+                        modifier = Modifier.fillMaxSize().clip(CircleShape),
+                        contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                    )
+                } else {
+                    AndroidView(
+                        factory = { ctx ->
+                            val previewView = PreviewView(ctx)
+                            val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
+                            cameraProviderFuture.addListener({
+                                val cameraProvider = cameraProviderFuture.get()
+                                val preview = Preview.Builder().build()
+                                val imageAnalysis = ImageAnalysis.Builder()
+                                    .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                                    .build()
+
+                                imageAnalysis.setAnalyzer(Executors.newSingleThreadExecutor()) { imageProxy ->
+                                    val mediaImage = imageProxy.image
+                                    if (mediaImage != null && capturedBitmap == null && countdown == 0) {
+                                        val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
+                                        faceDetector.process(image)
+                                            .addOnSuccessListener { faces ->
+                                                if (faces.isNotEmpty()) {
+                                                    faceDetected = true
+                                                    statusMessage = "Face Found! Tap capture when ready."
+                                                    pendingImageProxy?.close()
+                                                    pendingImageProxy = imageProxy
+                                                } else {
+                                                    faceDetected = false
+                                                    if (errorMessage == null && countdown == 0) statusMessage = "Looking for face..."
+                                                    pendingImageProxy?.close()
+                                                    pendingImageProxy = imageProxy
+                                                }
+                                            }
+                                            .addOnFailureListener {
+                                                imageProxy.close()
+                                            }
+                                    } else {
+                                        imageProxy.close()
+                                    }
+                                }
+
+                                val cameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
+                                try {
+                                    cameraProvider.unbindAll()
+                                    cameraProvider.bindToLifecycle(
+                                        lifecycleOwner,
+                                        cameraSelector,
+                                        preview,
+                                        imageAnalysis
+                                    )
+                                    preview.surfaceProvider = previewView.surfaceProvider
+                                } catch (e: Exception) {
+                                    Log.e("Camera", "Use case binding failed", e)
+                                }
+                            }, ContextCompat.getMainExecutor(ctx))
+                            previewView
+                        },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+
+                if (isUploading) {
+                    CircularProgressIndicator(color = SuccessGreen, modifier = Modifier.size(60.dp))
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            Text(
+                statusMessage,
+                color = when {
+                    errorMessage != null -> Color.Red
+                    capturedBitmap != null -> SuccessGreen
+                    faceDetected -> SuccessGreen
+                    else -> TextWhite
+                },
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            if (capturedBitmap != null && !isUploading) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    Button(
+                        onClick = { 
+                            capturedBitmap = null
+                            faceDetected = false
+                            errorMessage = null
+                            statusMessage = "Position your face in the circle"
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = CardBg),
+                        modifier = Modifier.weight(1f).padding(horizontal = 4.dp).height(48.dp),
+                        shape = RoundedCornerShape(24.dp)
+                    ) {
+                        Icon(Icons.Default.Refresh, null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Retake", fontSize = 14.sp)
+                    }
+
+                    Button(
+                        onClick = { uploadAndVerify() },
+                        colors = ButtonDefaults.buttonColors(containerColor = SuccessGreen),
+                        modifier = Modifier.weight(1f).padding(horizontal = 4.dp).height(48.dp),
+                        shape = RoundedCornerShape(24.dp)
+                    ) {
+                        Icon(Icons.Default.CloudUpload, null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Upload", fontSize = 14.sp)
+                    }
+                }
+            } else if (capturedBitmap == null && !isUploading && countdown == 0) {
+                Button(
+                    onClick = { 
+                        pendingImageProxy?.let { processCapture(it) } ?: run {
+                            statusMessage = "Waiting for camera..."
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (faceDetected) SuccessGreen else AccentBlue
+                    ),
+                    shape = RoundedCornerShape(28.dp)
+                ) {
+                    Icon(Icons.Default.CameraAlt, null)
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        if (faceDetected) "Capture Photo" else "Manual Capture", 
+                        fontSize = 16.sp, 
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            if (errorMessage != null) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    errorMessage!!,
+                    color = Color.Red.copy(alpha = 0.8f),
+                    fontSize = 12.sp,
+                    textAlign = TextAlign.Center
+                )
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                if (countdown > 0) {
+                    Text(
+                        "Please wait ${countdown}s...",
+                        color = TextMuted,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                } else {
+                    Button(
+                        onClick = { 
+                            errorMessage = null
+                            faceDetected = false
+                            capturedBitmap = null
+                            countdown = 0
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = SuccessGreen),
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                        shape = RoundedCornerShape(24.dp)
+                    ) {
+                        Icon(Icons.Default.Refresh, null, modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text("Try Again Now", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
         }
     }
 }
 
 @Composable
 fun SuccessStep(onFinish: () -> Unit) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center, modifier = Modifier.fillMaxSize()) {
-        Icon(Icons.Default.CheckCircle, null, tint = SuccessGreen, modifier = Modifier.size(120.dp))
-        Spacer(modifier = Modifier.height(24.dp))
-        Text("Attendance Marked!", color = TextWhite, fontSize = 28.sp, fontWeight = FontWeight.Bold)
-        Spacer(modifier = Modifier.height(48.dp))
-        Button(onClick = onFinish, modifier = Modifier.fillMaxWidth().height(56.dp), colors = ButtonDefaults.buttonColors(containerColor = SuccessGreen)) {
-            Text("Back to Dashboard")
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, SuccessGreen.copy(alpha = 0.2f), RoundedCornerShape(24.dp)),
+        colors = CardDefaults.cardColors(containerColor = CardBg.copy(alpha = 0.7f)),
+        shape = RoundedCornerShape(24.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(40.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(120.dp)
+                    .background(SuccessGreen.copy(alpha = 0.1f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.CheckCircle, null, tint = SuccessGreen, modifier = Modifier.size(80.dp))
+            }
+            Spacer(modifier = Modifier.height(32.dp))
+            Text(
+                "Attendance Marked!",
+                color = TextWhite,
+                fontSize = 26.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                "Your attendance has been successfully recorded for this session.",
+                color = TextMuted,
+                fontSize = 14.sp,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(48.dp))
+            Button(
+                onClick = onFinish,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = SuccessGreen),
+                shape = RoundedCornerShape(28.dp)
+            ) {
+                Text("Back to Dashboard", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            }
         }
     }
 }
 
 @Composable
 fun PermissionSection(onRequest: () -> Unit) {
-    Column(modifier = Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-        Icon(Icons.Default.Security, null, tint = AccentBlue, modifier = Modifier.size(80.dp))
-        Spacer(modifier = Modifier.height(24.dp))
-        Text("Permissions Required", color = TextWhite, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-        Text("Camera and Location are needed for every scan.", color = TextMuted, textAlign = TextAlign.Center)
-        Spacer(modifier = Modifier.height(40.dp))
-        Button(onClick = onRequest, modifier = Modifier.fillMaxWidth().height(56.dp)) { Text("Grant Access") }
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(24.dp)),
+        colors = CardDefaults.cardColors(containerColor = CardBg.copy(alpha = 0.7f)),
+        shape = RoundedCornerShape(24.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(32.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(80.dp)
+                    .background(AccentBlue.copy(alpha = 0.1f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.Security, null, tint = AccentBlue, modifier = Modifier.size(40.dp))
+            }
+            Spacer(modifier = Modifier.height(24.dp))
+            Text("Permissions Required", color = TextWhite, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                "AttendX needs Camera and Location access to verify your presence in the classroom.",
+                color = TextMuted,
+                textAlign = TextAlign.Center,
+                fontSize = 14.sp
+            )
+            Spacer(modifier = Modifier.height(40.dp))
+            Button(
+                onClick = onRequest,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
+                shape = RoundedCornerShape(28.dp)
+            ) {
+                Text("Grant Access", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            }
+        }
     }
 }
 
 @Composable
 fun StepIndicator(currentStep: Int) {
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
         repeat(3) { index ->
             val step = index + 1
-            Box(modifier = Modifier.size(32.dp).background(if (step <= currentStep) AccentBlue else CardBg, CircleShape), contentAlignment = Alignment.Center) {
-                if (step < currentStep) Icon(Icons.Default.Check, null, tint = TextWhite, modifier = Modifier.size(16.dp))
-                else Text(step.toString(), color = TextWhite, fontSize = 14.sp)
+            val isActive = step <= currentStep
+            val isCompleted = step < currentStep
+            
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .background(
+                            if (isActive) AccentBlue else CardBg,
+                            CircleShape
+                        )
+                        .border(
+                            2.dp,
+                            if (isActive) AccentBlue.copy(alpha = 0.5f) else Color.Transparent,
+                            CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (isCompleted) {
+                        Icon(Icons.Default.Check, null, tint = TextWhite, modifier = Modifier.size(20.dp))
+                    } else {
+                        Text(
+                            step.toString(),
+                            color = if (isActive) TextWhite else TextMuted,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
             }
-            if (index < 2) Box(modifier = Modifier.width(40.dp).height(2.dp).background(if (step < currentStep) AccentBlue else CardBg))
+            if (index < 2) {
+                Box(
+                    modifier = Modifier
+                        .width(60.dp)
+                        .height(2.dp)
+                        .padding(horizontal = 4.dp)
+                        .background(if (step < currentStep) AccentBlue else CardBg.copy(alpha = 0.5f))
+                )
+            }
         }
     }
 }

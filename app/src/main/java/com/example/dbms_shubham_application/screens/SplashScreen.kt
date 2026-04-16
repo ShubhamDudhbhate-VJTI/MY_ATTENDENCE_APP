@@ -7,6 +7,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -42,32 +43,34 @@ fun SplashScreen(navController: NavController) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF0F172A)), // Match theme background to avoid flash
+            .background(Color(0xFF0F172A)), 
         contentAlignment = Alignment.Center
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // Logo with optimized background
             Box(
                 modifier = Modifier
-                    .size(100.dp)
-                    .background(Color.White.copy(alpha = 0.1f), shape = CircleShape)
-                    .padding(10.dp),
+                    .size(120.dp)
+                    .background(
+                        Brush.linearGradient(listOf(Color(0xFF3B82F6), Color(0xFF8B5CF6))),
+                        shape = CircleShape
+                    )
+                    .padding(4.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color.White, shape = CircleShape),
+                        .background(Color(0xFF0F172A), shape = CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "SA",
-                        fontSize = 40.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = Color(0xFF2196F3)
+                        text = "AX",
+                        fontSize = 48.sp,
+                        fontWeight = FontWeight.Black,
+                        color = Color.White
                     )
                 }
             }
@@ -75,25 +78,26 @@ fun SplashScreen(navController: NavController) {
             Spacer(modifier = Modifier.height(32.dp))
             
             Text(
-                text = "Smart Attendance",
-                fontSize = 32.sp,
-                fontWeight = FontWeight.Bold,
+                text = "AttendX",
+                fontSize = 40.sp,
+                fontWeight = FontWeight.ExtraBold,
                 color = Color.White,
-                letterSpacing = 1.sp
+                letterSpacing = 2.sp
             )
             
             Text(
-                text = "Face Recognition & QR Powered",
-                fontSize = 16.sp,
-                color = Color.White.copy(alpha = 0.6f),
+                text = "Next-Gen Attendance System",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                color = Color(0xFF94A3B8),
                 modifier = Modifier.padding(top = 8.dp)
             )
             
-            Spacer(modifier = Modifier.height(64.dp))
+            Spacer(modifier = Modifier.height(80.dp))
             
             CircularProgressIndicator(
-                color = Color(0xFF2196F3),
-                modifier = Modifier.size(28.dp),
+                color = Color(0xFF3B82F6),
+                modifier = Modifier.size(32.dp),
                 strokeWidth = 3.dp
             )
         }

@@ -2,6 +2,7 @@ package com.example.dbms_shubham_application.screens
 
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -23,11 +24,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.dbms_shubham_application.data.local.SessionManager
+import com.example.dbms_shubham_application.data.model.Classroom
 import com.example.dbms_shubham_application.data.model.ScheduleRecord
+import com.example.dbms_shubham_application.data.model.Subject
 import com.example.dbms_shubham_application.network.RetrofitClient
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.util.Calendar
+import java.text.SimpleDateFormat
+import java.util.*
 
 private val DarkBg = Color(0xFF0F172A)
 private val CardBg = Color(0xFF1E293B)
@@ -46,20 +50,15 @@ fun FacultyClassesScreen(navController: NavController) {
 
     var schedule by remember { mutableStateOf<List<ScheduleRecord>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
-    
+
+    var subjects by remember { mutableStateOf<List<Subject>>(emptyList()) }
+    var classrooms by remember { mutableStateOf<List<Classroom>>(emptyList()) }
+    var editingRecord by remember { mutableStateOf<ScheduleRecord?>(null) }
+    var showAddDialog by remember { mutableStateOf(false) }
+
     val days = listOf("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")
     var selectedDay by remember { 
-        mutableStateOf(
-            when (Calendar.getInstance().get(Calendar.DAY_OF_WEEK)) {
-                Calendar.MONDAY -> "Monday"
-                Calendar.TUESDAY -> "Tuesday"
-                Calendar.WEDNESDAY -> "Wednesday"
-                Calendar.THURSDAY -> "Thursday"
-                Calendar.FRIDAY -> "Friday"
-                Calendar.SATURDAY -> "Saturday"
-                else -> "Monday"
-            }
-        )
+        mutableStateOf(SimpleDateFormat("EEEE", Locale.getDefault()).format(Date()))
     }
 
     fun loadSchedule(day: String) {
@@ -70,6 +69,12 @@ fun FacultyClassesScreen(navController: NavController) {
                 if (response.isSuccessful) {
                     schedule = response.body() ?: emptyList()
                 }
+
+                val subRes = RetrofitClient.apiService.getFacultySubjects(facultyId)
+                if (subRes.isSuccessful) subjects = subRes.body() ?: emptyList()
+
+                val roomRes = RetrofitClient.apiService.getClassrooms()
+                if (roomRes.isSuccessful) classrooms = roomRes.body() ?: emptyList()
             } catch (e: Exception) {
                 Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
             } finally {
@@ -86,13 +91,21 @@ fun FacultyClassesScreen(navController: NavController) {
         containerColor = DarkBg,
         topBar = {
             TopAppBar(
-                title = { Text("My Schedule", color = TextWhite, fontWeight = FontWeight.Bold) },
+                title = { 
+                    Column {
+                        Text("My Schedule", color = TextWhite, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                        Text("Weekly timetable overview", color = TextMuted, fontSize = 12.sp, fontWeight = FontWeight.Normal)
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = { navController.navigateUp() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextWhite)
                     }
                 },
                 actions = {
+                    IconButton(onClick = { showAddDialog = true }) {
+                        Icon(Icons.Default.Add, "Add Schedule", tint = SuccessGreen)
+                    }
                     IconButton(onClick = { loadSchedule(selectedDay) }) {
                         Icon(Icons.Default.Refresh, "Refresh", tint = AccentBlue)
                     }
@@ -104,9 +117,9 @@ fun FacultyClassesScreen(navController: NavController) {
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
             // Day Selector
             LazyRow(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
-                contentPadding = PaddingValues(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+                contentPadding = PaddingValues(horizontal = 20.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 items(days) { day ->
                     FilterChip(
@@ -116,9 +129,16 @@ fun FacultyClassesScreen(navController: NavController) {
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = AccentBlue,
                             selectedLabelColor = TextWhite,
-                            containerColor = CardBg,
+                            containerColor = CardBg.copy(alpha = 0.5f),
                             labelColor = TextMuted
-                        )
+                        ),
+                        border = FilterChipDefaults.filterChipBorder(
+                            enabled = true,
+                            selected = selectedDay == day,
+                            borderColor = Color.White.copy(alpha = 0.1f),
+                            selectedBorderColor = AccentBlue
+                        ),
+                        shape = RoundedCornerShape(12.dp)
                     )
                 }
             }
@@ -130,36 +150,74 @@ fun FacultyClassesScreen(navController: NavController) {
             } else if (schedule.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(Icons.Default.EventBusy, null, tint = TextMuted, modifier = Modifier.size(64.dp))
+                        Icon(Icons.Default.EventBusy, null, tint = TextMuted.copy(alpha = 0.3f), modifier = Modifier.size(64.dp))
                         Spacer(modifier = Modifier.height(16.dp))
                         Text("No classes scheduled for $selectedDay", color = TextMuted)
                     }
                 }
             } else {
                 LazyColumn(
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                     contentPadding = PaddingValues(bottom = 24.dp)
                 ) {
                     items(schedule) { item ->
-                        ScheduleCard(item) {
-                            // Navigate to Start Session with pre-filled room and subject
-                            val route = "start_session?subject_id=${item.subject_id}&classroom_id=${item.classroom_id}"
-                            navController.navigate(route)
-                        }
+                        ScheduleCard(
+                            item = item,
+                            onStart = {
+                                val route = "start_session?subject_id=${item.subject_id}&classroom_id=${item.classroom_id}"
+                                navController.navigate(route)
+                            },
+                            onEdit = { editingRecord = item },
+                            onDelete = {
+                                scope.launch {
+                                    item.id?.let { id ->
+                                        val res = RetrofitClient.apiService.deleteScheduleRecord(id)
+                                        if (res.isSuccessful) loadSchedule(selectedDay)
+                                    }
+                                }
+                            }
+                        )
                     }
                 }
             }
+        }
+
+        if (showAddDialog || editingRecord != null) {
+            EditScheduleDialog(
+                initialRecord = editingRecord,
+                subjects = subjects,
+                classrooms = classrooms,
+                onDismiss = { showAddDialog = false; editingRecord = null },
+                onSave = { newRecord ->
+                    scope.launch {
+                        val res = if (editingRecord == null) {
+                            RetrofitClient.apiService.addScheduleRecord(facultyId, newRecord)
+                        } else {
+                            RetrofitClient.apiService.updateScheduleRecord(editingRecord!!.id!!, newRecord)
+                        }
+                        if (res.isSuccessful) {
+                            loadSchedule(selectedDay)
+                            showAddDialog = false
+                            editingRecord = null
+                        } else {
+                            Toast.makeText(context, "Failed to save", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            )
         }
     }
 }
 
 @Composable
-fun ScheduleCard(item: ScheduleRecord, onStart: () -> Unit) {
+fun ScheduleCard(item: ScheduleRecord, onStart: () -> Unit, onEdit: () -> Unit, onDelete: () -> Unit) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = CardBg),
-        shape = RoundedCornerShape(20.dp)
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, Color.White.copy(alpha = 0.05f), RoundedCornerShape(24.dp)),
+        colors = CardDefaults.cardColors(containerColor = CardBg.copy(alpha = 0.7f)),
+        shape = RoundedCornerShape(24.dp)
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
             Row(
@@ -172,37 +230,56 @@ fun ScheduleCard(item: ScheduleRecord, onStart: () -> Unit) {
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(item.time, color = AccentBlue, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 }
-                Box(
-                    modifier = Modifier.background(AccentBlue.copy(alpha = 0.1f), RoundedCornerShape(8.dp)).padding(horizontal = 8.dp, vertical = 4.dp)
-                ) {
-                    Text(item.room, color = AccentBlue, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onEdit, modifier = Modifier.size(32.dp)) {
+                        Icon(Icons.Default.Edit, "Edit", tint = TextMuted, modifier = Modifier.size(16.dp))
+                    }
+                    IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
+                        Icon(Icons.Default.Delete, "Delete", tint = Color(0xFFEF4444), modifier = Modifier.size(16.dp))
+                    }
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Box(
+                        modifier = Modifier
+                            .background(AccentBlue.copy(alpha = 0.1f), RoundedCornerShape(10.dp))
+                            .border(1.dp, AccentBlue.copy(alpha = 0.2f), RoundedCornerShape(10.dp))
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                    ) {
+                        Text(item.room, color = AccentBlue, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold)
+                    }
                 }
             }
             
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(16.dp))
             
             Text(item.subject, color = TextWhite, fontWeight = FontWeight.Bold, fontSize = 20.sp)
             
             if (!item.subject_code.isNullOrEmpty()) {
-                Text(item.subject_code, color = TextMuted, fontSize = 12.sp)
+                Text(item.subject_code, color = TextMuted, fontSize = 12.sp, modifier = Modifier.padding(top = 2.dp))
             }
             
             if (!item.branch.isNullOrEmpty()) {
-                Text("${item.branch} • ${item.year}", color = TextMuted, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
+                Row(
+                    modifier = Modifier.padding(top = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.Group, null, tint = TextMuted, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("${item.branch} • ${item.year}", color = TextMuted, fontSize = 12.sp)
+                }
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-            OutlinedButton(
+            Button(
                 onClick = onStart,
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = TextMuted),
-                border = androidx.compose.foundation.BorderStroke(1.dp, TextMuted.copy(alpha = 0.3f)),
-                shape = RoundedCornerShape(12.dp)
+                modifier = Modifier.fillMaxWidth().height(50.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
+                shape = RoundedCornerShape(16.dp)
             ) {
-                Icon(Icons.Default.Info, null, modifier = Modifier.size(18.dp))
+                Icon(Icons.Default.PlayArrow, null, modifier = Modifier.size(20.dp))
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("View Details Only")
+                Text("Start This Session", fontWeight = FontWeight.Bold)
             }
         }
     }
