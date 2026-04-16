@@ -62,6 +62,7 @@ fun DashboardScreen(navController: NavController, role: String) {
     var studentHistory by remember { mutableStateOf<List<AttendanceRecord>>(emptyList()) }
     var facultySessions by remember { mutableStateOf<List<FacultySessionRecord>>(emptyList()) }
     var todaySchedule by remember { mutableStateOf<List<ScheduleRecord>>(emptyList()) }
+    var unreadNotificationsCount by remember { mutableIntStateOf(0) }
     var isLoading by remember { mutableStateOf(true) }
 
     val currentDay = remember {
@@ -78,29 +79,53 @@ fun DashboardScreen(navController: NavController, role: String) {
         }
     }
 
-    // --- CONNECTION LOGIC (UNTOUCHED) ---
+    var userProfile by remember { mutableStateOf<com.example.dbms_shubham_application.data.model.UserProfile?>(null) }
+    
+    // --- CONNECTION LOGIC (UPDATED) ---
     LaunchedEffect(userId, normalizedRole) {
         if (userId.isNotEmpty()) {
             try {
                 coroutineScope {
+                    // Fetch user profile for branch/year details
+                    val profileRes = RetrofitClient.apiService.getUserProfile(userId)
+                    if (profileRes.isSuccessful) userProfile = profileRes.body()
+
                     if (normalizedRole == "student") {
                         val historyJob = async { RetrofitClient.apiService.getAttendanceHistory(userId) }
                         val scheduleJob = async { RetrofitClient.apiService.getStudentSchedule(userId, currentDay) }
+                        val notifJob = async { RetrofitClient.apiService.getNotifications(userId) }
                         
                         val historyRes = historyJob.await()
                         if (historyRes.isSuccessful) studentHistory = historyRes.body() ?: emptyList()
                         
                         val scheduleRes = scheduleJob.await()
                         if (scheduleRes.isSuccessful) todaySchedule = scheduleRes.body() ?: emptyList()
+
+                        val notifRes = notifJob.await()
+                        if (notifRes.isSuccessful) {
+                            unreadNotificationsCount = notifRes.body()?.count { !it.is_read } ?: 0
+                        }
                     } else if (normalizedRole == "faculty") {
                         val sessionsJob = async { RetrofitClient.apiService.getFacultySessions(userId) }
                         val scheduleJob = async { RetrofitClient.apiService.getFacultySchedule(userId, currentDay) }
+                        val notifJob = async { RetrofitClient.apiService.getNotifications(userId) }
                         
                         val sessionsRes = sessionsJob.await()
                         if (sessionsRes.isSuccessful) facultySessions = sessionsRes.body() ?: emptyList()
                         
                         val scheduleRes = scheduleJob.await()
                         if (scheduleRes.isSuccessful) todaySchedule = scheduleRes.body() ?: emptyList()
+
+                        val notifRes = notifJob.await()
+                        if (notifRes.isSuccessful) {
+                            unreadNotificationsCount = notifRes.body()?.count { !it.is_read } ?: 0
+                        }
+                    } else if (normalizedRole == "hod") {
+                         val notifJob = async { RetrofitClient.apiService.getNotifications(userId) }
+                         val notifRes = notifJob.await()
+                         if (notifRes.isSuccessful) {
+                            unreadNotificationsCount = notifRes.body()?.count { !it.is_read } ?: 0
+                         }
                     }
                 }
             } catch (e: Exception) {
@@ -138,13 +163,23 @@ fun DashboardScreen(navController: NavController, role: String) {
                             .statusBarsPadding()
                             .padding(20.dp)
                         ) {
-                            HeaderSection(navController)
+                            HeaderSection(navController, unreadNotificationsCount)
                         }
                     }
 
                     // Greeting
                     item {
-                        GreetingSection(normalizedRole, userName, userId, modifier = Modifier.padding(horizontal = 24.dp))
+                        val branch = userProfile?.academic?.get("branch") ?: "N/A"
+                        val year = userProfile?.academic?.get("year") ?: "N/A"
+                        val regNo = userProfile?.academic?.get("reg_no") ?: userId
+                        
+                        val dynamicSubtext = if (normalizedRole == "student") {
+                            "$year $branch • $regNo"
+                        } else {
+                            "$branch Dept. • $userId"
+                        }
+                        
+                        GreetingSection(normalizedRole, userName, dynamicSubtext, modifier = Modifier.padding(horizontal = 24.dp))
                     }
 
                     // Stats Section
@@ -218,7 +253,7 @@ fun DashboardScreen(navController: NavController, role: String) {
 }
 
 @Composable
-fun HeaderSection(navController: NavController) {
+fun HeaderSection(navController: NavController, unreadCount: Int) {
     val context = LocalContext.current
     val sessionManager = remember { SessionManager(context) }
     
@@ -240,8 +275,21 @@ fun HeaderSection(navController: NavController) {
         }
 
         Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = { /* Notifications */ }) {
-                Icon(Icons.Outlined.Notifications, null, tint = TextMuted)
+            IconButton(onClick = { navController.navigate("alerts") }) {
+                BadgedBox(
+                    badge = {
+                        if (unreadCount > 0) {
+                            Badge(
+                                containerColor = AccentRed,
+                                contentColor = Color.White
+                            ) {
+                                Text(unreadCount.toString())
+                            }
+                        }
+                    }
+                ) {
+                    Icon(Icons.Outlined.Notifications, null, tint = TextMuted)
+                }
             }
             Spacer(modifier = Modifier.width(8.dp))
             Box(
@@ -260,12 +308,7 @@ fun HeaderSection(navController: NavController) {
 }
 
 @Composable
-fun GreetingSection(role: String, name: String, userId: String, modifier: Modifier = Modifier) {
-    val subtext = when (role.lowercase()) {
-        "student" -> "S.Y. B.Tech (I.T.) • $userId"
-        "faculty" -> "Information Technology Dept."
-        else -> "Portal Access"
-    }
+fun GreetingSection(role: String, name: String, subtext: String, modifier: Modifier = Modifier) {
     Column(modifier = modifier) {
         Text(
             text = "Hello,",

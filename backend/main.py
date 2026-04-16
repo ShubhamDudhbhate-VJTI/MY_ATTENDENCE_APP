@@ -220,6 +220,22 @@ class Notification(Base):
     is_read = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+def create_notification(db: Session, user_id: str, title: str, message: str):
+    try:
+        new_notif = Notification(
+            id=str(uuid.uuid4()),
+            user_id=user_id,
+            title=title,
+            message=message,
+            is_read=False,
+            created_at=datetime.utcnow()
+        )
+        db.add(new_notif)
+        db.commit()
+    except Exception as e:
+        print(f"Error creating notification: {e}")
+        db.rollback()
+
 # Dependency to get DB session
 def get_db():
     db = SessionLocal()
@@ -658,16 +674,22 @@ async def get_student_schedule(student_id: str, day: Optional[str] = None, db: S
         raise HTTPException(status_code=404, detail="Student not found")
 
     # Get subject IDs for this student
-    # Branch subjects
-    branch_subject_ids = db.query(BranchSubject.subject_id).filter(
+    # 1. Branch subjects from BranchSubject mapping table
+    branch_sub_ids = [s[0] for s in db.query(BranchSubject.subject_id).filter(
         BranchSubject.branch == student.branch,
         BranchSubject.year == student.year
-    ).all()
+    ).all()]
 
-    # Minor subjects
-    minor_subject_ids = db.query(Enrollment.subject_id).filter(Enrollment.student_id == student_id).all()
+    # 2. Subjects that match branch and year directly in the Subject table (Ensures consistency)
+    direct_sub_ids = [s[0] for s in db.query(Subject.id).filter(
+        Subject.branch == student.branch,
+        Subject.year == student.year
+    ).all()]
 
-    all_subject_ids = [s[0] for s in (branch_subject_ids + minor_subject_ids)]
+    # 3. Minor subjects from Enrollment table
+    minor_sub_ids = [s[0] for s in db.query(Enrollment.subject_id).filter(Enrollment.student_id == sid).all()]
+
+    all_subject_ids = list(set(branch_sub_ids + direct_sub_ids + minor_sub_ids))
 
     query = db.query(Schedule, Subject, Classroom).join(
         Subject, Schedule.subject_id == Subject.id
@@ -680,7 +702,7 @@ async def get_student_schedule(student_id: str, day: Optional[str] = None, db: S
     if day:
         query = query.filter(Schedule.day_of_week == day)
 
-    schedule = query.all()
+    results = query.all()
 
     return [
         {
@@ -695,7 +717,7 @@ async def get_student_schedule(student_id: str, day: Optional[str] = None, db: S
             "time": f"{s.start_time} - {s.end_time}",
             "is_official": s.is_official
         }
-        for s, sub, c in schedule
+        for s, sub, c in results
     ]
 
 @app.get("/notifications/{user_id}")
@@ -743,7 +765,30 @@ async def start_session(req: StartSessionRequest, db: Session = Depends(get_db))
         status="active"
     )
     db.add(new_session)
+
+    # Get subject name for notification
+    subject_obj = db.query(Subject).filter(Subject.id == req.subject_id).first()
     db.commit()
+
+    # 1. Notify the Faculty
+    create_notification(
+        db, req.faculty_id,
+        "Session Started",
+        f"You have started a session for {subject_obj.name} in {room_name}."
+    )
+
+    # 2. Notify all students in this branch/year
+    target_students = db.query(Student).filter(
+        Student.branch == subject_obj.branch,
+        Student.year == subject_obj.year
+    ).all()
+
+    for student in target_students:
+        create_notification(
+            db, student.id,
+            "Class Started",
+            f"{subject_obj.name} class has started in {room_name}. Mark your attendance!"
+        )
 
     return SessionResponse(
         session_id=sid, qr_token=qr_token, expires_at=expiry.isoformat(),
@@ -1022,6 +1067,13 @@ async def verify_face(
         db.add(new_record)
         db.commit()
 
+        # Notify student
+        create_notification(
+            db, user.id,
+            "Attendance Marked",
+            f"Your attendance for {session.subject_id} has been recorded as Present."
+        )
+
         print(f"+++ SUCCESS: {user.full_name} marked present +++")
         return {"success": True, "message": msg}
 
@@ -1066,27 +1118,51 @@ async def get_attendance(session_id: str, db: Session = Depends(get_db)):
 
 @app.get("/student/attendance/{student_id}")
 async def get_student_history(student_id: str, db: Session = Depends(get_db)):
+    """Returns all sessions conducted for student's class, marking them as Present or Absent"""
     sid = clean_id(student_id)
-    # Join records with sessions and subjects to show what subject they attended
-    results = db.query(
-        AttendanceRecord, AttendanceSession, Subject
-    ).join(
-        AttendanceSession, AttendanceRecord.session_id == AttendanceSession.id
-    ).join(
+    student = db.query(Student).filter(Student.id == sid).first()
+    if not student:
+        return []
+
+    # 1. Identify all relevant subjects for this student (Branch + Direct + Minors)
+    branch_sub_ids = [s[0] for s in db.query(Subject.id).filter(
+        Subject.branch == student.branch,
+        Subject.year == student.year
+    ).all()]
+
+    mapped_sub_ids = [s[0] for s in db.query(BranchSubject.subject_id).filter(
+        BranchSubject.branch == student.branch,
+        BranchSubject.year == student.year
+    ).all()]
+
+    minor_sub_ids = [s[0] for s in db.query(Enrollment.subject_id).filter(Enrollment.student_id == sid).all()]
+
+    all_sub_ids = list(set(branch_sub_ids + mapped_sub_ids + minor_sub_ids))
+
+    # 2. Get all sessions ever conducted for these subjects
+    sessions = db.query(AttendanceSession, Subject).join(
         Subject, AttendanceSession.subject_id == Subject.id
     ).filter(
-        AttendanceRecord.student_id == sid
-    ).all()
+        AttendanceSession.subject_id.in_(all_sub_ids)
+    ).order_by(AttendanceSession.start_time.desc()).all()
 
-    return [
-        {
-            "subject_id": str(sub.id),
+    # 3. Get actual attendance records for this student
+    records = db.query(AttendanceRecord).filter(AttendanceRecord.student_id == sid).all()
+    record_map = {r.session_id: r for r in records}
+
+    # 4. Construct a comprehensive history list
+    history = []
+    for s, sub in sessions:
+        record = record_map.get(s.id)
+        # Using sub.name for subject_id as the Dashboard uses this field for display text
+        history.append({
+            "subject_id": sub.name,
             "session_id": str(s.id),
-            "timestamp": r.marked_at.isoformat(),
-            "status": r.status
-        }
-        for r, s, sub in results
-    ]
+            "timestamp": (record.marked_at if record else s.start_time).isoformat(),
+            "status": record.status if record else "absent"
+        })
+
+    return history
 
 @app.get("/sessions/active")
 async def get_active_sessions(db: Session = Depends(get_db)):
@@ -1123,23 +1199,28 @@ async def stop_session(session_id: str, db: Session = Depends(get_db)):
     session_obj.status = "stopped"
     db.commit()
 
-    # Calculate detailed report with Roll Numbers and Names
+    # Notify Faculty with summary
+    report_students = []
     records = db.query(AttendanceRecord, Student, User).outerjoin(
         Student, AttendanceRecord.student_id == Student.id
     ).outerjoin(
         User, AttendanceRecord.student_id == User.id
     ).filter(AttendanceRecord.session_id == sid).all()
 
-    report_students = []
     for r, s, u in records:
         name = s.full_name if s else (u.full_name if u else f"Student {r.student_id}")
         reg_no = s.registration_number if s else (u.username if u else r.student_id)
-
         report_students.append({
-            "id": reg_no, # Return the Roll Number as ID
+            "id": reg_no,
             "name": name,
             "time": r.marked_at.isoformat()
         })
+
+    create_notification(
+        db, session_obj.faculty_id,
+        "Session Summary",
+        f"Session for {subject_obj.name} closed. Total Present: {len(report_students)}."
+    )
 
     return {
         "session_id": sid,

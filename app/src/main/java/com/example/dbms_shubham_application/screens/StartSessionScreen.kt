@@ -58,7 +58,9 @@ private val TextMuted = Color(0xFF94A3B8)
 fun StartSessionScreen(
     navController: NavController,
     prefillSubjectId: String? = null,
-    prefillClassroomId: String? = null
+    prefillClassroomId: String? = null,
+    prefillSubjectName: String? = null,
+    prefillRoomName: String? = null
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -96,7 +98,7 @@ fun StartSessionScreen(
                 if (roomRes.isSuccessful) {
                     val classroomsData = roomRes.body() ?: emptyList()
                     classrooms = classroomsData
-                    selectedClassroom = classroomsData.find { it.id == prefillClassroomId } ?: classroomsData.firstOrNull()
+                    selectedClassroom = classroomsData.find { it.id == prefillClassroomId || it.name == prefillRoomName } ?: classroomsData.firstOrNull()
                 }
 
                 val subjectRes = if (facultyId.isNotEmpty()) {
@@ -108,12 +110,12 @@ fun StartSessionScreen(
                 if (subjectRes.isSuccessful) {
                     val fetchedSubjects = subjectRes.body() ?: emptyList()
                     subjects = fetchedSubjects
-                    selectedSubject = subjects.find { it.id == prefillSubjectId } ?: subjects.firstOrNull()
+                    selectedSubject = subjects.find { it.id == prefillSubjectId || it.name == prefillSubjectName } ?: subjects.firstOrNull()
                 } else {
                     val allRes = RetrofitClient.apiService.getSubjects()
                     if (allRes.isSuccessful) {
                         subjects = allRes.body() ?: emptyList()
-                        selectedSubject = subjects.find { it.id == prefillSubjectId } ?: subjects.firstOrNull()
+                        selectedSubject = subjects.find { it.id == prefillSubjectId || it.name == prefillSubjectName } ?: subjects.firstOrNull()
                     }
                 }
             } catch (e: Exception) {

@@ -1,6 +1,7 @@
 package com.example.dbms_shubham_application.screens
 
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -18,6 +19,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -39,6 +41,7 @@ private val AccentBlue = Color(0xFF3B82F6)
 private val TextWhite = Color(0xFFFFFFFF)
 private val TextMuted = Color(0xFF94A3B8)
 private val SuccessGreen = Color(0xFF10B981)
+private val GlassBorder = Color(0xFF334155)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -90,56 +93,91 @@ fun FacultyClassesScreen(navController: NavController) {
     Scaffold(
         containerColor = DarkBg,
         topBar = {
-            TopAppBar(
-                title = { 
-                    Column {
-                        Text("My Schedule", color = TextWhite, fontWeight = FontWeight.Bold, fontSize = 20.sp)
-                        Text("Weekly timetable overview", color = TextMuted, fontSize = 12.sp, fontWeight = FontWeight.Normal)
-                    }
-                },
-                navigationIcon = {
-                    IconButton(onClick = { navController.navigateUp() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextWhite)
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { showAddDialog = true }) {
-                        Icon(Icons.Default.Add, "Add Schedule", tint = SuccessGreen)
-                    }
-                    IconButton(onClick = { loadSchedule(selectedDay) }) {
-                        Icon(Icons.Default.Refresh, "Refresh", tint = AccentBlue)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = DarkBg)
-            )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(AccentBlue.copy(alpha = 0.15f), Color.Transparent)
+                        )
+                    )
+            ) {
+                TopAppBar(
+                    title = { 
+                        Column {
+                            Text("My Schedule", color = TextWhite, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                            Text(selectedDay, color = AccentBlue, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    },
+                    navigationIcon = {
+                        IconButton(
+                            onClick = { navController.navigateUp() },
+                            modifier = Modifier
+                                .padding(8.dp)
+                                .size(40.dp)
+                                .background(CardBg.copy(alpha = 0.5f), CircleShape)
+                                .border(1.dp, GlassBorder, CircleShape)
+                        ) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextWhite, modifier = Modifier.size(20.dp))
+                        }
+                    },
+                    actions = {
+                        IconButton(
+                            onClick = { showAddDialog = true },
+                            modifier = Modifier
+                                .padding(end = 8.dp)
+                                .size(40.dp)
+                                .background(SuccessGreen.copy(alpha = 0.1f), CircleShape)
+                                .border(1.dp, SuccessGreen.copy(alpha = 0.2f), CircleShape)
+                        ) {
+                            Icon(Icons.Default.Add, "Add Schedule", tint = SuccessGreen, modifier = Modifier.size(20.dp))
+                        }
+                        IconButton(
+                            onClick = { loadSchedule(selectedDay) },
+                            modifier = Modifier
+                                .padding(end = 12.dp)
+                                .size(40.dp)
+                                .background(AccentBlue.copy(alpha = 0.1f), CircleShape)
+                                .border(1.dp, AccentBlue.copy(alpha = 0.2f), CircleShape)
+                        ) {
+                            Icon(Icons.Default.Refresh, "Refresh", tint = AccentBlue, modifier = Modifier.size(20.dp))
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
+                )
+            }
         }
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
             // Day Selector
             LazyRow(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
-                contentPadding = PaddingValues(horizontal = 20.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(days) { day ->
-                    FilterChip(
-                        selected = selectedDay == day,
+                    val isSelected = selectedDay == day
+                    Surface(
                         onClick = { selectedDay = day },
-                        label = { Text(day) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = AccentBlue,
-                            selectedLabelColor = TextWhite,
-                            containerColor = CardBg.copy(alpha = 0.5f),
-                            labelColor = TextMuted
-                        ),
-                        border = FilterChipDefaults.filterChipBorder(
-                            enabled = true,
-                            selected = selectedDay == day,
-                            borderColor = Color.White.copy(alpha = 0.1f),
-                            selectedBorderColor = AccentBlue
-                        ),
-                        shape = RoundedCornerShape(12.dp)
-                    )
+                        shape = RoundedCornerShape(16.dp),
+                        color = if (isSelected) AccentBlue else CardBg.copy(alpha = 0.5f),
+                        border = BorderStroke(1.dp, if (isSelected) AccentBlue else GlassBorder),
+                        modifier = Modifier.height(44.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier.padding(horizontal = 20.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = day,
+                                color = if (isSelected) TextWhite else TextMuted,
+                                fontSize = 14.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                            )
+                        }
+                    }
                 }
             }
 
@@ -165,7 +203,7 @@ fun FacultyClassesScreen(navController: NavController) {
                         ScheduleCard(
                             item = item,
                             onStart = {
-                                val route = "start_session?subject_id=${item.subject_id}&classroom_id=${item.classroom_id}"
+                                val route = "start_session?subject_id=${item.subject_id}&classroom_id=${item.classroom_id}&subject_name=${item.subject}&room_name=${item.room}"
                                 navController.navigate(route)
                             },
                             onEdit = { editingRecord = item },

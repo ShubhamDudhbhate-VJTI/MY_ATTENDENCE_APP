@@ -109,4 +109,8 @@ interface ApiService {
 
     @POST("notifications/read/{notificationId}")
     suspend fun markNotificationAsRead(@Path("notificationId") notificationId: String): Response<Map<String, Any>>
+
+    @GET("reports/pdf/{sessionId}")
+    @Streaming
+    suspend fun downloadReportPdf(@Path("sessionId") sessionId: String): Response<okhttp3.ResponseBody>
 }

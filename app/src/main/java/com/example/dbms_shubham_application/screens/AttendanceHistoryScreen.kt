@@ -1,5 +1,6 @@
 package com.example.dbms_shubham_application.screens
 
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -16,10 +17,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.example.dbms_shubham_application.data.local.SessionManager
+import com.example.dbms_shubham_application.network.RetrofitClient
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 private val DarkBg = Color(0xFF0F172A)
 private val CardBg = Color(0xFF1E293B)
@@ -32,14 +39,26 @@ private val AccentRed = Color(0xFFEF4444)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AttendanceHistoryScreen(navController: NavController) {
-    val attendanceRecords = remember {
-        listOf(
-            AttendanceRecord("04 Feb", "Database Mgmt Sys", "09:00 AM", "Face Verification", "Present"),
-            AttendanceRecord("03 Feb", "Computer Networks", "11:00 AM", "QR Scanner", "Present"),
-            AttendanceRecord("02 Feb", "Software Eng.", "02:00 PM", "Face Verification", "Absent"),
-            AttendanceRecord("01 Feb", "Machine Learning", "10:00 AM", "Face Verification", "Present"),
-            AttendanceRecord("31 Jan", "Database Mgmt Sys", "09:00 AM", "QR Scanner", "Present")
-        )
+    val context = LocalContext.current
+    val sessionManager = remember { SessionManager(context) }
+    val userId = remember { sessionManager.getUserId()?.replace("\"", "")?.replace("'", "") ?: "" }
+    
+    var attendanceRecords by remember { mutableStateOf<List<com.example.dbms_shubham_application.data.model.AttendanceRecord>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(true) }
+
+    LaunchedEffect(userId) {
+        if (userId.isNotEmpty()) {
+            try {
+                val response = RetrofitClient.apiService.getAttendanceHistory(userId)
+                if (response.isSuccessful) {
+                    attendanceRecords = response.body() ?: emptyList()
+                }
+            } catch (e: Exception) {
+                Log.e("AttendanceHistory", "Error: ${e.message}")
+            } finally {
+                isLoading = false
+            }
+        }
     }
     
     Scaffold(
@@ -52,42 +71,55 @@ fun AttendanceHistoryScreen(navController: NavController) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextWhite)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = DarkBg)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = DarkBg),
+                modifier = Modifier.statusBarsPadding()
             )
         }
     ) { padding ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp),
-            contentPadding = PaddingValues(bottom = 24.dp)
-        ) {
-            // Stats Overview
-            item {
-                HistoryStatsCard()
+        if (isLoading) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = AccentBlue)
             }
-            
-            item {
-                Text(
-                    text = "Recent Records",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TextWhite
-                )
-            }
-            
-            // Attendance Records
-            items(attendanceRecords) { record ->
-                HistoryRecordCard(record = record)
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(horizontal = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp),
+                contentPadding = PaddingValues(bottom = 24.dp)
+            ) {
+                // Stats Overview
+                item {
+                    val total = attendanceRecords.size
+                    val present = attendanceRecords.count { it.status.lowercase() == "present" }
+                    val absent = total - present
+                    val percentage = if (total > 0) (present.toFloat() / total) else 0f
+                    
+                    HistoryStatsCard(percentage, present, absent, total)
+                }
+                
+                item {
+                    Text(
+                        text = "Recent Records",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = TextWhite
+                    )
+                }
+                
+                // Attendance Records
+                items(attendanceRecords) { record ->
+                    HistoryRecordCard(record = record)
+                }
             }
         }
     }
 }
 
 @Composable
-fun HistoryStatsCard() {
+fun HistoryStatsCard(percentage: Float, present: Int, absent: Int, total: Int) {
+    val percentText = "%.1f%%".format(percentage * 100)
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -103,7 +135,7 @@ fun HistoryStatsCard() {
             ) {
                 Column {
                     Text("Overall Rate", fontSize = 14.sp, color = TextMuted)
-                    Text("83.2%", fontSize = 32.sp, fontWeight = FontWeight.ExtraBold, color = TextWhite)
+                    Text(percentText, fontSize = 32.sp, fontWeight = FontWeight.ExtraBold, color = TextWhite)
                 }
                 Box(
                     modifier = Modifier
@@ -118,12 +150,12 @@ fun HistoryStatsCard() {
             Spacer(modifier = Modifier.height(24.dp))
             
             LinearProgressIndicator(
-                progress = { 0.832f },
+                progress = { percentage },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(8.dp)
                     .clip(RoundedCornerShape(4.dp)),
-                color = AccentBlue,
+                color = if (percentage >= 0.75f) AccentBlue else AccentRed,
                 trackColor = Color.White.copy(alpha = 0.1f)
             )
             
@@ -136,11 +168,11 @@ fun HistoryStatsCard() {
                     .padding(16.dp),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                MiniStatItem("Present", "124", AccentGreen)
+                MiniStatItem("Present", present.toString(), AccentGreen)
                 Box(modifier = Modifier.width(1.dp).height(24.dp).background(TextMuted.copy(alpha = 0.2f)))
-                MiniStatItem("Absent", "25", AccentRed)
+                MiniStatItem("Absent", absent.toString(), AccentRed)
                 Box(modifier = Modifier.width(1.dp).height(24.dp).background(TextMuted.copy(alpha = 0.2f)))
-                MiniStatItem("Total", "149", TextWhite)
+                MiniStatItem("Total", total.toString(), TextWhite)
             }
         }
     }
@@ -155,8 +187,19 @@ fun MiniStatItem(label: String, value: String, color: Color) {
 }
 
 @Composable
-fun HistoryRecordCard(record: AttendanceRecord) {
-    val isPresent = record.status == "Present"
+fun HistoryRecordCard(record: com.example.dbms_shubham_application.data.model.AttendanceRecord) {
+    val isPresent = record.status.lowercase() == "present"
+    
+    // Parse timestamp
+    val (date, time) = try {
+        val zdt = ZonedDateTime.parse(record.timestamp)
+        val dateFormatter = DateTimeFormatter.ofPattern("dd MMM", Locale.getDefault())
+        val timeFormatter = DateTimeFormatter.ofPattern("hh:mm a", Locale.getDefault())
+        zdt.format(dateFormatter) to zdt.format(timeFormatter)
+    } catch (e: Exception) {
+        "N/A" to "N/A"
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -188,11 +231,11 @@ fun HistoryRecordCard(record: AttendanceRecord) {
             Spacer(modifier = Modifier.width(16.dp))
             
             Column(modifier = Modifier.weight(1f)) {
-                Text(record.subject, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextWhite)
+                Text(record.subject_id, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextWhite)
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(record.date, fontSize = 12.sp, color = TextMuted)
+                    Text(date, fontSize = 12.sp, color = TextMuted)
                     Text(" • ", fontSize = 12.sp, color = TextMuted)
-                    Text(record.time, fontSize = 12.sp, color = TextMuted)
+                    Text(time, fontSize = 12.sp, color = TextMuted)
                 }
             }
             
@@ -202,24 +245,14 @@ fun HistoryRecordCard(record: AttendanceRecord) {
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Text(
-                        text = record.status,
+                        text = record.status.uppercase(),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         color = if (isPresent) AccentGreen else AccentRed,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     )
                 }
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(record.method, fontSize = 10.sp, color = TextMuted)
             }
         }
     }
 }
-
-data class AttendanceRecord(
-    val date: String,
-    val subject: String,
-    val time: String,
-    val method: String,
-    val status: String
-)

@@ -1,5 +1,7 @@
 package com.example.dbms_shubham_application.screens
 
+import android.os.Environment
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -25,7 +27,12 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.dbms_shubham_application.data.local.SessionManager
 import com.example.dbms_shubham_application.network.RetrofitClient
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.FileOutputStream
+import java.io.InputStream
 
 private val DarkBg = Color(0xFF0F172A)
 private val CardBg = Color(0xFF1E293B)
@@ -43,6 +50,37 @@ fun ReportsScreen(navController: NavController) {
     
     var reports by remember { mutableStateOf<List<ReportData>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
+    var isDownloading by remember { mutableStateOf<String?>(null) }
+
+    fun downloadPdf(sessionId: String, fileName: String) {
+        isDownloading = sessionId
+        scope.launch(Dispatchers.IO) {
+            try {
+                val response = RetrofitClient.apiService.downloadReportPdf(sessionId)
+                if (response.isSuccessful) {
+                    val body = response.body()
+                    if (body != null) {
+                        saveFile(body.byteStream(), fileName, context)
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(context, "Downloaded: $fileName", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                } else {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, "Download failed", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            } finally {
+                withContext(Dispatchers.Main) {
+                    isDownloading = null
+                }
+            }
+        }
+    }
 
     LaunchedEffect(userId) {
         if (userId.isNotEmpty()) {
@@ -117,7 +155,11 @@ fun ReportsScreen(navController: NavController) {
                     contentPadding = PaddingValues(top = 16.dp, bottom = 24.dp)
                 ) {
                     items(reports) { report ->
-                        ReportCard(report)
+                        ReportCard(
+                            report = report,
+                            isDownloading = isDownloading == report.sessionId,
+                            onDownload = { downloadPdf(report.sessionId, "${report.name.replace(":", "_")}.pdf") }
+                        )
                     }
                 }
             }
@@ -126,7 +168,11 @@ fun ReportsScreen(navController: NavController) {
 }
 
 @Composable
-fun ReportCard(report: ReportData) {
+fun ReportCard(
+    report: ReportData,
+    isDownloading: Boolean,
+    onDownload: () -> Unit
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -157,14 +203,42 @@ fun ReportCard(report: ReportData) {
             }
             
             IconButton(
-                onClick = { /* Download PDF */ },
+                onClick = { if (!isDownloading) onDownload() },
                 modifier = Modifier
                     .background(Color.White.copy(alpha = 0.05f), CircleShape)
                     .size(40.dp)
             ) {
-                Icon(Icons.Default.FileDownload, contentDescription = "Download", tint = AccentBlue, modifier = Modifier.size(20.dp))
+                if (isDownloading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp,
+                        color = AccentBlue
+                    )
+                } else {
+                    Icon(Icons.Default.FileDownload, contentDescription = "Download", tint = AccentBlue, modifier = Modifier.size(20.dp))
+                }
             }
         }
+    }
+}
+
+private fun saveFile(inputStream: InputStream, fileName: String, context: android.content.Context) {
+    val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+    val file = File(downloadsDir, fileName)
+    
+    try {
+        FileOutputStream(file).use { output ->
+            val buffer = ByteArray(4 * 1024) // or other buffer size
+            var read: Int
+            while (inputStream.read(buffer).also { read = it } != -1) {
+                output.write(buffer, 0, read)
+            }
+            output.flush()
+        }
+    } catch (e: Exception) {
+        e.printStackTrace()
+    } finally {
+        inputStream.close()
     }
 }
 

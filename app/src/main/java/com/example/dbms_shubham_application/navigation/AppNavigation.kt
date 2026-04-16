@@ -56,24 +56,32 @@ fun AppNavigation() {
         composable("manage_schedule") {
             ManageScheduleScreen(navController = navController)
         }
+        composable("hod_analytics") {
+            HODAnalyticsScreen(navController = navController)
+        }
+        composable("hod_manage") {
+            HODManageScreen(navController = navController)
+        }
         composable(
-            route = "start_session?subject_id={subject_id}&classroom_id={classroom_id}",
+            route = "start_session?subject_id={subject_id}&classroom_id={classroom_id}&subject_name={subject_name}&room_name={room_name}",
             arguments = listOf(
-                androidx.navigation.navArgument("subject_id") {
-                    type = androidx.navigation.NavType.StringType
-                    nullable = true
-                    defaultValue = null
-                },
-                androidx.navigation.navArgument("classroom_id") {
-                    type = androidx.navigation.NavType.StringType
-                    nullable = true
-                    defaultValue = null
-                }
+                androidx.navigation.navArgument("subject_id") { type = androidx.navigation.NavType.StringType; nullable = true; defaultValue = null },
+                androidx.navigation.navArgument("classroom_id") { type = androidx.navigation.NavType.StringType; nullable = true; defaultValue = null },
+                androidx.navigation.navArgument("subject_name") { type = androidx.navigation.NavType.StringType; nullable = true; defaultValue = null },
+                androidx.navigation.navArgument("room_name") { type = androidx.navigation.NavType.StringType; nullable = true; defaultValue = null }
             )
         ) { backStackEntry ->
             val subId = backStackEntry.arguments?.getString("subject_id")
             val roomId = backStackEntry.arguments?.getString("classroom_id")
-            StartSessionScreen(navController = navController, prefillSubjectId = subId, prefillClassroomId = roomId)
+            val subName = backStackEntry.arguments?.getString("subject_name")
+            val roomName = backStackEntry.arguments?.getString("room_name")
+            StartSessionScreen(
+                navController = navController, 
+                prefillSubjectId = subId, 
+                prefillClassroomId = roomId,
+                prefillSubjectName = subName,
+                prefillRoomName = roomName
+            )
         }
         composable("start_session") {
             StartSessionScreen(navController = navController)
