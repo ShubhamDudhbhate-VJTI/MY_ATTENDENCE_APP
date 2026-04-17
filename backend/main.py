@@ -23,8 +23,8 @@ except ImportError:
     DeepFace = None
 
 # --- DEBUG SETTINGS ---
-# Set this to True to use LOCAL DeepFace (Real AI, but offline/fast)
-OFFLINE_DEBUG_MODE = True
+# Set this to False to use Hugging Face AI (Production)
+OFFLINE_DEBUG_MODE = False
 
 # --- AI CONFIG ---
 
