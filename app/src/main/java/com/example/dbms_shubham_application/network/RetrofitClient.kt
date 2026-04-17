@@ -14,7 +14,13 @@ object RetrofitClient {
     private const val TAG = "RetrofitClient"
     
     fun getBaseUrl(): String {
-        return BuildConfig.BASE_URL
+        val url = if (isEmulator()) {
+            "http://10.0.2.2:8000/"
+        } else {
+            BuildConfig.BASE_URL
+        }
+        Log.i(TAG, "NETWORK_CONFIG: Using URL -> $url")
+        return url
     }
 
     fun getFaceImageUrl(studentId: String): String {

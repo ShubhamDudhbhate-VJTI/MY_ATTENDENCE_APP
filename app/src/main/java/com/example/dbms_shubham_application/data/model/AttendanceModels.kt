@@ -52,6 +52,14 @@ data class FaceResponse(
     val message: String
 )
 
+data class LoginResponse(
+    val success: Boolean,
+    val user_id: String? = null,
+    val role: String? = null,
+    val name: String? = null,
+    val message: String? = null
+)
+
 data class AttendanceRecord(
     val subject_id: String,
     val session_id: String,

@@ -162,9 +162,9 @@ fun LoginScreen(navController: NavController, role: String) {
                                 val body = response.body()!!
                                 val sessionManager = SessionManager(context)
                                 
-                                val userId = body["user_id"]?.toString()?.replace("\"", "")?.trim() ?: ""
-                                val userRole = body["role"]?.toString()?.replace("\"", "")?.trim() ?: role.lowercase()
-                                val userName = body["name"]?.toString()?.replace("\"", "")?.trim() ?: ""
+                                val userId = body.user_id ?: ""
+                                val userRole = body.role ?: role.lowercase()
+                                val userName = body.name ?: ""
                                 
                                 sessionManager.saveSession(userId, userRole, userName)
 

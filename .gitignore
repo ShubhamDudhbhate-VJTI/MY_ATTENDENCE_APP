@@ -17,5 +17,18 @@ local.properties
 /backend/__pycache__
 /backend/venv
 .env
+backend/.env
 *.db
 *.db-journal
+
+# Python local data
+backend/static/faces/
+backend/static/faces/*
+backend/attendance.db
+*.jpg
+*.png
+*.jpeg
+
+# Secrets
+.env*
+**/secrets.xml

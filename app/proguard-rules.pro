@@ -23,6 +23,6 @@
 -dontwarn okhttp3.**
 -keep class okhttp3.** { *; }
 
-# Your model/data classes (update package name)
--keep class com.example.dbms_shubham_application.data.models.** { *; }
+# Your model/data classes
+-keep class com.example.dbms_shubham_application.data.model.** { *; }
 -keep class com.example.dbms_shubham_application.data.remote.** { *; }

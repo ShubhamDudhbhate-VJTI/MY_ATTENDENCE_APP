@@ -11,10 +11,10 @@ interface ApiService {
     suspend fun startSession(@Body request: StartSessionRequest): Response<SessionResponse>
 
     @POST("auth/login")
-    suspend fun login(@Body credentials: Map<String, String>): Response<Map<String, Any>>
+    suspend fun login(@Body credentials: Map<String, String>): Response<LoginResponse>
 
     @POST("auth/signup")
-    suspend fun signup(@Body userData: Map<String, String>): Response<Map<String, Any>>
+    suspend fun signup(@Body userData: Map<String, String>): Response<LoginResponse>
 
     @POST("attendance/verify-wifi")
     suspend fun verifyWifi(@Body wifiRequest: WifiRequest): Response<WifiResponse>

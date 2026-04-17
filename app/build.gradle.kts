@@ -23,16 +23,20 @@ android {
 
     buildTypes {
         debug {
-            buildConfigField("String", "BASE_URL", "\"http://10.0.2.2:8000/\"")
+            applicationIdSuffix = ".debug"
+            resValue("string", "app_name", "AttendX (Local)")
+            buildConfigField("String", "BASE_URL", "\"http://10.82.238.244:8000/\"")
         }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            resValue("string", "app_name", "AttendX")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            buildConfigField("String", "BASE_URL", "\"https://dbms-shubham-attendance.onrender.com/\"")
+            buildConfigField("String", "BASE_URL", "\"https://sd-backend-attenedence-app.onrender.com/\"")
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
     compileOptions {
@@ -43,6 +47,7 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+        resValues = true
     }
 }
 

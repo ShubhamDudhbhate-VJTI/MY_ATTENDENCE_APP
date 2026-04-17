@@ -21,12 +21,12 @@
           </targets>
         </DialogSelection>
       </SelectionState>
-      <SelectionState runConfigName="app">
+      <SelectionState runConfigName="New Run Config">
         <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2026-04-10T20:36:45.726680600Z">
+        <DropdownSelection timestamp="2026-04-13T10:00:56.963428900Z">
           <Target type="DEFAULT_BOOT">
             <handle>
-              <DeviceId pluginId="LocalEmulator" identifier="path=D:\AndroidSDK\avd\Pixel_4.avd" />
+              <DeviceId pluginId="PhysicalDevice" identifier="serial=irpzauyx854tq8hu" />
             </handle>
           </Target>
         </DropdownSelection>
@@ -40,9 +40,9 @@
           </targets>
         </DialogSelection>
       </SelectionState>
-      <SelectionState runConfigName="New Run Config">
+      <SelectionState runConfigName="Render_APP_DBMS">
         <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2026-04-13T10:00:56.963428900Z">
+        <DropdownSelection timestamp="2026-04-17T13:52:34.684672300Z">
           <Target type="DEFAULT_BOOT">
             <handle>
               <DeviceId pluginId="PhysicalDevice" identifier="serial=irpzauyx854tq8hu" />

@@ -10,26 +10,10 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="37fbc4eb-d571-4aaf-8d9d-f890ab6307cf" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/app/src/main/java/com/example/dbms_shubham_application/screens/SendNotificationScreen.kt" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/fix_academic_data.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gradle/9.3.1/executionHistory/executionHistory.bin" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/9.3.1/executionHistory/executionHistory.bin" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gradle/9.3.1/executionHistory/executionHistory.lock" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/9.3.1/executionHistory/executionHistory.lock" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gradle/9.3.1/fileHashes/fileHashes.bin" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/9.3.1/fileHashes/fileHashes.bin" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gradle/9.3.1/fileHashes/fileHashes.lock" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/9.3.1/fileHashes/fileHashes.lock" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gradle/9.3.1/fileHashes/resourceHashesCache.bin" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/9.3.1/fileHashes/resourceHashesCache.bin" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gradle/buildOutputCleanup/buildOutputCleanup.lock" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/buildOutputCleanup/buildOutputCleanup.lock" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gradle/buildOutputCleanup/outputFiles.bin" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/buildOutputCleanup/outputFiles.bin" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gradle/file-system.probe" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/file-system.probe" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/build.gradle.kts" beforeDir="false" afterPath="$PROJECT_DIR$/app/build.gradle.kts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/proguard-rules.pro" beforeDir="false" afterPath="$PROJECT_DIR$/app/proguard-rules.pro" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/AndroidManifest.xml" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/AndroidManifest.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/example/dbms_shubham_application/data/remote/ApiService.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/example/dbms_shubham_application/data/remote/ApiService.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/example/dbms_shubham_application/navigation/AppNavigation.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/example/dbms_shubham_application/navigation/AppNavigation.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/example/dbms_shubham_application/network/RetrofitClient.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/example/dbms_shubham_application/network/RetrofitClient.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/example/dbms_shubham_application/screens/DashboardScreen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/example/dbms_shubham_application/screens/DashboardScreen.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/example/dbms_shubham_application/screens/LoginScreen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/example/dbms_shubham_application/screens/LoginScreen.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/huggingface/Dockerfile" beforeDir="false" afterPath="$PROJECT_DIR$/backend/huggingface/Dockerfile" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/huggingface/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/backend/huggingface/requirements.txt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/backend/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/backend/main.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/backend/requirements.txt" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -63,7 +47,7 @@
     </system>
   </component>
   <component name="Git.Settings">
-    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/backend" />
   </component>
   <component name="GradleScriptDefinitionsStorage" workingDir="$PROJECT_DIR$" gradleHome="C:\Users\Shubham\.gradle\wrapper\dists\gradle-9.3.1-bin\23ovyewtku6u96viwx3xl3oks\gradle-9.3.1" javaHome="C:\Program Files\Android\Android Studio\jbr" gradleVersion="9.3.1" />
   <component name="ProjectColorInfo">{
@@ -78,6 +62,7 @@
   &quot;keyToString&quot;: {
     &quot;Android App.DBMS.executor&quot;: &quot;Run&quot;,
     &quot;Android App.New Run Config.executor&quot;: &quot;Run&quot;,
+    &quot;Android App.Render_APP_DBMS.executor&quot;: &quot;Run&quot;,
     &quot;Android App.app.executor&quot;: &quot;Run&quot;,
     &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
@@ -92,10 +77,10 @@
     &quot;com.google.services.firebase.aqiPopupShown&quot;: &quot;true&quot;,
     &quot;git-widget-placeholder&quot;: &quot;main&quot;,
     &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
-    &quot;settings.editor.selected.configurable&quot;: &quot;templates.modelproviders.configurable&quot;
+    &quot;settings.editor.selected.configurable&quot;: &quot;layout.inspector&quot;
   }
 }</component>
-  <component name="RunManager" selected="Android App.app">
+  <component name="RunManager" selected="Android App.New Run Config">
     <configuration name="DBMS" type="AndroidRunConfigurationType" factoryName="Android App" activateToolWindowBeforeRun="false">
       <module name="DBMS_Shubham_Application.app" />
       <option name="ANDROID_RUN_CONFIGURATION_SCHEMA_VERSION" value="1" />
@@ -236,7 +221,7 @@
         <option name="Android.Gradle.BeforeRunTask" enabled="true" />
       </method>
     </configuration>
-    <configuration name="app" type="AndroidRunConfigurationType" factoryName="Android App" activateToolWindowBeforeRun="false">
+    <configuration name="Render_APP_DBMS" type="AndroidRunConfigurationType" factoryName="Android App" activateToolWindowBeforeRun="false">
       <module name="DBMS_Shubham_Application.app" />
       <option name="ANDROID_RUN_CONFIGURATION_SCHEMA_VERSION" value="1" />
       <option name="DEPLOY" value="true" />
@@ -308,7 +293,7 @@
     </configuration>
     <list>
       <item itemvalue="Android App.New Run Config" />
-      <item itemvalue="Android App.app" />
+      <item itemvalue="Android App.Render_APP_DBMS" />
       <item itemvalue="Android App.DBMS" />
     </list>
   </component>
@@ -321,6 +306,17 @@
       <updated>1775823366364</updated>
     </task>
     <servers />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
   </component>
   <component name="play_dynamic_filters_status">
     <option name="appIdToCheckInfo">

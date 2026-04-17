@@ -459,9 +459,24 @@ fun FaceVerificationStep(sessionId: String, onSuccess: () -> Unit, onFailure: (S
                 
                 val file = File(faceDir, "face_${studentId}_${System.currentTimeMillis()}.jpg")
                 val out = FileOutputStream(file)
-                bitmap.compress(Bitmap.CompressFormat.JPEG, 85, out)
+
+                // --- OPTIMIZATION: Resize and Compress for Cloud Speed ---
+                val scaledBitmap = if (bitmap.width > 800 || bitmap.height > 800) {
+                    val scale = 800f / maxOf(bitmap.width, bitmap.height)
+                    Bitmap.createScaledBitmap(
+                        bitmap,
+                        (bitmap.width * scale).toInt(),
+                        (bitmap.height * scale).toInt(),
+                        true
+                    )
+                } else {
+                    bitmap
+                }
+                
+                scaledBitmap.compress(Bitmap.CompressFormat.JPEG, 70, out) // Lowered quality to 70 for speed
                 out.flush()
                 out.close()
+                // ---------------------------------------------------------
 
                 val requestFile = file.asRequestBody("image/jpeg".toMediaTypeOrNull())
                 val imagePart = MultipartBody.Part.createFormData("image", file.name, requestFile)

@@ -159,9 +159,9 @@ fun SignUpScreen(navController: NavController, role: String) {
                                 "role" to role.lowercase()
                             )
                             val response = RetrofitClient.apiService.signup(userData)
-                            if (response.isSuccessful && response.body()?.get("success") == true) {
+                            if (response.isSuccessful && response.body()?.success == true) {
                                 val body = response.body()!!
-                                val finalUserId = body["user_id"]?.toString() ?: userIdInput.trim()
+                                val finalUserId = body.user_id ?: userIdInput.trim()
                                 
                                 val sessionManager = SessionManager(context)
                                 sessionManager.saveSession(finalUserId, role.lowercase(), name.trim())
