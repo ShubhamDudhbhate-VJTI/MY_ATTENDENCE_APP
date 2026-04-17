@@ -188,10 +188,20 @@ fun LoginScreen(navController: NavController, role: String) {
                                     popUpTo("role_selection") { inclusive = false }
                                 }
                             } else {
-                                Toast.makeText(context, "Authentication Failed", Toast.LENGTH_SHORT).show()
+                                val errorMsg = if (response.code() == 503 || response.code() == 504) {
+                                    "Server is starting up, please wait a moment and try again."
+                                } else {
+                                    "Authentication Failed: ${response.message()}"
+                                }
+                                Toast.makeText(context, errorMsg, Toast.LENGTH_LONG).show()
                             }
                         } catch (e: Exception) {
-                            Toast.makeText(context, "Network Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                            val errorMsg = if (e is java.net.SocketTimeoutException || e is java.io.IOException) {
+                                "Server is starting up, please wait a moment and try again."
+                            } else {
+                                "Network Error: ${e.message}"
+                            }
+                            Toast.makeText(context, errorMsg, Toast.LENGTH_LONG).show()
                         } finally {
                             isLoading = false
                         }

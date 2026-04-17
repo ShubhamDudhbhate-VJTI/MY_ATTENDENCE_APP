@@ -197,6 +197,8 @@ fun DashboardScreen(navController: NavController, role: String) {
                             QuickActionsSection(navController, modifier = Modifier.padding(horizontal = 24.dp))
                         } else if (normalizedRole == "faculty") {
                             FacultyManagementSection(navController, modifier = Modifier.padding(horizontal = 24.dp))
+                        } else if (normalizedRole == "hod") {
+                            HODActionsSection(navController, modifier = Modifier.padding(horizontal = 24.dp))
                         }
                     }
 
@@ -430,8 +432,40 @@ fun FacultyManagementSection(navController: NavController, modifier: Modifier = 
             ModernActionItem("History", Icons.Default.BarChart, SuccessGreen, Modifier.weight(1f)) {
                 navController.navigate("faculty_history")
             }
-            ModernActionItem("Classes", Icons.Default.School, AccentPurple, Modifier.weight(1f)) {
+            ModernActionItem("Notify", Icons.Default.Notifications, AccentPurple, Modifier.weight(1f)) {
+                navController.navigate("send_notification")
+            }
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            ModernActionItem("Classes", Icons.Default.School, AccentOrange, Modifier.weight(0.33f)) {
                 navController.navigate("faculty_classes")
+            }
+            Spacer(modifier = Modifier.weight(0.67f))
+        }
+    }
+}
+
+@Composable
+fun HODActionsSection(navController: NavController, modifier: Modifier = Modifier) {
+    Column(modifier = modifier) {
+        Text("Management", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextWhite)
+        Spacer(modifier = Modifier.height(16.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            ModernActionItem("Analytics", Icons.Default.BarChart, AccentBlue, Modifier.weight(1f)) {
+                navController.navigate("hod_analytics")
+            }
+            ModernActionItem("Manage", Icons.Default.Domain, SuccessGreen, Modifier.weight(1f)) {
+                navController.navigate("hod_manage")
+            }
+            ModernActionItem("Notify", Icons.Default.Notifications, AccentPurple, Modifier.weight(1f)) {
+                navController.navigate("send_notification")
             }
         }
     }
@@ -582,7 +616,8 @@ fun BottomNavBar(navController: NavController, role: String) {
             "faculty" -> {
                 listOf(
                     Triple("Home", Icons.Default.GridView, "dashboard/faculty"),
-                    Triple("Manage", Icons.Default.Dataset, "faculty_classes"),
+                    Triple("Notify", Icons.Default.Notifications, "send_notification"),
+                    Triple("Classes", Icons.Default.School, "faculty_classes"),
                     Triple("History", Icons.Default.History, "faculty_history")
                 )
             }

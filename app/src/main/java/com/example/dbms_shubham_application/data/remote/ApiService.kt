@@ -113,4 +113,10 @@ interface ApiService {
     @GET("reports/pdf/{sessionId}")
     @Streaming
     suspend fun downloadReportPdf(@Path("sessionId") sessionId: String): Response<okhttp3.ResponseBody>
+
+    @POST("notifications/send")
+    suspend fun sendNotification(@Body request: Map<String, String>): Response<Map<String, Any>>
+
+    @GET("debug/check-setup")
+    suspend fun checkSetup(): Response<Map<String, Any>>
 }

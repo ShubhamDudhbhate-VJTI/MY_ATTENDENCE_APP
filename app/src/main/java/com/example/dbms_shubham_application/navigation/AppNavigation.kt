@@ -62,6 +62,9 @@ fun AppNavigation() {
         composable("hod_manage") {
             HODManageScreen(navController = navController)
         }
+        composable("send_notification") {
+            SendNotificationScreen(navController = navController)
+        }
         composable(
             route = "start_session?subject_id={subject_id}&classroom_id={classroom_id}&subject_name={subject_name}&room_name={room_name}",
             arguments = listOf(

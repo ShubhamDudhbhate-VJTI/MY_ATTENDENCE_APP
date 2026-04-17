@@ -1,5 +1,6 @@
 package com.example.dbms_shubham_application.network
 
+import com.example.dbms_shubham_application.BuildConfig
 import com.example.dbms_shubham_application.data.remote.ApiService
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -12,16 +13,8 @@ import android.util.Log
 object RetrofitClient {
     private const val TAG = "RetrofitClient"
     
-    // CURRENT PC IP (Change this if ipconfig changes)
-    private const val PC_IP = "10.188.246.244"
-
     fun getBaseUrl(): String {
-        val url = if (isEmulator()) {
-            "http://10.0.2.2:8000/"
-        } else {
-            "http://$PC_IP:8000/"
-        }
-        return url
+        return BuildConfig.BASE_URL
     }
 
     fun getFaceImageUrl(studentId: String): String {
@@ -43,9 +36,9 @@ object RetrofitClient {
                 throw e
             }
         }
-        .connectTimeout(30, TimeUnit.SECONDS) 
-        .readTimeout(30, TimeUnit.SECONDS)
-        .writeTimeout(30, TimeUnit.SECONDS)
+        .connectTimeout(60, TimeUnit.SECONDS) 
+        .readTimeout(60, TimeUnit.SECONDS)
+        .writeTimeout(60, TimeUnit.SECONDS)
         .retryOnConnectionFailure(true)
         .build()
 

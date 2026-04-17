@@ -778,9 +778,10 @@ async def start_session(req: StartSessionRequest, db: Session = Depends(get_db))
     )
 
     # 2. Notify all students in this branch/year
+    # Use ILIKE or case-insensitive matching for more robustness
     target_students = db.query(Student).filter(
-        Student.branch == subject_obj.branch,
-        Student.year == subject_obj.year
+        Student.branch.ilike(f"%{subject_obj.branch}%"),
+        Student.year.ilike(f"%{subject_obj.year}%")
     ).all()
 
     for student in target_students:
@@ -1294,6 +1295,93 @@ async def get_student_face(student_id: str, db: Session = Depends(get_db)):
         return Response(content=student.face_image, media_type="image/jpeg")
 
     raise HTTPException(status_code=404, detail="Face image not found")
+
+@app.post("/notifications/send")
+async def send_custom_notification(request: dict = Body(...), db: Session = Depends(get_db)):
+    target_type = request.get("target_type") # individual, group, class
+    target_id = request.get("target_id", "").strip()
+    title = request.get("title")
+    message = request.get("message")
+    sender_id = request.get("sender_id")
+
+    if not all([target_type, target_id, title, message]):
+        raise HTTPException(status_code=400, detail="Missing required fields")
+
+    notifications_sent = 0
+
+    if target_type == "individual":
+        # target_id is registration number or user ID
+        user = db.query(User).filter((User.username == target_id) | (User.id == target_id)).first()
+        if user:
+            create_notification(db, user.id, title, message)
+            notifications_sent = 1
+        else:
+            # Try to find by registration number in Student table
+            student = db.query(Student).filter(Student.registration_number == target_id).first()
+            if student:
+                create_notification(db, student.id, title, message)
+                notifications_sent = 1
+            else:
+                raise HTTPException(status_code=404, detail=f"Student {target_id} not found")
+
+    elif target_type == "class":
+        # target_id is "branch-year" e.g., "Information Technology-Second Year"
+        if "-" in target_id:
+            parts = target_id.split("-")
+            branch = parts[0].strip()
+            year = parts[1].strip()
+            students = db.query(Student).filter(
+                Student.branch.ilike(f"%{branch}%"),
+                Student.year.ilike(f"%{year}%")
+            ).all()
+        else:
+            # Fallback to searching only branch if no hyphen
+            students = db.query(Student).filter(Student.branch.ilike(f"%{target_id}%")).all()
+
+        for s in students:
+            create_notification(db, s.id, title, message)
+            notifications_sent += 1
+
+    elif target_type == "group":
+        # target_id is Subject Name or Code
+        subject = db.query(Subject).filter(
+            (Subject.name.ilike(f"%{target_id}%")) | (Subject.code.ilike(f"%{target_id}%"))
+        ).first()
+
+        if subject:
+            # Get all students for this subject's branch and year (assuming whole class)
+            students = db.query(Student).filter(
+                Student.branch == subject.branch,
+                Student.year == subject.year
+            ).all()
+
+            # Also get minor/elective students
+            elective_students = db.query(Student).join(Enrollment, Student.id == Enrollment.student_id).filter(
+                Enrollment.subject_id == subject.id
+            ).all()
+
+            # Combine unique students
+            all_target_students = {s.id: s for s in (students + elective_students)}.values()
+
+            for s in all_target_students:
+                create_notification(db, s.id, title, message)
+                notifications_sent += 1
+        else:
+            raise HTTPException(status_code=404, detail=f"Subject {target_id} not found")
+
+    return {"success": True, "sent_to": notifications_sent}
+
+@app.get("/debug/check-setup")
+async def check_setup(db: Session = Depends(get_db)):
+    """Debug endpoint to see if students and subjects are mapped correctly"""
+    student_counts = db.query(Student.branch, Student.year, func.count(Student.id)).group_by(Student.branch, Student.year).all()
+    subject_counts = db.query(Subject.branch, Subject.year, func.count(Subject.id)).group_by(Subject.branch, Subject.year).all()
+
+    return {
+        "student_distribution": [{"branch": b, "year": y, "count": c} for b, y, c in student_counts],
+        "subject_distribution": [{"branch": b, "year": y, "count": c} for b, y, c in subject_counts],
+        "total_notifications": db.query(Notification).count()
+    }
 
 if __name__ == "__main__":
     # Use 0.0.0.0 to listen on all network interfaces (allows mobile devices to connect)
