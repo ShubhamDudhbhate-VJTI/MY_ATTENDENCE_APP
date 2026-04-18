@@ -53,3 +53,16 @@
 # --- LOGGING INTERCEPTOR ---
 -keep class okhttp3.logging.HttpLoggingInterceptor { *; }
 -keep enum okhttp3.logging.HttpLoggingInterceptor$Level { *; }
+
+# --- ML Kit Barcode Scanning ---
+-keep class com.google.mlkit.** { *; }
+-keep class com.google.android.gms.internal.mlkit_barcode_scanning.** { *; }
+-dontwarn com.google.mlkit.**
+
+# --- CameraX ---
+-keep class androidx.camera.** { *; }
+-dontwarn androidx.camera.**
+
+# --- Google Play Services ---
+-keep class com.google.android.gms.** { *; }
+-dontwarn com.google.android.gms.**
