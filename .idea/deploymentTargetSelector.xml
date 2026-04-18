@@ -23,11 +23,11 @@
       </SelectionState>
       <SelectionState runConfigName="New Run Config">
         <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2026-04-13T10:00:56.963428900Z">
+        <DropdownSelection timestamp="2026-04-17T19:15:32.934961100Z">
           <Target type="DEFAULT_BOOT">
-            <handle>
-              <DeviceId pluginId="PhysicalDevice" identifier="serial=irpzauyx854tq8hu" />
-            </handle>
+            <template>
+              <DeviceId pluginId="FirebaseDirectAccess" type="TEMPLATE" identifier="model_id=e1q/34" />
+            </template>
           </Target>
         </DropdownSelection>
         <DialogSelection>
@@ -42,7 +42,7 @@
       </SelectionState>
       <SelectionState runConfigName="Render_APP_DBMS">
         <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2026-04-17T13:52:34.684672300Z">
+        <DropdownSelection timestamp="2026-04-17T19:00:00.879255900Z">
           <Target type="DEFAULT_BOOT">
             <handle>
               <DeviceId pluginId="PhysicalDevice" identifier="serial=irpzauyx854tq8hu" />

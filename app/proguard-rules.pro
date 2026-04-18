@@ -1,12 +1,22 @@
-# Retrofit 2
--keepattributes Signature, InnerClasses, EnclosingMethod, *Annotation*
+# --- KOTLIN & GENERAL ---
+-keepattributes Signature, InnerClasses, EnclosingMethod, SourceFile, LineNumberTable, *Annotation*, RuntimeVisibleAnnotations, RuntimeVisibleParameterAnnotations
+-keep class kotlin.Metadata { *; }
+-dontwarn kotlin.**
+
+# --- RETROFIT 2 ---
+-keepattributes Signature
+-keepattributes *Annotation*
 -keep class retrofit2.** { *; }
--keepclasseswithmembers class * {
-    @retrofit2.http.* <methods>;
-}
+-keep interface retrofit2.** { *; }
 -dontwarn retrofit2.**
 
-# Gson
+# Service interfaces must be kept
+-keepclassmembers interface * {
+    @retrofit2.http.* <methods>;
+}
+
+# --- GSON ---
+-keepattributes Signature
 -keep class com.google.gson.** { *; }
 -keep class com.google.gson.reflect.TypeToken
 -keep class * extends com.google.gson.reflect.TypeToken
@@ -15,24 +25,31 @@
 }
 -keep class com.google.gson.internal.** { *; }
 
-# OkHttp
+# --- DATA MODELS ---
+-keep class com.example.dbms_shubham_application.data.model.** { *; }
+-keepclassmembers class com.example.dbms_shubham_application.data.model.** { *; }
+
+# --- OKHTTP ---
 -keep class okhttp3.** { *; }
 -dontwarn okhttp3.**
 -dontwarn okio.**
 
-# CRITICAL: Keep all Data Models and their field names exactly as they are
-# This prevents "ClassCastException" during JSON parsing
--keep class com.example.dbms_shubham_application.data.model.** { *; }
--keepclassmembers class com.example.dbms_shubham_application.data.model.** { *; }
--keepnames class com.example.dbms_shubham_application.data.model.** { *; }
+# --- FIX FOR "Class cannot be cast to..." ---
+-keep class retrofit2.Response { *; }
+-keep interface com.example.dbms_shubham_application.data.remote.ApiService { *; }
 
-# Keep Network/Remote Interfaces
--keep class com.example.dbms_shubham_application.data.remote.** { *; }
--keep interface com.example.dbms_shubham_application.data.remote.** { *; }
+# Specific preservation for Generic Types
+-keep class java.lang.reflect.Type
+-keep class java.lang.reflect.ParameterizedType
+-keep class java.lang.reflect.GenericArrayType
+-keep class java.lang.reflect.TypeVariable
+-keep class java.lang.reflect.WildcardType
 
-# Kotlin Coroutines and Serialization
--keepnames class kotlinx.coroutines.internal.MainDispatcherFactory {}
--keepnames class kotlinx.coroutines.CoroutineExceptionHandler {}
--keepclassmembernames class kotlinx.coroutines.android.HandlerContext$Companion {
-    private static final long serialVersionUID;
+# Keep everything used in Response<?>
+-keep class * {
+  @retrofit2.http.* <methods>;
 }
+
+# --- LOGGING INTERCEPTOR ---
+-keep class okhttp3.logging.HttpLoggingInterceptor { *; }
+-keep enum okhttp3.logging.HttpLoggingInterceptor$Level { *; }
