@@ -19,9 +19,9 @@ ENV PATH="/home/user/.local/bin:$PATH"
 COPY --chown=user ./requirements.txt requirements.txt
 RUN pip install --no-cache-dir --upgrade -r requirements.txt
 
-# Pre-download the VGG-Face model to avoid timeout during first request
-# This makes the Space start faster when used
+# Pre-download the VGG-Face model and MTCNN detector weights
 RUN python -c "from deepface import DeepFace; DeepFace.build_model('VGG-Face')"
+RUN python -c "import numpy as np; from deepface import DeepFace; img = np.zeros((224,224,3), dtype=np.uint8); DeepFace.represent(img, model_name='VGG-Face', detector_backend='mtcnn', enforce_detection=False)"
 
 # Copy the rest of the application
 COPY --chown=user . /app
