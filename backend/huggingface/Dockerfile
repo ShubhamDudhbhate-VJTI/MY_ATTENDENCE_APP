@@ -13,6 +13,9 @@ WORKDIR /app
 # Create a non-root user for security (required by Hugging Face)
 RUN useradd -m -u 1000 user
 USER user
+# Set environment variables for TensorFlow stability and cleaner logs
+ENV TF_ENABLE_ONEDNN_OPTS=0
+ENV TF_CPP_MIN_LOG_LEVEL=2
 ENV PATH="/home/user/.local/bin:$PATH"
 
 # Copy requirements and install dependencies
