@@ -1,10 +1,10 @@
 # Retrofit 2
--keepattributes Signature, InnerClasses, EnclosingMethod
--keepattributes *Annotation*
+-keepattributes Signature, InnerClasses, EnclosingMethod, *Annotation*
 -keep class retrofit2.** { *; }
 -keepclasseswithmembers class * {
     @retrofit2.http.* <methods>;
 }
+-dontwarn retrofit2.**
 
 # Gson
 -keep class com.google.gson.** { *; }
@@ -13,23 +13,24 @@
 -keepclassmembers class * {
     @com.google.gson.annotations.SerializedName <fields>;
 }
-
-# Your App Data Models (Crucial to prevent renaming fields)
--keep class com.example.dbms_shubham_application.data.model.** { *; }
--keepclassmembers class com.example.dbms_shubham_application.data.model.** { *; }
-
-# Keep Network/Remote Interfaces
--keep class com.example.dbms_shubham_application.data.remote.** { *; }
--keep interface com.example.dbms_shubham_application.data.remote.** { *; }
+-keep class com.google.gson.internal.** { *; }
 
 # OkHttp
 -keep class okhttp3.** { *; }
 -dontwarn okhttp3.**
 -dontwarn okio.**
--dontwarn javax.annotation.**
--dontwarn org.conscrypt.**
 
-# Kotlin Serialization (if used) or Coroutines
+# CRITICAL: Keep all Data Models and their field names exactly as they are
+# This prevents "ClassCastException" during JSON parsing
+-keep class com.example.dbms_shubham_application.data.model.** { *; }
+-keepclassmembers class com.example.dbms_shubham_application.data.model.** { *; }
+-keepnames class com.example.dbms_shubham_application.data.model.** { *; }
+
+# Keep Network/Remote Interfaces
+-keep class com.example.dbms_shubham_application.data.remote.** { *; }
+-keep interface com.example.dbms_shubham_application.data.remote.** { *; }
+
+# Kotlin Coroutines and Serialization
 -keepnames class kotlinx.coroutines.internal.MainDispatcherFactory {}
 -keepnames class kotlinx.coroutines.CoroutineExceptionHandler {}
 -keepclassmembernames class kotlinx.coroutines.android.HandlerContext$Companion {
