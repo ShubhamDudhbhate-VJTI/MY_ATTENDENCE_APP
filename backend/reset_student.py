@@ -34,7 +34,7 @@ def reset_in_db(db_url, name, roll_no):
             sql = text("""
                 UPDATE app_students
                 SET face_embedding = NULL, face_image = NULL
-                WHERE registration_number = :roll_no
+                WHERE student_id = :roll_no
                 OR id = (SELECT id FROM app_users WHERE username = :roll_no)
             """)
             result = conn.execute(sql, {"roll_no": roll_no})
