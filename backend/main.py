@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 import os
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Body, UploadFile, File, Form, Depends, Response
+from fastapi import FastAPI, HTTPException, Body, UploadFile, File, Form, Depends, Response, BackgroundTasks
 from fastapi.responses import JSONResponse, FileResponse
 from pydantic import BaseModel
 from typing import List, Optional, Dict
@@ -768,7 +768,7 @@ async def mark_notification_read(notification_id: str, db: Session = Depends(get
     raise HTTPException(status_code=404, detail="Notification not found")
 
 @app.post("/sessions/start", response_model=SessionResponse)
-async def start_session(req: StartSessionRequest, db: Session = Depends(get_db)):
+async def start_session(req: StartSessionRequest, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     classroom = db.query(Classroom).filter(Classroom.id == req.classroom_id).first()
     room_name = classroom.name if classroom else "Unknown Room"
 
@@ -786,36 +786,45 @@ async def start_session(req: StartSessionRequest, db: Session = Depends(get_db))
         status="active"
     )
     db.add(new_session)
-
-    # Get subject name for notification
-    subject_obj = db.query(Subject).filter(Subject.id == req.subject_id).first()
     db.commit()
 
-    # 1. Notify the Faculty
-    create_notification(
-        db, req.faculty_id,
-        "Session Started",
-        f"You have started a session for {subject_obj.name} in {room_name}."
-    )
-
-    # 2. Notify all students in this branch/year
-    # Use ILIKE or case-insensitive matching for more robustness
-    target_students = db.query(Student).filter(
-        Student.branch.ilike(f"%{subject_obj.branch}%"),
-        Student.year.ilike(f"%{subject_obj.year}%")
-    ).all()
-
-    for student in target_students:
-        create_notification(
-            db, student.id,
-            "Class Started",
-            f"{subject_obj.name} class has started in {room_name}. Mark your attendance!"
-        )
+    # Move the heavy notifications to a background task
+    background_tasks.add_task(send_session_notifications, req.faculty_id, req.subject_id, room_name, sid)
 
     return SessionResponse(
         session_id=sid, qr_token=qr_token, expires_at=expiry.isoformat(),
         classroom_name=room_name
     )
+
+def send_session_notifications(faculty_id: str, subject_id: str, room_name: str, session_id: str):
+    # Use a new DB session for background tasks
+    db = SessionLocal()
+    try:
+        subject_obj = db.query(Subject).filter(Subject.id == subject_id).first()
+        if not subject_obj:
+            return
+
+        # 1. Notify the Faculty
+        create_notification(
+            db, faculty_id,
+            "Session Started",
+            f"You have started a session for {subject_obj.name} in {room_name}."
+        )
+
+        # 2. Notify all students in this branch/year
+        target_students = db.query(Student).filter(
+            Student.branch.ilike(f"%{subject_obj.branch}%"),
+            Student.year.ilike(f"%{subject_obj.year}%")
+        ).all()
+
+        for student in target_students:
+            create_notification(
+                db, student.id,
+                "Class Started",
+                f"{subject_obj.name} class has started in {room_name}. Mark your attendance!"
+            )
+    finally:
+        db.close()
 
 @app.post("/attendance/verify-wifi")
 async def verify_wifi(req: VerifyWifiRequest, db: Session = Depends(get_db)):
