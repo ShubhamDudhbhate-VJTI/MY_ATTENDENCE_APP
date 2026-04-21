@@ -29,19 +29,10 @@ object RetrofitClient {
 
     private val httpClient = OkHttpClient.Builder()
         .addInterceptor(logging)
-        .addInterceptor { chain ->
-            val request = chain.request()
-            try {
-                chain.proceed(request)
-            } catch (e: java.io.IOException) {
-                Log.e(TAG, "Network error for ${request.url}: ${e.message}", e)
-                throw e
-            }
-        }
-        .connectTimeout(60, TimeUnit.SECONDS) 
-        .readTimeout(60, TimeUnit.SECONDS)
-        .writeTimeout(60, TimeUnit.SECONDS)
-        .retryOnConnectionFailure(true)
+        .connectTimeout(30, TimeUnit.SECONDS) // Increased for slow Wi-Fi
+        .readTimeout(30, TimeUnit.SECONDS)
+        .writeTimeout(30, TimeUnit.SECONDS)
+        .retryOnConnectionFailure(true) // Automatically retry if Wi-Fi drops
         .build()
 
     val apiService: ApiService by lazy {

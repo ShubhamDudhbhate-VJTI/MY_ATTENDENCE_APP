@@ -30,18 +30,13 @@ import com.example.dbms_shubham_application.data.model.Classroom
 import com.example.dbms_shubham_application.data.model.ScheduleRecord
 import com.example.dbms_shubham_application.data.model.Subject
 import com.example.dbms_shubham_application.network.RetrofitClient
+import com.example.dbms_shubham_application.ui.components.EditScheduleDialog
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
-private val DarkBg = Color(0xFF0F172A)
-private val CardBg = Color(0xFF1E293B)
-private val AccentBlue = Color(0xFF3B82F6)
-private val TextWhite = Color(0xFFFFFFFF)
-private val TextMuted = Color(0xFF94A3B8)
-private val SuccessGreen = Color(0xFF10B981)
-private val GlassBorder = Color(0xFF334155)
+// --- THEME CONSISTENCY REMOVED LEGACY COLORS ---
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,6 +45,8 @@ fun FacultyClassesScreen(navController: NavController) {
     val scope = rememberCoroutineScope()
     val sessionManager = remember { SessionManager(context) }
     val facultyId = sessionManager.getUserId()?.replace("\"", "")?.replace("'", "") ?: ""
+
+    val colorScheme = MaterialTheme.colorScheme
 
     var schedule by remember { mutableStateOf<List<ScheduleRecord>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
@@ -91,22 +88,22 @@ fun FacultyClassesScreen(navController: NavController) {
     }
 
     Scaffold(
-        containerColor = DarkBg,
+        containerColor = colorScheme.background,
         topBar = {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(
                         Brush.verticalGradient(
-                            listOf(AccentBlue.copy(alpha = 0.15f), Color.Transparent)
+                            listOf(colorScheme.primary.copy(alpha = 0.15f), Color.Transparent)
                         )
                     )
             ) {
                 TopAppBar(
                     title = { 
                         Column {
-                            Text("My Schedule", color = TextWhite, fontWeight = FontWeight.Bold, fontSize = 20.sp)
-                            Text(selectedDay, color = AccentBlue, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text("My Schedule", color = colorScheme.onBackground, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                            Text(selectedDay, color = colorScheme.primary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                     },
                     navigationIcon = {
@@ -115,10 +112,10 @@ fun FacultyClassesScreen(navController: NavController) {
                             modifier = Modifier
                                 .padding(8.dp)
                                 .size(40.dp)
-                                .background(CardBg.copy(alpha = 0.5f), CircleShape)
-                                .border(1.dp, GlassBorder, CircleShape)
+                                .background(colorScheme.surface.copy(alpha = 0.5f), CircleShape)
+                                .border(1.dp, colorScheme.outline.copy(alpha = 0.2f), CircleShape)
                         ) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextWhite, modifier = Modifier.size(20.dp))
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = colorScheme.onBackground, modifier = Modifier.size(20.dp))
                         }
                     },
                     actions = {
@@ -127,20 +124,20 @@ fun FacultyClassesScreen(navController: NavController) {
                             modifier = Modifier
                                 .padding(end = 8.dp)
                                 .size(40.dp)
-                                .background(SuccessGreen.copy(alpha = 0.1f), CircleShape)
-                                .border(1.dp, SuccessGreen.copy(alpha = 0.2f), CircleShape)
+                                .background(colorScheme.secondary.copy(alpha = 0.1f), CircleShape)
+                                .border(1.dp, colorScheme.secondary.copy(alpha = 0.2f), CircleShape)
                         ) {
-                            Icon(Icons.Default.Add, "Add Schedule", tint = SuccessGreen, modifier = Modifier.size(20.dp))
+                            Icon(Icons.Default.Add, "Add Schedule", tint = colorScheme.secondary, modifier = Modifier.size(20.dp))
                         }
                         IconButton(
                             onClick = { loadSchedule(selectedDay) },
                             modifier = Modifier
                                 .padding(end = 12.dp)
                                 .size(40.dp)
-                                .background(AccentBlue.copy(alpha = 0.1f), CircleShape)
-                                .border(1.dp, AccentBlue.copy(alpha = 0.2f), CircleShape)
+                                .background(colorScheme.primary.copy(alpha = 0.1f), CircleShape)
+                                .border(1.dp, colorScheme.primary.copy(alpha = 0.2f), CircleShape)
                         ) {
-                            Icon(Icons.Default.Refresh, "Refresh", tint = AccentBlue, modifier = Modifier.size(20.dp))
+                            Icon(Icons.Default.Refresh, "Refresh", tint = colorScheme.primary, modifier = Modifier.size(20.dp))
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
@@ -162,8 +159,8 @@ fun FacultyClassesScreen(navController: NavController) {
                     Surface(
                         onClick = { selectedDay = day },
                         shape = RoundedCornerShape(16.dp),
-                        color = if (isSelected) AccentBlue else CardBg.copy(alpha = 0.5f),
-                        border = BorderStroke(1.dp, if (isSelected) AccentBlue else GlassBorder),
+                        color = if (isSelected) colorScheme.primary else colorScheme.surface.copy(alpha = 0.5f),
+                        border = BorderStroke(1.dp, if (isSelected) colorScheme.primary else colorScheme.outline.copy(alpha = 0.2f)),
                         modifier = Modifier.height(44.dp)
                     ) {
                         Box(
@@ -172,7 +169,7 @@ fun FacultyClassesScreen(navController: NavController) {
                         ) {
                             Text(
                                 text = day,
-                                color = if (isSelected) TextWhite else TextMuted,
+                                color = if (isSelected) colorScheme.onPrimary else colorScheme.onSurface.copy(alpha = 0.6f),
                                 fontSize = 14.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
                             )
@@ -183,14 +180,14 @@ fun FacultyClassesScreen(navController: NavController) {
 
             if (isLoading) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = AccentBlue)
+                    CircularProgressIndicator(color = colorScheme.primary)
                 }
             } else if (schedule.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(Icons.Default.EventBusy, null, tint = TextMuted.copy(alpha = 0.3f), modifier = Modifier.size(64.dp))
+                        Icon(Icons.Default.EventBusy, null, tint = colorScheme.onBackground.copy(alpha = 0.3f), modifier = Modifier.size(64.dp))
                         Spacer(modifier = Modifier.height(16.dp))
-                        Text("No classes scheduled for $selectedDay", color = TextMuted)
+                        Text("No classes scheduled for $selectedDay", color = colorScheme.onBackground.copy(alpha = 0.6f))
                     }
                 }
             } else {
@@ -250,11 +247,12 @@ fun FacultyClassesScreen(navController: NavController) {
 
 @Composable
 fun ScheduleCard(item: ScheduleRecord, onStart: () -> Unit, onEdit: () -> Unit, onDelete: () -> Unit) {
+    val colorScheme = MaterialTheme.colorScheme
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, Color.White.copy(alpha = 0.05f), RoundedCornerShape(24.dp)),
-        colors = CardDefaults.cardColors(containerColor = CardBg.copy(alpha = 0.7f)),
+            .border(1.dp, colorScheme.outline.copy(alpha = 0.1f), RoundedCornerShape(24.dp)),
+        colors = CardDefaults.cardColors(containerColor = colorScheme.surface.copy(alpha = 0.7f)),
         shape = RoundedCornerShape(24.dp)
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
@@ -264,36 +262,36 @@ fun ScheduleCard(item: ScheduleRecord, onStart: () -> Unit, onEdit: () -> Unit, 
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Schedule, null, tint = AccentBlue, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.Schedule, null, tint = colorScheme.primary, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text(item.time, color = AccentBlue, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Text(item.time, color = colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 }
                 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = onEdit, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Default.Edit, "Edit", tint = TextMuted, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Edit, "Edit", tint = colorScheme.onSurface.copy(alpha = 0.6f), modifier = Modifier.size(16.dp))
                     }
                     IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Default.Delete, "Delete", tint = Color(0xFFEF4444), modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Delete, "Delete", tint = colorScheme.error, modifier = Modifier.size(16.dp))
                     }
                     Spacer(modifier = Modifier.width(4.dp))
                     Box(
                         modifier = Modifier
-                            .background(AccentBlue.copy(alpha = 0.1f), RoundedCornerShape(10.dp))
-                            .border(1.dp, AccentBlue.copy(alpha = 0.2f), RoundedCornerShape(10.dp))
+                            .background(colorScheme.primary.copy(alpha = 0.1f), RoundedCornerShape(10.dp))
+                            .border(1.dp, colorScheme.primary.copy(alpha = 0.2f), RoundedCornerShape(10.dp))
                             .padding(horizontal = 10.dp, vertical = 6.dp)
                     ) {
-                        Text(item.room, color = AccentBlue, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold)
+                        Text(item.room, color = colorScheme.primary, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold)
                     }
                 }
             }
             
             Spacer(modifier = Modifier.height(16.dp))
             
-            Text(item.subject, color = TextWhite, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+            Text(item.subject, color = colorScheme.onSurface, fontWeight = FontWeight.Bold, fontSize = 20.sp)
             
             if (!item.subject_code.isNullOrEmpty()) {
-                Text(item.subject_code, color = TextMuted, fontSize = 12.sp, modifier = Modifier.padding(top = 2.dp))
+                Text(item.subject_code, color = colorScheme.onSurface.copy(alpha = 0.6f), fontSize = 12.sp, modifier = Modifier.padding(top = 2.dp))
             }
             
             if (!item.branch.isNullOrEmpty()) {
@@ -301,9 +299,9 @@ fun ScheduleCard(item: ScheduleRecord, onStart: () -> Unit, onEdit: () -> Unit, 
                     modifier = Modifier.padding(top = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Default.Group, null, tint = TextMuted, modifier = Modifier.size(14.dp))
+                    Icon(Icons.Default.Group, null, tint = colorScheme.onSurface.copy(alpha = 0.6f), modifier = Modifier.size(14.dp))
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("${item.branch} • ${item.year}", color = TextMuted, fontSize = 12.sp)
+                    Text("${item.branch} • ${item.year}", color = colorScheme.onSurface.copy(alpha = 0.6f), fontSize = 12.sp)
                 }
             }
 
@@ -312,7 +310,7 @@ fun ScheduleCard(item: ScheduleRecord, onStart: () -> Unit, onEdit: () -> Unit, 
             Button(
                 onClick = onStart,
                 modifier = Modifier.fillMaxWidth().height(50.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
+                colors = ButtonDefaults.buttonColors(containerColor = colorScheme.primary),
                 shape = RoundedCornerShape(16.dp)
             ) {
                 Icon(Icons.Default.PlayArrow, null, modifier = Modifier.size(20.dp))

@@ -16,12 +16,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -42,17 +40,6 @@ import java.util.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-// --- THEME CONSISTENCY ---
-private val DarkBg = Color(0xFF0F172A)
-private val CardBg = Color(0xFF1E293B)
-private val GlassBorder = Color(0xFF334155)
-private val AccentBlue = Color(0xFF3B82F6)
-private val AccentPurple = Color(0xFF8B5CF6)
-private val SuccessGreen = Color(0xFF10B981)
-private val AccentRed = Color(0xFFEF4444)
-private val TextWhite = Color(0xFFF8FAFC)
-private val TextMuted = Color(0xFF94A3B8)
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StartSessionScreen(
@@ -64,6 +51,8 @@ fun StartSessionScreen(
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+
+    val colorScheme = MaterialTheme.colorScheme
 
     var classrooms by remember { mutableStateOf<List<Classroom>>(emptyList()) }
     var subjects by remember { mutableStateOf<List<Subject>>(emptyList()) }
@@ -85,7 +74,7 @@ fun StartSessionScreen(
     var subjectExpanded by remember { mutableStateOf(false) }
     var isLoadingInfo by remember { mutableStateOf(false) }
 
-    // --- CONNECTION LOGIC (UNTOUCHED) ---
+    // --- CONNECTION LOGIC ---
     fun loadInitialData() {
         scope.launch {
             try {
@@ -209,24 +198,24 @@ fun StartSessionScreen(
                 title = { 
                     Text(
                         if (showReport) "Session Summary" else "New Session", 
-                        color = TextWhite, 
+                        color = colorScheme.onBackground, 
                         fontWeight = FontWeight.Black,
                         fontSize = 20.sp
                     ) 
                 },
                 navigationIcon = {
                     IconButton(onClick = { if (showReport) showReport = false else navController.navigateUp() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = TextWhite)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = colorScheme.onBackground)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = DarkBg,
-                    titleContentColor = TextWhite,
-                    navigationIconContentColor = TextWhite
+                    containerColor = colorScheme.background,
+                    titleContentColor = colorScheme.onBackground,
+                    navigationIconContentColor = colorScheme.onBackground
                 )
             )
         },
-        containerColor = DarkBg
+        containerColor = colorScheme.background
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             if (showReport && sessionReport != null) {
@@ -238,7 +227,7 @@ fun StartSessionScreen(
             } else if (!sessionStarted) {
                 if (isLoadingInfo) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = AccentBlue, strokeWidth = 3.dp)
+                        CircularProgressIndicator(color = colorScheme.primary, strokeWidth = 3.dp)
                     }
                 } else {
                     LazyColumn(
@@ -286,26 +275,26 @@ fun StartSessionScreen(
                                         }
                                     },
                                 shape = RoundedCornerShape(24.dp),
-                                colors = CardDefaults.cardColors(containerColor = AccentBlue.copy(alpha = 0.1f)),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, AccentBlue.copy(alpha = 0.2f))
+                                colors = CardDefaults.cardColors(containerColor = colorScheme.primary.copy(alpha = 0.1f)),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, colorScheme.primary.copy(alpha = 0.2f))
                             ) {
                                 Row(
                                     modifier = Modifier.padding(20.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Box(
-                                        modifier = Modifier.size(48.dp).background(AccentBlue.copy(alpha = 0.2f), CircleShape),
+                                        modifier = Modifier.size(48.dp).background(colorScheme.primary.copy(alpha = 0.2f), CircleShape),
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        Icon(Icons.Default.AutoFixHigh, null, tint = AccentBlue)
+                                        Icon(Icons.Default.AutoFixHigh, null, tint = colorScheme.primary)
                                     }
                                     Spacer(Modifier.width(16.dp))
                                     Column {
-                                        Text("Today's Schedule", color = TextWhite, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                                        Text("Auto-fill from timetable", color = AccentBlue, fontSize = 12.sp)
+                                        Text("Today's Schedule", color = colorScheme.onBackground, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                        Text("Auto-fill from timetable", color = colorScheme.primary, fontSize = 12.sp)
                                     }
                                     Spacer(Modifier.weight(1f))
-                                    Icon(Icons.Default.ChevronRight, null, tint = AccentBlue)
+                                    Icon(Icons.Default.ChevronRight, null, tint = colorScheme.primary)
                                 }
                             }
                         }
@@ -314,7 +303,7 @@ fun StartSessionScreen(
                             Text(
                                 "Configuration",
                                 modifier = Modifier.fillMaxWidth(),
-                                color = TextWhite,
+                                color = colorScheme.onBackground,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 16.sp
                             )
@@ -348,11 +337,11 @@ fun StartSessionScreen(
                                 onClick = { startSessionOnServer() },
                                 modifier = Modifier.fillMaxWidth().height(60.dp),
                                 shape = RoundedCornerShape(20.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
+                                colors = ButtonDefaults.buttonColors(containerColor = colorScheme.primary),
                                 enabled = !isStarting && selectedClassroom != null && selectedSubject != null
                             ) {
                                 if (isStarting) {
-                                    CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+                                    CircularProgressIndicator(color = colorScheme.onPrimary, modifier = Modifier.size(24.dp))
                                 } else {
                                     Text("Generate Secure QR", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
                                 }
@@ -374,7 +363,7 @@ fun StartSessionScreen(
                     Box(
                         modifier = Modifier
                             .size(280.dp)
-                            .shadow(24.dp, RoundedCornerShape(32.dp), spotColor = AccentBlue)
+                            .shadow(24.dp, RoundedCornerShape(32.dp), spotColor = colorScheme.primary)
                             .background(Color.White, RoundedCornerShape(32.dp))
                             .border(8.dp, Color.White, RoundedCornerShape(32.dp))
                             .padding(24.dp),
@@ -398,14 +387,14 @@ fun StartSessionScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column {
-                            Text("Real-time Attendance", color = TextWhite, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                            Text("${attendanceList.size} students verified", color = SuccessGreen, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                            Text("Real-time Attendance", color = colorScheme.onBackground, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                            Text("${attendanceList.size} students verified", color = colorScheme.primary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
                         }
                         IconButton(
                             onClick = { fetchAttendance() },
-                            modifier = Modifier.background(CardBg, CircleShape).border(1.dp, GlassBorder, CircleShape)
+                            modifier = Modifier.background(colorScheme.surface, CircleShape).border(1.dp, colorScheme.outline.copy(alpha = 0.2f), CircleShape)
                         ) {
-                            Icon(Icons.Default.Refresh, null, tint = AccentBlue, modifier = Modifier.size(20.dp))
+                            Icon(Icons.Default.Refresh, null, tint = colorScheme.primary, modifier = Modifier.size(20.dp))
                         }
                     }
 
@@ -419,7 +408,7 @@ fun StartSessionScreen(
                         if (attendanceList.isEmpty()) {
                             item {
                                 Box(modifier = Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
-                                    Text("Waiting for scans...", color = TextMuted, fontSize = 14.sp)
+                                    Text("Waiting for scans...", color = colorScheme.onBackground.copy(alpha = 0.6f), fontSize = 14.sp)
                                 }
                             }
                         } else {
@@ -435,14 +424,14 @@ fun StartSessionScreen(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
-                        .background(Brush.verticalGradient(listOf(Color.Transparent, DarkBg)))
+                        .background(Brush.verticalGradient(listOf(Color.Transparent, colorScheme.background)))
                         .padding(24.dp)
                 ) {
                     Button(
                         onClick = { endSessionOnServer() },
                         modifier = Modifier.fillMaxWidth().height(56.dp),
                         shape = RoundedCornerShape(16.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = AccentRed)
+                        colors = ButtonDefaults.buttonColors(containerColor = colorScheme.error)
                     ) {
                         Text("Finish Session", fontWeight = FontWeight.Black)
                     }
@@ -454,9 +443,10 @@ fun StartSessionScreen(
 
 @Composable
 fun ActiveSessionHeader(subject: String, room: String, timeLeft: Int) {
+    val colorScheme = MaterialTheme.colorScheme
     val mins = timeLeft / 60
     val secs = timeLeft % 60
-    val timerColor = if (timeLeft < 30) AccentRed else SuccessGreen
+    val timerColor = if (timeLeft < 30) colorScheme.error else colorScheme.primary
 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Surface(
@@ -473,36 +463,37 @@ fun ActiveSessionHeader(subject: String, room: String, timeLeft: Int) {
             )
         }
         Spacer(modifier = Modifier.height(12.dp))
-        Text(subject, color = TextWhite, fontSize = 24.sp, fontWeight = FontWeight.Black, textAlign = TextAlign.Center)
-        Text(room, color = AccentBlue, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        Text(subject, color = colorScheme.onBackground, fontSize = 24.sp, fontWeight = FontWeight.Black, textAlign = TextAlign.Center)
+        Text(room, color = colorScheme.primary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
     }
 }
 
 @Composable
 fun ModernAttendanceItem(log: AttendanceLog) {
+    val colorScheme = MaterialTheme.colorScheme
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = CardBg.copy(alpha = 0.6f)),
+        colors = CardDefaults.cardColors(containerColor = colorScheme.surface.copy(alpha = 0.6f)),
         shape = RoundedCornerShape(16.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, GlassBorder)
+        border = androidx.compose.foundation.BorderStroke(1.dp, colorScheme.outline.copy(alpha = 0.2f))
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
-                modifier = Modifier.size(40.dp).background(AccentBlue.copy(alpha = 0.1f), CircleShape),
+                modifier = Modifier.size(40.dp).background(colorScheme.primary.copy(alpha = 0.1f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.Person, null, tint = AccentBlue, modifier = Modifier.size(20.dp))
+                Icon(Icons.Default.Person, null, tint = colorScheme.primary, modifier = Modifier.size(20.dp))
             }
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(log.student_name ?: "Unknown Student", color = TextWhite, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                Text(log.student_id, color = TextMuted, fontSize = 12.sp)
+                Text(log.student_name ?: "Unknown Student", color = colorScheme.onSurface, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                Text(log.student_id, color = colorScheme.onSurface.copy(alpha = 0.6f), fontSize = 12.sp)
             }
             if (log.face_verified) {
-                Icon(Icons.Default.Verified, null, tint = SuccessGreen, modifier = Modifier.size(18.dp))
+                Icon(Icons.Default.Verified, null, tint = colorScheme.primary, modifier = Modifier.size(18.dp))
             }
         }
     }
@@ -518,6 +509,7 @@ fun <T> ModernDropdown(
     onExpandedChange: (Boolean) -> Unit,
     onSelect: (T) -> Unit
 ) {
+    val colorScheme = MaterialTheme.colorScheme
     ExposedDropdownMenuBox(
         expanded = expanded,
         onExpandedChange = onExpandedChange
@@ -526,25 +518,25 @@ fun <T> ModernDropdown(
             value = selected,
             onValueChange = {},
             readOnly = true,
-            label = { Text(label, color = TextMuted) },
+            label = { Text(label, color = colorScheme.onSurface.copy(alpha = 0.6f)) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             modifier = Modifier
                 .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryEditable, true)
                 .fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = AccentBlue,
-                unfocusedBorderColor = GlassBorder,
-                focusedTextColor = TextWhite,
-                unfocusedTextColor = TextWhite,
-                focusedContainerColor = CardBg.copy(alpha = 0.5f),
-                unfocusedContainerColor = CardBg.copy(alpha = 0.5f)
+                focusedBorderColor = colorScheme.primary,
+                unfocusedBorderColor = colorScheme.outline.copy(alpha = 0.2f),
+                focusedTextColor = colorScheme.onSurface,
+                unfocusedTextColor = colorScheme.onSurface,
+                focusedContainerColor = colorScheme.surface.copy(alpha = 0.5f),
+                unfocusedContainerColor = colorScheme.surface.copy(alpha = 0.5f)
             )
         )
         ExposedDropdownMenu(
             expanded = expanded,
             onDismissRequest = { onExpandedChange(false) },
-            modifier = Modifier.background(CardBg).border(1.dp, GlassBorder, RoundedCornerShape(8.dp))
+            modifier = Modifier.background(colorScheme.surface).border(1.dp, colorScheme.outline.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
         ) {
             items.forEach { item ->
                 val text = when(item) {
@@ -553,7 +545,7 @@ fun <T> ModernDropdown(
                     else -> item.toString()
                 }
                 DropdownMenuItem(
-                    text = { Text(text, color = TextWhite, fontWeight = FontWeight.Medium) },
+                    text = { Text(text, color = colorScheme.onSurface, fontWeight = FontWeight.Medium) },
                     onClick = { onSelect(item) }
                 )
             }
@@ -563,41 +555,42 @@ fun <T> ModernDropdown(
 
 @Composable
 fun ModernSessionSummaryView(report: SessionReportResponse, onDismiss: () -> Unit) {
+    val colorScheme = MaterialTheme.colorScheme
     Column(
         modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = CardBg),
+            colors = CardDefaults.cardColors(containerColor = colorScheme.surface),
             shape = RoundedCornerShape(32.dp),
-            border = androidx.compose.foundation.BorderStroke(1.dp, GlassBorder)
+            border = androidx.compose.foundation.BorderStroke(1.dp, colorScheme.outline.copy(alpha = 0.2f))
         ) {
             Column(
                 modifier = Modifier.padding(32.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Box(
-                    modifier = Modifier.size(80.dp).background(SuccessGreen.copy(alpha = 0.1f), CircleShape),
+                    modifier = Modifier.size(80.dp).background(colorScheme.primary.copy(alpha = 0.1f), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Default.CheckCircle, null, tint = SuccessGreen, modifier = Modifier.size(48.dp))
+                    Icon(Icons.Default.CheckCircle, null, tint = colorScheme.primary, modifier = Modifier.size(48.dp))
                 }
                 Spacer(modifier = Modifier.height(20.dp))
-                Text("Session Completed", color = TextWhite, fontSize = 22.sp, fontWeight = FontWeight.Black)
-                Text(report.course_id, color = AccentBlue, fontWeight = FontWeight.Bold)
+                Text("Session Completed", color = colorScheme.onSurface, fontSize = 22.sp, fontWeight = FontWeight.Black)
+                Text(report.course_id, color = colorScheme.primary, fontWeight = FontWeight.Bold)
                 
                 Spacer(modifier = Modifier.height(32.dp))
                 
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                    SummaryStat("Present", report.total_present.toString(), SuccessGreen)
+                    SummaryStat("Present", report.total_present.toString(), colorScheme.primary)
                 }
             }
         }
 
         Spacer(modifier = Modifier.height(32.dp))
         
-        Text("Participant List", color = TextWhite, fontWeight = FontWeight.Bold, fontSize = 18.sp, modifier = Modifier.fillMaxWidth())
+        Text("Participant List", color = colorScheme.onBackground, fontWeight = FontWeight.Bold, fontSize = 18.sp, modifier = Modifier.fillMaxWidth())
         
         LazyColumn(
             modifier = Modifier.weight(1f).fillMaxWidth(),
@@ -606,15 +599,15 @@ fun ModernSessionSummaryView(report: SessionReportResponse, onDismiss: () -> Uni
         ) {
             items(report.students) { student ->
                 Row(
-                    modifier = Modifier.fillMaxWidth().background(CardBg.copy(alpha = 0.4f), RoundedCornerShape(12.dp)).padding(16.dp),
+                    modifier = Modifier.fillMaxWidth().background(colorScheme.surface.copy(alpha = 0.4f), RoundedCornerShape(12.dp)).padding(16.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column {
-                        Text(student.name, color = TextWhite, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                        Text(student.id, color = TextMuted, fontSize = 11.sp)
+                        Text(student.name, color = colorScheme.onSurface, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Text(student.id, color = colorScheme.onSurface.copy(alpha = 0.6f), fontSize = 11.sp)
                     }
-                    Text(student.time.takeLast(8), color = SuccessGreen, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    Text(student.time.takeLast(8), color = colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                 }
             }
         }
@@ -623,9 +616,9 @@ fun ModernSessionSummaryView(report: SessionReportResponse, onDismiss: () -> Uni
             onClick = onDismiss,
             modifier = Modifier.fillMaxWidth().height(60.dp).padding(vertical = 8.dp),
             shape = RoundedCornerShape(20.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = AccentBlue)
+            colors = ButtonDefaults.buttonColors(containerColor = colorScheme.primary)
         ) {
-            Text("Return to Dashboard", fontWeight = FontWeight.ExtraBold)
+            Text("Return to Dashboard", fontWeight = FontWeight.ExtraBold, color = colorScheme.onPrimary)
         }
     }
 }
@@ -634,7 +627,7 @@ fun ModernSessionSummaryView(report: SessionReportResponse, onDismiss: () -> Uni
 fun SummaryStat(label: String, value: String, color: Color) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(value, color = color, fontSize = 40.sp, fontWeight = FontWeight.Black)
-        Text(label, color = TextMuted, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, fontWeight = FontWeight.Bold)
     }
 }
 

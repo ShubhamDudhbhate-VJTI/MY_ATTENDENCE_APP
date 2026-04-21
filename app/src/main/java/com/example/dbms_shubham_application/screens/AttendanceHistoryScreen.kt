@@ -28,13 +28,7 @@ import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-private val DarkBg = Color(0xFF0F172A)
-private val CardBg = Color(0xFF1E293B)
-private val AccentBlue = Color(0xFF3B82F6)
-private val TextWhite = Color(0xFFFFFFFF)
-private val TextMuted = Color(0xFF94A3B8)
-private val AccentGreen = Color(0xFF10B981)
-private val AccentRed = Color(0xFFEF4444)
+// Remove hardcoded color constants
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,23 +56,23 @@ fun AttendanceHistoryScreen(navController: NavController) {
     }
     
     Scaffold(
-        containerColor = DarkBg,
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text("Attendance History", color = TextWhite, fontWeight = FontWeight.Bold) },
+                title = { Text("Attendance History", color = MaterialTheme.colorScheme.onBackground, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = { navController.navigateUp() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextWhite)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onBackground)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = DarkBg),
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
                 modifier = Modifier.statusBarsPadding()
             )
         }
     ) { padding ->
         if (isLoading) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = AccentBlue)
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
         } else {
             LazyColumn(
@@ -104,7 +98,7 @@ fun AttendanceHistoryScreen(navController: NavController) {
                         text = "Recent Records",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
-                        color = TextWhite
+                        color = MaterialTheme.colorScheme.onBackground
                     )
                 }
                 
@@ -123,8 +117,8 @@ fun HistoryStatsCard(percentage: Float, present: Int, absent: Int, total: Int) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(24.dp)),
-        colors = CardDefaults.cardColors(containerColor = CardBg.copy(alpha = 0.7f)),
+            .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f), RoundedCornerShape(24.dp)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)),
         shape = RoundedCornerShape(24.dp)
     ) {
         Column(modifier = Modifier.padding(24.dp)) {
@@ -134,16 +128,16 @@ fun HistoryStatsCard(percentage: Float, present: Int, absent: Int, total: Int) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
-                    Text("Overall Rate", fontSize = 14.sp, color = TextMuted)
-                    Text(percentText, fontSize = 32.sp, fontWeight = FontWeight.ExtraBold, color = TextWhite)
+                    Text("Overall Rate", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
+                    Text(percentText, fontSize = 32.sp, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Box(
                     modifier = Modifier
                         .size(60.dp)
-                        .background(AccentBlue.copy(alpha = 0.1f), RoundedCornerShape(16.dp)),
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), RoundedCornerShape(16.dp)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Default.BarChart, contentDescription = null, tint = AccentBlue, modifier = Modifier.size(32.dp))
+                    Icon(Icons.Default.BarChart, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(32.dp))
                 }
             }
             
@@ -155,8 +149,8 @@ fun HistoryStatsCard(percentage: Float, present: Int, absent: Int, total: Int) {
                     .fillMaxWidth()
                     .height(8.dp)
                     .clip(RoundedCornerShape(4.dp)),
-                color = if (percentage >= 0.75f) AccentBlue else AccentRed,
-                trackColor = Color.White.copy(alpha = 0.1f)
+                color = if (percentage >= 0.75f) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
             )
             
             Spacer(modifier = Modifier.height(24.dp))
@@ -164,15 +158,15 @@ fun HistoryStatsCard(percentage: Float, present: Int, absent: Int, total: Int) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color.Black.copy(alpha = 0.2f), RoundedCornerShape(16.dp))
+                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f), RoundedCornerShape(16.dp))
                     .padding(16.dp),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                MiniStatItem("Present", present.toString(), AccentGreen)
-                Box(modifier = Modifier.width(1.dp).height(24.dp).background(TextMuted.copy(alpha = 0.2f)))
-                MiniStatItem("Absent", absent.toString(), AccentRed)
-                Box(modifier = Modifier.width(1.dp).height(24.dp).background(TextMuted.copy(alpha = 0.2f)))
-                MiniStatItem("Total", total.toString(), TextWhite)
+                MiniStatItem("Present", present.toString(), MaterialTheme.colorScheme.primary)
+                Box(modifier = Modifier.width(1.dp).height(24.dp).background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)))
+                MiniStatItem("Absent", absent.toString(), MaterialTheme.colorScheme.error)
+                Box(modifier = Modifier.width(1.dp).height(24.dp).background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)))
+                MiniStatItem("Total", total.toString(), MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
@@ -181,7 +175,7 @@ fun HistoryStatsCard(percentage: Float, present: Int, absent: Int, total: Int) {
 @Composable
 fun MiniStatItem(label: String, value: String, color: Color) {
     Column {
-        Text(label, fontSize = 12.sp, color = TextMuted)
+        Text(label, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
         Text(value, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = color)
     }
 }
@@ -203,8 +197,8 @@ fun HistoryRecordCard(record: com.example.dbms_shubham_application.data.model.At
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, Color.White.copy(alpha = 0.05f), RoundedCornerShape(20.dp)),
-        colors = CardDefaults.cardColors(containerColor = CardBg.copy(alpha = 0.5f)),
+            .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f), RoundedCornerShape(20.dp)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
         shape = RoundedCornerShape(20.dp)
     ) {
         Row(
@@ -215,7 +209,7 @@ fun HistoryRecordCard(record: com.example.dbms_shubham_application.data.model.At
                 modifier = Modifier
                     .size(48.dp)
                     .background(
-                        if (isPresent) AccentGreen.copy(alpha = 0.1f) else AccentRed.copy(alpha = 0.1f),
+                        if (isPresent) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f) else MaterialTheme.colorScheme.error.copy(alpha = 0.1f),
                         RoundedCornerShape(12.dp)
                     ),
                 contentAlignment = Alignment.Center
@@ -223,7 +217,7 @@ fun HistoryRecordCard(record: com.example.dbms_shubham_application.data.model.At
                 Icon(
                     imageVector = if (isPresent) Icons.Default.CheckCircle else Icons.Default.Cancel,
                     contentDescription = null,
-                    tint = if (isPresent) AccentGreen else AccentRed,
+                    tint = if (isPresent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
                     modifier = Modifier.size(24.dp)
                 )
             }
@@ -231,24 +225,24 @@ fun HistoryRecordCard(record: com.example.dbms_shubham_application.data.model.At
             Spacer(modifier = Modifier.width(16.dp))
             
             Column(modifier = Modifier.weight(1f)) {
-                Text(record.subject_id, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextWhite)
+                Text(record.subject_id, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(date, fontSize = 12.sp, color = TextMuted)
-                    Text(" • ", fontSize = 12.sp, color = TextMuted)
-                    Text(time, fontSize = 12.sp, color = TextMuted)
+                    Text(date, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
+                    Text(" • ", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
+                    Text(time, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
                 }
             }
             
             Column(horizontalAlignment = Alignment.End) {
                 Surface(
-                    color = (if (isPresent) AccentGreen else AccentRed).copy(alpha = 0.1f),
+                    color = (if (isPresent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error).copy(alpha = 0.1f),
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Text(
                         text = record.status.uppercase(),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (isPresent) AccentGreen else AccentRed,
+                        color = if (isPresent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     )
                 }

@@ -1,6 +1,7 @@
 package com.example.dbms_shubham_application.screens
 
 import android.widget.Toast
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -27,16 +28,10 @@ import com.example.dbms_shubham_application.data.model.Classroom
 import com.example.dbms_shubham_application.data.model.ScheduleRecord
 import com.example.dbms_shubham_application.data.model.Subject
 import com.example.dbms_shubham_application.network.RetrofitClient
+import com.example.dbms_shubham_application.ui.components.EditScheduleDialog
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlinx.coroutines.launch
-
-private val DarkBg = Color(0xFF0F172A)
-private val CardBg = Color(0xFF1E293B)
-private val AccentBlue = Color(0xFF3B82F6)
-private val TextWhite = Color(0xFFFFFFFF)
-private val TextMuted = Color(0xFF94A3B8)
-private val AccentRed = Color(0xFFEF4444)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,6 +40,8 @@ fun ManageScheduleScreen(navController: NavController) {
     val scope = rememberCoroutineScope()
     val sessionManager = remember { SessionManager(context) }
     val facultyId = sessionManager.getUserId()?.replace("\"", "")?.replace("'", "") ?: ""
+
+    val colorScheme = MaterialTheme.colorScheme
 
     var schedule by remember { mutableStateOf<List<ScheduleRecord>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
@@ -78,23 +75,23 @@ fun ManageScheduleScreen(navController: NavController) {
     LaunchedEffect(Unit) { loadData() }
 
     Scaffold(
-        containerColor = DarkBg,
+        containerColor = colorScheme.background,
         topBar = {
             TopAppBar(
                 title = {
                     Column {
-                        Text("Manage Schedule", color = TextWhite, fontWeight = FontWeight.Bold, fontSize = 20.sp)
-                        Text("Configure your class template", color = TextMuted, fontSize = 12.sp, fontWeight = FontWeight.Normal)
+                        Text("Manage Schedule", color = colorScheme.onBackground, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                        Text("Configure your class template", color = colorScheme.onBackground.copy(alpha = 0.6f), fontSize = 12.sp, fontWeight = FontWeight.Normal)
                     }
                 },
                 navigationIcon = {
                     IconButton(onClick = { navController.navigateUp() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = TextWhite)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = colorScheme.onBackground)
                     }
                 },
                 actions = {
                     IconButton(onClick = { loadData() }) {
-                        Icon(Icons.Default.Refresh, "Refresh", tint = AccentBlue)
+                        Icon(Icons.Default.Refresh, "Refresh", tint = colorScheme.primary)
                     }
                     IconButton(onClick = {
                         scope.launch {
@@ -117,26 +114,27 @@ fun ManageScheduleScreen(navController: NavController) {
                             }
                         }
                     }) {
-                        Icon(Icons.Default.CloudDownload, "Sync Official Template", tint = TextWhite)
+                        Icon(Icons.Default.CloudDownload, "Sync Official Template", tint = colorScheme.secondary)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = DarkBg)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = colorScheme.background)
             )
         },
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { showAddDialog = true },
-                containerColor = AccentBlue,
+                containerColor = colorScheme.primary,
+                contentColor = colorScheme.onPrimary,
                 shape = RoundedCornerShape(20.dp)
             ) {
-                Icon(Icons.Default.Add, "Add", tint = TextWhite)
+                Icon(Icons.Default.Add, "Add")
             }
         }
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             if (isLoading) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = AccentBlue)
+                    CircularProgressIndicator(color = colorScheme.primary)
                 }
             } else if (schedule.isEmpty()) {
                 Column(
@@ -144,9 +142,9 @@ fun ManageScheduleScreen(navController: NavController) {
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    Icon(Icons.Default.CalendarToday, null, tint = TextMuted.copy(alpha = 0.3f), modifier = Modifier.size(64.dp))
+                    Icon(Icons.Default.CalendarToday, null, tint = colorScheme.onBackground.copy(alpha = 0.3f), modifier = Modifier.size(64.dp))
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text("No records found for today", color = TextMuted)
+                    Text("No records found for today", color = colorScheme.onBackground.copy(alpha = 0.6f))
                 }
             } else {
                 LazyColumn(
@@ -201,11 +199,12 @@ fun ManageScheduleScreen(navController: NavController) {
 
 @Composable
 fun ScheduleEditCard(record: ScheduleRecord, onEdit: () -> Unit, onDelete: () -> Unit) {
+    val colorScheme = MaterialTheme.colorScheme
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, Color.White.copy(alpha = 0.05f), RoundedCornerShape(24.dp)),
-        colors = CardDefaults.cardColors(containerColor = CardBg.copy(alpha = 0.7f)),
+            .border(1.dp, colorScheme.outline.copy(alpha = 0.1f), RoundedCornerShape(24.dp)),
+        colors = CardDefaults.cardColors(containerColor = colorScheme.surface.copy(alpha = 0.7f)),
         shape = RoundedCornerShape(24.dp)
     ) {
         Row(
@@ -216,7 +215,7 @@ fun ScheduleEditCard(record: ScheduleRecord, onEdit: () -> Unit, onDelete: () ->
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = record.day.uppercase(),
-                        color = AccentBlue,
+                        color = colorScheme.primary,
                         fontWeight = FontWeight.ExtraBold,
                         fontSize = 11.sp,
                         letterSpacing = 1.sp
@@ -226,38 +225,38 @@ fun ScheduleEditCard(record: ScheduleRecord, onEdit: () -> Unit, onDelete: () ->
                         Icon(
                             Icons.Default.Verified,
                             contentDescription = "Official",
-                            tint = AccentBlue,
+                            tint = colorScheme.primary,
                             modifier = Modifier.size(14.dp)
                         )
                     }
                 }
                 Spacer(Modifier.height(4.dp))
-                Text(record.subject, color = TextWhite, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+                Text(record.subject, color = colorScheme.onSurface, fontWeight = FontWeight.Bold, fontSize = 17.sp)
                 Spacer(Modifier.height(4.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Schedule, null, tint = TextMuted, modifier = Modifier.size(12.dp))
+                    Icon(Icons.Default.Schedule, null, tint = colorScheme.onSurface.copy(alpha = 0.6f), modifier = Modifier.size(12.dp))
                     Spacer(Modifier.width(4.dp))
-                    Text(record.time, color = TextMuted, fontSize = 12.sp)
+                    Text(record.time, color = colorScheme.onSurface.copy(alpha = 0.6f), fontSize = 12.sp)
                     Spacer(Modifier.width(12.dp))
-                    Icon(Icons.Default.Place, null, tint = TextMuted, modifier = Modifier.size(12.dp))
+                    Icon(Icons.Default.Place, null, tint = colorScheme.onSurface.copy(alpha = 0.6f), modifier = Modifier.size(12.dp))
                     Spacer(Modifier.width(4.dp))
-                    Text(record.room, color = TextMuted, fontSize = 12.sp)
+                    Text(record.room, color = colorScheme.onSurface.copy(alpha = 0.6f), fontSize = 12.sp)
                 }
             }
             
             Row {
                 IconButton(
                     onClick = onEdit,
-                    modifier = Modifier.background(Color.White.copy(alpha = 0.05f), CircleShape).size(36.dp)
+                    modifier = Modifier.background(colorScheme.onSurface.copy(alpha = 0.05f), CircleShape).size(36.dp)
                 ) {
-                    Icon(Icons.Default.Edit, "Edit", tint = TextMuted, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Default.Edit, "Edit", tint = colorScheme.onSurface.copy(alpha = 0.6f), modifier = Modifier.size(18.dp))
                 }
                 Spacer(Modifier.width(8.dp))
                 IconButton(
                     onClick = onDelete,
-                    modifier = Modifier.background(AccentRed.copy(alpha = 0.1f), CircleShape).size(36.dp)
+                    modifier = Modifier.background(colorScheme.error.copy(alpha = 0.1f), CircleShape).size(36.dp)
                 ) {
-                    Icon(Icons.Default.Delete, "Delete", tint = AccentRed, modifier = Modifier.size(18.dp))
+                    Icon(Icons.Default.Delete, "Delete", tint = colorScheme.error, modifier = Modifier.size(18.dp))
                 }
             }
         }
@@ -265,91 +264,3 @@ fun ScheduleEditCard(record: ScheduleRecord, onEdit: () -> Unit, onDelete: () ->
 }
 
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun EditScheduleDialog(
-    initialRecord: ScheduleRecord?,
-    subjects: List<Subject>,
-    classrooms: List<Classroom>,
-    onDismiss: () -> Unit,
-    onSave: (ScheduleRecord) -> Unit
-) {
-    var selectedDay by remember { mutableStateOf(initialRecord?.day ?: "Monday") }
-    var selectedSubject by remember { mutableStateOf(subjects.find { it.id == initialRecord?.subject_id } ?: subjects.firstOrNull()) }
-    var selectedRoom by remember { mutableStateOf(classrooms.find { it.id == initialRecord?.classroom_id } ?: classrooms.firstOrNull()) }
-    var timeStr by remember { mutableStateOf(initialRecord?.time ?: "09:00 AM - 10:00 AM") }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = CardBg,
-        title = { Text(if (initialRecord == null) "Add Schedule" else "Edit Schedule", color = TextWhite) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                // Day Selector (Simplified)
-                val days = listOf("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")
-                var dayExpanded by remember { mutableStateOf(false) }
-                Box {
-                    OutlinedButton(onClick = { dayExpanded = true }, modifier = Modifier.fillMaxWidth()) {
-                        Text(selectedDay)
-                    }
-                    DropdownMenu(expanded = dayExpanded, onDismissRequest = { dayExpanded = false }) {
-                        days.forEach { day ->
-                            DropdownMenuItem(text = { Text(day) }, onClick = { selectedDay = day; dayExpanded = false })
-                        }
-                    }
-                }
-
-                // Subject Selector
-                var subExpanded by remember { mutableStateOf(false) }
-                Box {
-                    OutlinedButton(onClick = { subExpanded = true }, modifier = Modifier.fillMaxWidth()) {
-                        Text(selectedSubject?.name ?: "Select Subject")
-                    }
-                    DropdownMenu(expanded = subExpanded, onDismissRequest = { subExpanded = false }) {
-                        subjects.forEach { sub ->
-                            DropdownMenuItem(text = { Text(sub.name) }, onClick = { selectedSubject = sub; subExpanded = false })
-                        }
-                    }
-                }
-
-                // Room Selector
-                var roomExpanded by remember { mutableStateOf(false) }
-                Box {
-                    OutlinedButton(onClick = { roomExpanded = true }, modifier = Modifier.fillMaxWidth()) {
-                        Text(selectedRoom?.name ?: "Select Room")
-                    }
-                    DropdownMenu(expanded = roomExpanded, onDismissRequest = { roomExpanded = false }) {
-                        classrooms.forEach { room ->
-                            DropdownMenuItem(text = { Text(room.name) }, onClick = { selectedRoom = room; roomExpanded = false })
-                        }
-                    }
-                }
-
-                OutlinedTextField(
-                    value = timeStr,
-                    onValueChange = { timeStr = it },
-                    label = { Text("Time (e.g. 10:00 AM - 11:00 AM)") },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(focusedTextColor = TextWhite, unfocusedTextColor = TextWhite)
-                )
-            }
-        },
-        confirmButton = {
-            Button(onClick = {
-                if (selectedSubject != null && selectedRoom != null) {
-                    onSave(ScheduleRecord(
-                        id = initialRecord?.id,
-                        day = selectedDay,
-                        subject = selectedSubject!!.name,
-                        subject_id = selectedSubject!!.id,
-                        subject_code = selectedSubject!!.code,
-                        room = selectedRoom!!.name,
-                        classroom_id = selectedRoom!!.id,
-                        time = timeStr
-                    ))
-                }
-            }) { Text("Save") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
-    )
-}

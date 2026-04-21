@@ -10,7 +10,9 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.Assignment
+import androidx.compose.material.icons.automirrored.filled.LibraryBooks
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Notifications
@@ -39,16 +41,7 @@ import kotlinx.coroutines.coroutineScope
 import java.util.Calendar
 
 // --- MODERN GLASSMORPHIC PALETTE ---
-private val DarkBg = Color(0xFF0F172A)          // Rich Dark Navy
-private val CardBg = Color(0xFF1E293B)          // Slate Surface
-private val GlassBorder = Color(0xFF334155)     // Subtle Border
-private val AccentBlue = Color(0xFF3B82F6)      // Electric Blue
-private val AccentPurple = Color(0xFF8B5CF6)    // Soft Purple
-private val AccentOrange = Color(0xFFF59E0B)    // Alert Orange
-private val AccentRed = Color(0xFFEF4444)       // Critical Red
-private val SuccessGreen = Color(0xFF10B981)    // Success Green
-private val TextWhite = Color(0xFFF8FAFC)       // Off-White
-private val TextMuted = Color(0xFF94A3B8)       // Cool Gray
+// Removed hardcoded colors, using MaterialTheme.colorScheme instead
 
 @Composable
 fun DashboardScreen(navController: NavController, role: String) {
@@ -140,12 +133,12 @@ fun DashboardScreen(navController: NavController, role: String) {
 
     Scaffold(
         bottomBar = { BottomNavBar(navController, role) },
-        containerColor = DarkBg
+        containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
         Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
             if (isLoading) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = AccentBlue, strokeWidth = 3.dp)
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary, strokeWidth = 3.dp)
                 }
             } else {
                 LazyColumn(
@@ -158,7 +151,7 @@ fun DashboardScreen(navController: NavController, role: String) {
                         Box(modifier = Modifier
                             .fillMaxWidth()
                             .background(
-                                Brush.verticalGradient(listOf(AccentBlue.copy(alpha = 0.15f), Color.Transparent))
+                                Brush.verticalGradient(listOf(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f), Color.Transparent))
                             )
                             .statusBarsPadding()
                             .padding(20.dp)
@@ -243,9 +236,9 @@ fun DashboardScreen(navController: NavController, role: String) {
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .padding(bottom = 24.dp, end = 16.dp)
-                        .shadow(12.dp, CircleShape, spotColor = AccentBlue),
-                    containerColor = AccentBlue,
-                    contentColor = Color.White,
+                        .shadow(12.dp, CircleShape, spotColor = MaterialTheme.colorScheme.primary),
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
                     icon = { Icon(Icons.Default.QrCodeScanner, null) },
                     text = { Text("Mark Attendance", fontWeight = FontWeight.Bold) }
                 )
@@ -271,9 +264,9 @@ fun HeaderSection(navController: NavController, unreadCount: Int) {
                     popUpTo(0) { inclusive = true }
                 }
             },
-            modifier = Modifier.size(44.dp).background(CardBg, CircleShape).border(1.dp, GlassBorder, CircleShape)
+            modifier = Modifier.size(44.dp).background(MaterialTheme.colorScheme.surface, CircleShape).border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
         ) {
-            Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Logout", tint = AccentRed, modifier = Modifier.size(20.dp))
+            Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Logout", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp))
         }
 
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -282,15 +275,15 @@ fun HeaderSection(navController: NavController, unreadCount: Int) {
                     badge = {
                         if (unreadCount > 0) {
                             Badge(
-                                containerColor = AccentRed,
-                                contentColor = Color.White
+                                containerColor = MaterialTheme.colorScheme.error,
+                                contentColor = MaterialTheme.colorScheme.onError
                             ) {
                                 Text(unreadCount.toString())
                             }
                         }
                     }
                 ) {
-                    Icon(Icons.Outlined.Notifications, null, tint = TextMuted)
+                    Icon(Icons.Outlined.Notifications, null, tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                 }
             }
             Spacer(modifier = Modifier.width(8.dp))
@@ -298,12 +291,12 @@ fun HeaderSection(navController: NavController, unreadCount: Int) {
                 modifier = Modifier
                     .size(48.dp)
                     .clip(CircleShape)
-                    .background(Brush.linearGradient(listOf(AccentBlue, AccentPurple)))
+                    .background(Brush.linearGradient(listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.tertiary)))
                     .clickable { navController.navigate("profile") }
-                    .border(2.dp, Color.White.copy(alpha = 0.2f), CircleShape),
+                    .border(2.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.Person, null, tint = TextWhite)
+                Icon(Icons.Default.Person, null, tint = MaterialTheme.colorScheme.onPrimary)
             }
         }
     }
@@ -315,26 +308,26 @@ fun GreetingSection(role: String, name: String, subtext: String, modifier: Modif
         Text(
             text = "Hello,",
             fontSize = 16.sp,
-            color = TextMuted,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
             fontWeight = FontWeight.Medium
         )
         Text(
             text = name,
-            fontSize = 32.sp,
+            fontSize = 24.sp,
             fontWeight = FontWeight.ExtraBold,
-            color = TextWhite,
+            color = MaterialTheme.colorScheme.onBackground,
             letterSpacing = (-0.5).sp
         )
         Spacer(modifier = Modifier.height(6.dp))
         Surface(
-            color = AccentBlue.copy(alpha = 0.1f),
+            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
             shape = RoundedCornerShape(8.dp),
             modifier = Modifier.wrapContentSize()
         ) {
             Text(
                 text = subtext,
                 fontSize = 12.sp,
-                color = AccentBlue,
+                color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
             )
@@ -349,48 +342,75 @@ fun StudentStatsRow(history: List<AttendanceRecord>) {
     val percentage = if (total > 0) (present.toDouble() / total * 100) else 0.0
     val formattedPercent = "%.1f%%".format(percentage)
 
-    LazyRow(
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = PaddingValues(horizontal = 24.dp),
+    Column(modifier = Modifier.padding(horizontal = 24.dp)) {
+        Text("Your Progress", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+        Spacer(modifier = Modifier.height(16.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            ModernStatCard("Overall", formattedPercent, if (percentage >= 75) "Stable" else "At Risk", if (percentage >= 75) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error, Modifier.weight(1.2f))
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                SmallStatCard("Present", present.toString(), MaterialTheme.colorScheme.primary)
+                SmallStatCard("Missed", (total - present).toString(), MaterialTheme.colorScheme.secondary)
+            }
+        }
+    }
+}
+
+@Composable
+fun SmallStatCard(title: String, value: String, color: Color) {
+    Surface(
+        color = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(20.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)),
         modifier = Modifier.fillMaxWidth()
     ) {
-        item { ModernStatCard("Attendance", formattedPercent, if (percentage >= 75) "Stable" else "At Risk", if (percentage >= 75) SuccessGreen else AccentRed) }
-        item { ModernStatCard("Present", present.toString(), "Sessions", AccentBlue) }
-        item { ModernStatCard("Missed", (total - present).toString(), "Sessions", AccentOrange) }
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column {
+                Text(title, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), fontWeight = FontWeight.Medium)
+                Text(value, fontSize = 16.sp, fontWeight = FontWeight.Black, color = color)
+            }
+            Box(modifier = Modifier.size(6.dp).background(color, CircleShape))
+        }
     }
 }
 
 @Composable
 fun FacultyStatsRow(sessions: List<FacultySessionRecord>, schedule: List<ScheduleRecord>) {
-    LazyRow(
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = PaddingValues(horizontal = 24.dp),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        item { ModernStatCard("Classes", schedule.size.toString(), "Today", AccentBlue) }
-        item { ModernStatCard("Sessions", sessions.size.toString(), "Conducted", SuccessGreen) }
-        item { ModernStatCard("Alerts", "0", "Students", AccentOrange) }
+    Column(modifier = Modifier.padding(horizontal = 24.dp)) {
+        Text("Daily Overview", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+        Spacer(modifier = Modifier.height(16.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            ModernStatCard("Today", schedule.size.toString(), "Classes", MaterialTheme.colorScheme.primary, Modifier.weight(1f))
+            ModernStatCard("Total", sessions.size.toString(), "Sessions", MaterialTheme.colorScheme.secondary, Modifier.weight(1f))
+            ModernStatCard("Alerts", "0", "Students", MaterialTheme.colorScheme.error, Modifier.weight(1f))
+        }
     }
 }
 
 @Composable
-fun ModernStatCard(title: String, value: String, subtitle: String, color: Color) {
+fun ModernStatCard(title: String, value: String, subtitle: String, color: Color, modifier: Modifier = Modifier) {
     Card(
-        modifier = Modifier.width(130.dp).height(160.dp),
-        colors = CardDefaults.cardColors(containerColor = CardBg),
+        modifier = modifier.height(115.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         shape = RoundedCornerShape(24.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, GlassBorder)
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
     ) {
         Column(
-            modifier = Modifier.padding(20.dp).fillMaxSize(),
-            verticalArrangement = Arrangement.SpaceBetween
+            modifier = Modifier.padding(16.dp).fillMaxSize(),
+            verticalArrangement = Arrangement.Center
         ) {
-            Box(modifier = Modifier.size(8.dp).background(color, CircleShape))
-            Column {
-                Text(value, fontSize = 26.sp, fontWeight = FontWeight.Black, color = TextWhite)
-                Text(title, fontSize = 12.sp, color = TextMuted, fontWeight = FontWeight.Medium)
-                Text(subtitle, fontSize = 11.sp, color = color, fontWeight = FontWeight.Bold)
-            }
+            Text(title, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), fontWeight = FontWeight.Medium)
+            Text(value, fontSize = 28.sp, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.onSurface)
+            Text(subtitle, fontSize = 11.sp, color = color, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -398,20 +418,29 @@ fun ModernStatCard(title: String, value: String, subtitle: String, color: Color)
 @Composable
 fun QuickActionsSection(navController: NavController, modifier: Modifier = Modifier) {
     Column(modifier = modifier) {
-        Text("Quick Actions", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextWhite)
-        Spacer(modifier = Modifier.height(16.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("Quick Actions", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+            TextButton(onClick = { navController.navigate("profile") }) {
+                Text("View Profile", fontSize = 14.sp, color = MaterialTheme.colorScheme.primary)
+            }
+        }
+        Spacer(modifier = Modifier.height(12.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            ModernActionItem("History", Icons.Default.History, AccentBlue, Modifier.weight(1f)) {
-                navController.navigate("attendance_history")
-            }
-            ModernActionItem("Schedule", Icons.Default.CalendarMonth, SuccessGreen, Modifier.weight(1f)) {
+            ModernActionItem("Schedule", Icons.Default.CalendarMonth, MaterialTheme.colorScheme.primary, Modifier.weight(1f)) {
                  /* TODO */
             }
-            ModernActionItem("More", Icons.Default.MoreHoriz, TextMuted, Modifier.weight(1f)) {
-                navController.navigate("profile")
+            ModernActionItem("History", Icons.Default.History, MaterialTheme.colorScheme.secondary, Modifier.weight(1f)) {
+                navController.navigate("attendance_history")
+            }
+            ModernActionItem("Resources", Icons.AutoMirrored.Filled.LibraryBooks, MaterialTheme.colorScheme.tertiary, Modifier.weight(1f)) {
+                /* TODO */
             }
         }
     }
@@ -420,31 +449,40 @@ fun QuickActionsSection(navController: NavController, modifier: Modifier = Modif
 @Composable
 fun FacultyManagementSection(navController: NavController, modifier: Modifier = Modifier) {
     Column(modifier = modifier) {
-        Text("Management", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextWhite)
+        Text("Management", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
         Spacer(modifier = Modifier.height(16.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        
+        // Single prominent Start Session action as requested
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { navController.navigate("start_session") },
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+            ),
+            shape = RoundedCornerShape(24.dp),
+            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
         ) {
-            ModernActionItem("Start", Icons.Default.AddCircle, AccentBlue, Modifier.weight(1f)) {
-                navController.navigate("start_session")
+            Row(
+                modifier = Modifier.padding(20.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(52.dp)
+                        .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(16.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.AddCircle, null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(28.dp))
+                }
+                Spacer(modifier = Modifier.width(16.dp))
+                Column {
+                    Text("Start New Session", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                    Text("Begin tracking attendance now", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                }
+                Spacer(modifier = Modifier.weight(1f))
+                Icon(Icons.AutoMirrored.Filled.ArrowForward, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
             }
-            ModernActionItem("History", Icons.Default.BarChart, SuccessGreen, Modifier.weight(1f)) {
-                navController.navigate("faculty_history")
-            }
-            ModernActionItem("Notify", Icons.Default.Notifications, AccentPurple, Modifier.weight(1f)) {
-                navController.navigate("send_notification")
-            }
-        }
-        Spacer(modifier = Modifier.height(16.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            ModernActionItem("Classes", Icons.Default.School, AccentOrange, Modifier.weight(0.33f)) {
-                navController.navigate("faculty_classes")
-            }
-            Spacer(modifier = Modifier.weight(0.67f))
         }
     }
 }
@@ -452,42 +490,44 @@ fun FacultyManagementSection(navController: NavController, modifier: Modifier = 
 @Composable
 fun HODActionsSection(navController: NavController, modifier: Modifier = Modifier) {
     Column(modifier = modifier) {
-        Text("Management", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextWhite)
+        Text("Management", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
         Spacer(modifier = Modifier.height(16.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            ModernActionItem("Analytics", Icons.Default.BarChart, AccentBlue, Modifier.weight(1f)) {
-                navController.navigate("hod_analytics")
-            }
-            ModernActionItem("Manage", Icons.Default.Domain, SuccessGreen, Modifier.weight(1f)) {
-                navController.navigate("hod_manage")
-            }
-            ModernActionItem("Notify", Icons.Default.Notifications, AccentPurple, Modifier.weight(1f)) {
+            // Analytics and Manage are already in bottom bar
+            ModernActionItem("Notify", Icons.Default.Notifications, MaterialTheme.colorScheme.tertiary, Modifier.weight(1f)) {
                 navController.navigate("send_notification")
             }
+            Spacer(modifier = Modifier.weight(2f))
         }
     }
 }
 
 @Composable
 fun ModernActionItem(label: String, icon: ImageVector, color: Color, modifier: Modifier, onClick: () -> Unit) {
-    Column(
+    Surface(
         modifier = modifier.clickable { onClick() },
-        horizontalAlignment = Alignment.CenterHorizontally
+        color = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(24.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
     ) {
-        Box(
-            modifier = Modifier
-                .aspectRatio(1f)
-                .background(color.copy(alpha = 0.12f), RoundedCornerShape(20.dp))
-                .border(1.dp, color.copy(alpha = 0.2f), RoundedCornerShape(20.dp)),
-            contentAlignment = Alignment.Center
+        Column(
+            modifier = Modifier.padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Icon(icon, null, tint = color, modifier = Modifier.size(28.dp))
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .background(color.copy(alpha = 0.1f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, null, tint = color, modifier = Modifier.size(24.dp))
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(label, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
         }
-        Spacer(modifier = Modifier.height(10.dp))
-        Text(label, fontSize = 13.sp, color = TextWhite, fontWeight = FontWeight.SemiBold)
     }
 }
 
@@ -495,32 +535,35 @@ fun ModernActionItem(label: String, icon: ImageVector, color: Color, modifier: M
 fun ModernRecentAttendanceCard(modifier: Modifier = Modifier, history: List<AttendanceRecord>) {
     Card(
         modifier = modifier.height(200.dp),
-        colors = CardDefaults.cardColors(containerColor = CardBg),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         shape = RoundedCornerShape(28.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, GlassBorder)
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
-            Text("Latest Log", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextWhite)
+            Text("Latest Log", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
             Spacer(modifier = Modifier.height(16.dp))
             
             if (history.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("No logs", color = TextMuted, fontSize = 12.sp)
+                    Text("No logs", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), fontSize = 12.sp)
                 }
             } else {
                 val latest = history.first()
+                val isPresent = latest.status.lowercase() == "present"
+                val statusColor = if (isPresent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(latest.subject_id, fontSize = 18.sp, fontWeight = FontWeight.Black, color = TextWhite, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text(latest.timestamp.take(10), fontSize = 12.sp, color = TextMuted)
+                    // Use readable subject name if available (even though AttendanceRecord might not have it yet, we handle it)
+                    Text(latest.subject_id, fontSize = 18.sp, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(latest.timestamp.take(10), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                     
                     Spacer(modifier = Modifier.height(8.dp))
                     Surface(
-                        color = if (latest.status.lowercase() == "present") SuccessGreen.copy(alpha = 0.15f) else AccentRed.copy(alpha = 0.15f),
+                        color = statusColor.copy(alpha = 0.15f),
                         shape = RoundedCornerShape(8.dp)
                     ) {
                         Text(
                             latest.status.uppercase(),
-                            color = if (latest.status.lowercase() == "present") SuccessGreen else AccentRed,
+                            color = statusColor,
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Black,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
@@ -536,25 +579,26 @@ fun ModernRecentAttendanceCard(modifier: Modifier = Modifier, history: List<Atte
 fun ModernRecentSessionsCard(modifier: Modifier = Modifier, sessions: List<FacultySessionRecord>) {
     Card(
         modifier = modifier.height(200.dp),
-        colors = CardDefaults.cardColors(containerColor = CardBg),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         shape = RoundedCornerShape(28.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, GlassBorder)
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
-            Text("Last Class", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextWhite)
+            Text("Last Class", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
             Spacer(modifier = Modifier.height(16.dp))
             
             if (sessions.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("No sessions", color = TextMuted, fontSize = 12.sp)
+                    Text("No sessions", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), fontSize = 12.sp)
                 }
             } else {
                 val latest = sessions.first()
+                val displayName = if (latest.subject_name.isNotEmpty()) latest.subject_name else latest.subject_id
                 Column {
-                    Text(latest.subject_id, fontSize = 18.sp, fontWeight = FontWeight.Black, color = TextWhite, maxLines = 1)
-                    Text("${latest.student_count} Present", fontSize = 14.sp, color = AccentBlue, fontWeight = FontWeight.Bold)
+                    Text(displayName, fontSize = 18.sp, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text("${latest.student_count} Present", fontSize = 14.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(12.dp))
-                    Text("COMPLETED", fontSize = 10.sp, color = SuccessGreen, fontWeight = FontWeight.Black)
+                    Text("COMPLETED", fontSize = 10.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Black)
                 }
             }
         }
@@ -565,25 +609,25 @@ fun ModernRecentSessionsCard(modifier: Modifier = Modifier, sessions: List<Facul
 fun ModernScheduleCard(modifier: Modifier = Modifier, schedule: List<ScheduleRecord>, onViewAll: () -> Unit) {
     Card(
         modifier = modifier.height(200.dp).clickable { onViewAll() },
-        colors = CardDefaults.cardColors(containerColor = CardBg),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         shape = RoundedCornerShape(28.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, GlassBorder)
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
-            Text("Up Next", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextWhite)
+            Text("Up Next", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
             Spacer(modifier = Modifier.height(16.dp))
             
             if (schedule.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Free Day", color = SuccessGreen, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Text("Free Day", color = MaterialTheme.colorScheme.primary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                 }
             } else {
                 val next = schedule.first()
                 Column {
-                    Text(next.time, fontSize = 11.sp, color = AccentOrange, fontWeight = FontWeight.Bold)
-                    Text(next.subject, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextWhite, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text(next.time, fontSize = 11.sp, color = MaterialTheme.colorScheme.secondary, fontWeight = FontWeight.Bold)
+                    Text(next.subject, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(next.room, fontSize = 12.sp, color = TextMuted)
+                    Text(next.room, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                 }
             }
         }
@@ -593,14 +637,14 @@ fun ModernScheduleCard(modifier: Modifier = Modifier, schedule: List<ScheduleRec
 @Composable
 fun BottomNavBar(navController: NavController, role: String) {
     NavigationBar(
-        containerColor = Color(0xFF111827),
+        containerColor = MaterialTheme.colorScheme.surface,
         tonalElevation = 0.dp,
         modifier = Modifier
             .navigationBarsPadding()
             .height(72.dp)
             .border(
                 1.dp,
-                Color.White.copy(alpha = 0.05f),
+                MaterialTheme.colorScheme.outline.copy(alpha = 0.1f),
                 RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
             )
     ) {
@@ -643,10 +687,10 @@ fun BottomNavBar(navController: NavController, role: String) {
                 selected = selected,
                 onClick = { if (route.isNotEmpty()) navController.navigate(route) },
                 colors = NavigationBarItemDefaults.colors(
-                    selectedIconColor = AccentBlue,
-                    selectedTextColor = AccentBlue,
-                    unselectedIconColor = TextMuted,
-                    unselectedTextColor = TextMuted,
+                    selectedIconColor = MaterialTheme.colorScheme.primary,
+                    selectedTextColor = MaterialTheme.colorScheme.primary,
+                    unselectedIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    unselectedTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                     indicatorColor = Color.Transparent
                 )
             )

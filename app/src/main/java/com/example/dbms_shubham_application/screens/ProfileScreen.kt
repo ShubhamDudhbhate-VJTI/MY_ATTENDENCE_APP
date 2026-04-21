@@ -1,6 +1,7 @@
 package com.example.dbms_shubham_application.screens
 
 import android.widget.Toast
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -32,16 +33,15 @@ import com.example.dbms_shubham_application.data.model.UserProfile
 import com.example.dbms_shubham_application.network.RetrofitClient
 import kotlinx.coroutines.launch
 
-private val DarkBg = Color(0xFF0F172A)
-private val CardBg = Color(0xFF1E293B)
-private val AccentBlue = Color(0xFF3B82F6)
-private val TextWhite = Color(0xFFFFFFFF)
-private val TextMuted = Color(0xFF94A3B8)
-private val AccentRed = Color(0xFFEF4444)
+// Remove hardcoded color constants
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProfileScreen(navController: NavController) {
+fun ProfileScreen(
+    navController: NavController,
+    isDark: Boolean,
+    onThemeChange: (Boolean) -> Unit
+) {
     val context = LocalContext.current
     val sessionManager = remember { SessionManager(context) }
     val rawUserId = sessionManager.getUserId() ?: ""
@@ -72,23 +72,23 @@ fun ProfileScreen(navController: NavController) {
     }
 
     Scaffold(
-        containerColor = DarkBg,
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text("Profile", color = TextWhite, fontWeight = FontWeight.Bold) },
+                title = { Text("Profile", color = MaterialTheme.colorScheme.onBackground, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = { navController.navigateUp() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextWhite)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onBackground)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = DarkBg)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
             )
         }
     ) { padding ->
         Box(modifier = Modifier.padding(padding)) {
             if (isLoading) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = AccentBlue)
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 }
             } else if (hasError) {
                 Column(
@@ -96,14 +96,14 @@ fun ProfileScreen(navController: NavController) {
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    Icon(Icons.Default.ErrorOutline, contentDescription = null, tint = AccentRed, modifier = Modifier.size(48.dp))
+                    Icon(Icons.Default.ErrorOutline, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(48.dp))
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text("Could not load profile", color = TextWhite, fontWeight = FontWeight.Bold)
-                    Text("Check your internet or server connection", color = TextMuted, fontSize = 14.sp)
+                    Text("Could not load profile", color = MaterialTheme.colorScheme.onBackground, fontWeight = FontWeight.Bold)
+                    Text("Check your internet or server connection", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
                     Spacer(modifier = Modifier.height(24.dp))
                     Button(
                         onClick = { retryTrigger++ },
-                        colors = ButtonDefaults.buttonColors(containerColor = AccentBlue)
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                     ) {
                         Text("Try Again")
                     }
@@ -145,14 +145,14 @@ fun ProfileScreen(navController: NavController) {
 
                     item {
                         ProfileSectionTitle("Settings")
-                        SettingsCard(navController, sessionManager)
+                        SettingsCard(navController, sessionManager, isDark, onThemeChange)
                     }
 
                     item {
                         Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                             Text(
                                 text = "Version 1.0.0 (Stable)",
-                                color = TextMuted,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontSize = 12.sp
                             )
                         }
@@ -165,11 +165,29 @@ fun ProfileScreen(navController: NavController) {
 
 @Composable
 fun ProfileHeaderCard(profile: UserProfile?) {
+    val infiniteTransition = rememberInfiniteTransition(label = "profile_gradient")
+    val gradientShift by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1000f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(10000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ), label = "gradient_shift"
+    )
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(24.dp)),
-        colors = CardDefaults.cardColors(containerColor = CardBg.copy(alpha = 0.7f)),
+            .border(
+                1.dp, 
+                Brush.linearGradient(
+                    colors = listOf(MaterialTheme.colorScheme.primary.copy(alpha = 0.3f), MaterialTheme.colorScheme.tertiary.copy(alpha = 0.3f)),
+                    start = androidx.compose.ui.geometry.Offset(gradientShift, 0f),
+                    end = androidx.compose.ui.geometry.Offset(gradientShift + 500f, 500f)
+                ), 
+                RoundedCornerShape(24.dp)
+            ),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)),
         shape = RoundedCornerShape(24.dp)
     ) {
         Column(
@@ -180,15 +198,15 @@ fun ProfileHeaderCard(profile: UserProfile?) {
                 modifier = Modifier
                     .size(100.dp)
                     .clip(CircleShape)
-                    .background(Brush.linearGradient(listOf(AccentBlue, Color(0xFF6366F1))))
-                    .border(4.dp, Color.White.copy(alpha = 0.2f), CircleShape),
+                    .background(Brush.linearGradient(listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.secondary)))
+                    .border(4.dp, MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.2f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = (profile?.full_name?.take(1) ?: profile?.username?.take(1) ?: "U").uppercase(),
                     fontSize = 40.sp,
                     fontWeight = FontWeight.ExtraBold,
-                    color = TextWhite
+                    color = MaterialTheme.colorScheme.onPrimary
                 )
             }
             
@@ -198,14 +216,14 @@ fun ProfileHeaderCard(profile: UserProfile?) {
                 text = profile?.full_name ?: "User Name",
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
-                color = TextWhite,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
             )
             
             Text(
                 text = profile?.email ?: "vjti.student@vjti.ac.in",
                 fontSize = 14.sp,
-                color = TextMuted,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                 textAlign = TextAlign.Center
             )
             
@@ -214,12 +232,12 @@ fun ProfileHeaderCard(profile: UserProfile?) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color.Black.copy(alpha = 0.2f), RoundedCornerShape(16.dp))
+                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f), RoundedCornerShape(16.dp))
                     .padding(vertical = 12.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 ProfileMiniStat("Role", profile?.role?.replaceFirstChar { it.uppercase() } ?: "User")
-                Box(modifier = Modifier.width(1.dp).height(30.dp).background(TextMuted.copy(alpha = 0.2f)))
+                Box(modifier = Modifier.width(1.dp).height(30.dp).background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)))
                 ProfileMiniStat("ID", profile?.username ?: "N/A")
             }
         }
@@ -229,8 +247,8 @@ fun ProfileHeaderCard(profile: UserProfile?) {
 @Composable
 fun ProfileMiniStat(label: String, value: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(value, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextWhite)
-        Text(label, fontSize = 12.sp, color = TextMuted)
+        Text(value, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(label, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
     }
 }
 
@@ -240,7 +258,7 @@ fun ProfileSectionTitle(title: String) {
         text = title,
         fontSize = 16.sp,
         fontWeight = FontWeight.Bold,
-        color = TextWhite,
+        color = MaterialTheme.colorScheme.onBackground,
         modifier = Modifier.padding(bottom = 8.dp)
     )
 }
@@ -250,8 +268,8 @@ fun ProfileInfoCard(items: List<Triple<ImageVector, String, String>>) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, Color.White.copy(alpha = 0.05f), RoundedCornerShape(20.dp)),
-        colors = CardDefaults.cardColors(containerColor = CardBg.copy(alpha = 0.5f)),
+            .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f), RoundedCornerShape(20.dp)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
         shape = RoundedCornerShape(20.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -265,19 +283,19 @@ fun ProfileInfoCard(items: List<Triple<ImageVector, String, String>>) {
                     Box(
                         modifier = Modifier
                             .size(40.dp)
-                            .background(AccentBlue.copy(alpha = 0.1f), CircleShape),
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(item.first, contentDescription = null, tint = AccentBlue, modifier = Modifier.size(20.dp))
+                        Icon(item.first, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                     }
                     Spacer(modifier = Modifier.width(16.dp))
                     Column {
-                        Text(item.second, fontSize = 12.sp, color = TextMuted)
-                        Text(item.third, fontSize = 14.sp, color = TextWhite, fontWeight = FontWeight.Medium)
+                        Text(item.second, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
+                        Text(item.third, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Medium)
                     }
                 }
                 if (index < items.size - 1) {
-                    HorizontalDivider(color = TextWhite.copy(alpha = 0.05f), thickness = 1.dp)
+                    HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f), thickness = 1.dp)
                 }
             }
         }
@@ -285,30 +303,48 @@ fun ProfileInfoCard(items: List<Triple<ImageVector, String, String>>) {
 }
 
 @Composable
-fun SettingsCard(navController: NavController, sessionManager: SessionManager) {
+fun SettingsCard(
+    navController: NavController, 
+    sessionManager: SessionManager,
+    isDark: Boolean,
+    onThemeChange: (Boolean) -> Unit
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, Color.White.copy(alpha = 0.05f), RoundedCornerShape(20.dp)),
-        colors = CardDefaults.cardColors(containerColor = CardBg.copy(alpha = 0.5f)),
+            .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f), RoundedCornerShape(20.dp)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
         shape = RoundedCornerShape(20.dp)
     ) {
         Column(modifier = Modifier.padding(8.dp)) {
+            SettingsRow(
+                icon = Icons.Default.DarkMode, 
+                title = "Dark Mode", 
+                subtitle = "Switch between light and dark theme",
+                trailing = {
+                    Switch(
+                        checked = isDark,
+                        onCheckedChange = { onThemeChange(it) },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = MaterialTheme.colorScheme.primary,
+                            checkedTrackColor = MaterialTheme.colorScheme.primaryContainer,
+                        )
+                    )
+                }
+            )
+            
             SettingsRow(Icons.Default.Notifications, "Notifications", "App alerts and reminders")
             SettingsRow(Icons.Default.Security, "Privacy & Security", "Manage biometric data")
             SettingsRow(Icons.Default.Help, "Help Center", "FAQs and support")
             
-            HorizontalDivider(color = TextWhite.copy(alpha = 0.05f), modifier = Modifier.padding(horizontal = 8.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f), modifier = Modifier.padding(horizontal = 8.dp))
             
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
                     .clickable { 
-                        // 1. Clear the local user session
                         sessionManager.logout()
-                        
-                        // 2. Navigate back to role selection and clear the entire backstack
                         navController.navigate("role_selection") {
                             popUpTo("splash") { inclusive = true }
                         }
@@ -316,16 +352,21 @@ fun SettingsCard(navController: NavController, sessionManager: SessionManager) {
                     .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null, tint = AccentRed, modifier = Modifier.size(24.dp))
+                Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(24.dp))
                 Spacer(modifier = Modifier.width(16.dp))
-                Text("Sign Out", color = AccentRed, fontWeight = FontWeight.Bold)
+                Text("Sign Out", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold)
             }
         }
     }
 }
 
 @Composable
-fun SettingsRow(icon: ImageVector, title: String, subtitle: String) {
+fun SettingsRow(
+    icon: ImageVector, 
+    title: String, 
+    subtitle: String, 
+    trailing: (@Composable () -> Unit)? = null
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -333,12 +374,16 @@ fun SettingsRow(icon: ImageVector, title: String, subtitle: String) {
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(icon, contentDescription = null, tint = TextMuted, modifier = Modifier.size(24.dp))
+        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f), modifier = Modifier.size(24.dp))
         Spacer(modifier = Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(title, color = TextWhite, fontWeight = FontWeight.Medium)
-            Text(subtitle, color = TextMuted, fontSize = 12.sp)
+            Text(title, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Medium)
+            Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f), fontSize = 12.sp)
         }
-        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = TextMuted.copy(alpha = 0.5f), modifier = Modifier.size(20.dp))
+        if (trailing != null) {
+            trailing()
+        } else {
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f), modifier = Modifier.size(20.dp))
+        }
     }
 }

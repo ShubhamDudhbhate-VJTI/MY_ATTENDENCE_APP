@@ -27,14 +27,6 @@ import com.example.dbms_shubham_application.data.local.SessionManager
 import com.example.dbms_shubham_application.network.RetrofitClient
 import kotlinx.coroutines.launch
 
-private val DarkBg = Color(0xFF0F172A)
-private val CardBg = Color(0xFF1E293B)
-private val GlassBorder = Color(0xFF334155)
-private val AccentBlue = Color(0xFF3B82F6)
-private val TextWhite = Color(0xFFF8FAFC)
-private val TextMuted = Color(0xFF94A3B8)
-private val SuccessGreen = Color(0xFF10B981)
-
 enum class NotificationTarget {
     INDIVIDUAL, GROUP, CLASS
 }
@@ -57,16 +49,16 @@ fun SendNotificationScreen(navController: NavController) {
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("Send Notification", fontWeight = FontWeight.Bold, color = TextWhite) },
+                title = { Text("Send Notification", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = TextWhite)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = MaterialTheme.colorScheme.onBackground)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = DarkBg)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
             )
         },
-        containerColor = DarkBg
+        containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier
@@ -80,7 +72,7 @@ fun SendNotificationScreen(navController: NavController) {
                     "Select Recipients",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    color = TextWhite,
+                    color = MaterialTheme.colorScheme.onBackground,
                     modifier = Modifier.padding(top = 10.dp)
                 )
             }
@@ -129,16 +121,16 @@ fun SendNotificationScreen(navController: NavController) {
                             NotificationTarget.INDIVIDUAL -> "241080017"
                             NotificationTarget.GROUP -> "DBMS"
                             NotificationTarget.CLASS -> "Information Technology-Second Year"
-                        }, color = TextMuted.copy(alpha = 0.5f))
+                        }, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
                     },
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = TextWhite,
-                        unfocusedTextColor = TextWhite,
-                        focusedBorderColor = AccentBlue,
-                        unfocusedBorderColor = GlassBorder,
-                        focusedLabelColor = AccentBlue,
-                        unfocusedLabelColor = TextMuted
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                        focusedLabelColor = MaterialTheme.colorScheme.primary,
+                        unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
                     ),
                     shape = RoundedCornerShape(12.dp)
                 )
@@ -149,7 +141,7 @@ fun SendNotificationScreen(navController: NavController) {
                     "Message Content",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    color = TextWhite
+                    color = MaterialTheme.colorScheme.onBackground
                 )
             }
 
@@ -160,12 +152,12 @@ fun SendNotificationScreen(navController: NavController) {
                     label = { Text("Title") },
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = TextWhite,
-                        unfocusedTextColor = TextWhite,
-                        focusedBorderColor = AccentBlue,
-                        unfocusedBorderColor = GlassBorder,
-                        focusedLabelColor = AccentBlue,
-                        unfocusedLabelColor = TextMuted
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                        focusedLabelColor = MaterialTheme.colorScheme.primary,
+                        unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
                     ),
                     shape = RoundedCornerShape(12.dp)
                 )
@@ -180,12 +172,12 @@ fun SendNotificationScreen(navController: NavController) {
                         .fillMaxWidth()
                         .height(150.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = TextWhite,
-                        unfocusedTextColor = TextWhite,
-                        focusedBorderColor = AccentBlue,
-                        unfocusedBorderColor = GlassBorder,
-                        focusedLabelColor = AccentBlue,
-                        unfocusedLabelColor = TextMuted
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                        focusedLabelColor = MaterialTheme.colorScheme.primary,
+                        unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
                     ),
                     shape = RoundedCornerShape(12.dp)
                 )
@@ -235,12 +227,12 @@ fun SendNotificationScreen(navController: NavController) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                     shape = RoundedCornerShape(12.dp),
                     enabled = !isLoading
                 ) {
                     if (isLoading) {
-                        CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(24.dp))
                     } else {
                         Icon(Icons.Default.Send, null)
                         Spacer(modifier = Modifier.width(8.dp))
@@ -263,12 +255,12 @@ fun TargetOption(
     Column(
         modifier = modifier
             .background(
-                if (isSelected) AccentBlue.copy(alpha = 0.1f) else CardBg,
+                if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surfaceVariant,
                 RoundedCornerShape(16.dp)
             )
             .border(
                 1.dp,
-                if (isSelected) AccentBlue else GlassBorder,
+                if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
                 RoundedCornerShape(16.dp)
             )
             .clickable { onClick() }
@@ -279,14 +271,14 @@ fun TargetOption(
         Icon(
             icon, 
             null, 
-            tint = if (isSelected) AccentBlue else TextMuted,
+            tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(24.dp)
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             label, 
             fontSize = 12.sp, 
-            color = if (isSelected) AccentBlue else TextMuted,
+            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
         )
     }

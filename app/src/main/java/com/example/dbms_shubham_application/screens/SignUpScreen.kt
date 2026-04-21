@@ -27,15 +27,11 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.dbms_shubham_application.data.local.SessionManager
 import com.example.dbms_shubham_application.network.RetrofitClient
+import com.example.dbms_shubham_application.ui.components.ModernTextField
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-private val DarkBg = Color(0xFF0F172A)
-private val CardBg = Color(0xFF1E293B)
-private val TextWhite = Color(0xFFFFFFFF)
-private val TextMuted = Color(0xFF94A3B8)
-private val AccentBlue = Color(0xFF3B82F6)
-private val AccentPurple = Color(0xFF8B5CF6)
+// Removed hardcoded colors, using MaterialTheme.colorScheme instead
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,14 +49,14 @@ fun SignUpScreen(navController: NavController, role: String) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(DarkBg)
+            .background(MaterialTheme.colorScheme.background)
     ) {
         // Decorative background elements
         Box(
             modifier = Modifier
                 .size(300.dp)
                 .offset(x = 200.dp, y = (-100).dp)
-                .background(AccentPurple.copy(alpha = 0.1f), CircleShape)
+                .background(MaterialTheme.colorScheme.tertiary.copy(alpha = 0.1f), CircleShape)
         )
 
         Column(
@@ -77,11 +73,11 @@ fun SignUpScreen(navController: NavController, role: String) {
                 modifier = Modifier
                     .size(80.dp)
                     .clip(RoundedCornerShape(20.dp))
-                    .background(Brush.linearGradient(listOf(AccentBlue, AccentPurple)))
+                    .background(Brush.linearGradient(listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.tertiary)))
                     .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(20.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.PersonAdd, null, tint = Color.White, modifier = Modifier.size(40.dp))
+                Icon(Icons.Default.PersonAdd, null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(40.dp))
             }
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -90,14 +86,14 @@ fun SignUpScreen(navController: NavController, role: String) {
                 text = "Join AttendX",
                 fontSize = 32.sp,
                 fontWeight = FontWeight.Black,
-                color = TextWhite,
+                color = MaterialTheme.colorScheme.onBackground,
                 letterSpacing = (-1).sp
             )
             
             Text(
                 text = "Create your ${role} account to get started",
                 fontSize = 15.sp,
-                color = TextMuted,
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
                 modifier = Modifier.padding(top = 8.dp, bottom = 40.dp)
             )
 
@@ -105,7 +101,10 @@ fun SignUpScreen(navController: NavController, role: String) {
                 value = userIdInput,
                 onValueChange = { userIdInput = it },
                 label = if (role.lowercase() == "student") "Registration Number" else "Employee ID",
-                icon = Icons.Default.Badge
+                icon = Icons.Default.Badge,
+                colors = Pair(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.outline),
+                textColor = MaterialTheme.colorScheme.onBackground,
+                surfaceColor = MaterialTheme.colorScheme.surface
             )
 
             Spacer(modifier = Modifier.height(20.dp))
@@ -114,7 +113,10 @@ fun SignUpScreen(navController: NavController, role: String) {
                 value = name,
                 onValueChange = { name = it },
                 label = "Full Name",
-                icon = Icons.Default.Person
+                icon = Icons.Default.Person,
+                colors = Pair(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.outline),
+                textColor = MaterialTheme.colorScheme.onBackground,
+                surfaceColor = MaterialTheme.colorScheme.surface
             )
 
             Spacer(modifier = Modifier.height(20.dp))
@@ -124,7 +126,10 @@ fun SignUpScreen(navController: NavController, role: String) {
                 onValueChange = { email = it },
                 label = "Institutional Email",
                 icon = Icons.Default.Email,
-                keyboardType = KeyboardType.Email
+                keyboardType = KeyboardType.Email,
+                colors = Pair(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.outline),
+                textColor = MaterialTheme.colorScheme.onBackground,
+                surfaceColor = MaterialTheme.colorScheme.surface
             )
 
             Spacer(modifier = Modifier.height(20.dp))
@@ -137,7 +142,10 @@ fun SignUpScreen(navController: NavController, role: String) {
                 keyboardType = KeyboardType.Password,
                 isPassword = true,
                 passwordVisible = passwordVisible,
-                onPasswordToggle = { passwordVisible = !passwordVisible }
+                onPasswordToggle = { passwordVisible = !passwordVisible },
+                colors = Pair(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.outline),
+                textColor = MaterialTheme.colorScheme.onBackground,
+                surfaceColor = MaterialTheme.colorScheme.surface
             )
 
             Spacer(modifier = Modifier.height(40.dp))
@@ -185,24 +193,24 @@ fun SignUpScreen(navController: NavController, role: String) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                 shape = RoundedCornerShape(16.dp),
                 enabled = !isLoading
             ) {
                 if (isLoading) {
-                    CircularProgressIndicator(color = TextWhite, modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
                 } else {
-                    Text("Create Account", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
+                    Text("Create Account", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.onPrimary)
                 }
             }
 
             Spacer(modifier = Modifier.height(32.dp))
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Already have an account?", color = TextMuted, fontSize = 14.sp)
+                Text("Already have an account?", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f), fontSize = 14.sp)
                 Text(
                     text = " Sign In",
-                    color = AccentBlue,
+                    color = MaterialTheme.colorScheme.primary,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.ExtraBold,
                     modifier = Modifier.clickable { navController.navigateUp() }

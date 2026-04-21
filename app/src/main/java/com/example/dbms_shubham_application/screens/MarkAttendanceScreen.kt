@@ -18,6 +18,7 @@ import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -32,8 +33,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -42,12 +45,17 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.camera.core.resolutionselector.ResolutionSelector
+import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavController
 import com.example.dbms_shubham_application.data.local.SessionManager
 import com.example.dbms_shubham_application.data.model.WifiRequest
 import com.example.dbms_shubham_application.network.RetrofitClient
+import com.example.dbms_shubham_application.ui.theme.FacebookBlue
+import com.example.dbms_shubham_application.ui.theme.RedAccent
+import com.example.dbms_shubham_application.ui.theme.YellowAccent
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 import com.google.android.gms.location.LocationServices
@@ -69,12 +77,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.util.concurrent.Executors
 
-private val DarkBg = Color(0xFF0F172A)
-private val CardBg = Color(0xFF1E293B)
-private val AccentBlue = Color(0xFF3B82F6)
-private val TextWhite = Color(0xFFFFFFFF)
-private val TextMuted = Color(0xFF94A3B8)
-private val SuccessGreen = Color(0xFF10B981)
+// Removed hardcoded colors, using MaterialTheme.colorScheme instead
 
 @Composable
 fun MarkAttendanceScreen(navController: NavController) {
@@ -94,16 +97,16 @@ fun MarkAttendanceScreen(navController: NavController) {
     }
 
     Scaffold(
-        containerColor = DarkBg,
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text("Mark Attendance", color = TextWhite, fontWeight = FontWeight.Bold) },
+                title = { Text("Mark Attendance", color = MaterialTheme.colorScheme.onBackground, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = { navController.navigateUp() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextWhite)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onBackground)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = DarkBg)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
             )
         }
     ) { padding ->
@@ -202,8 +205,8 @@ fun EnvironmentDetectionStep(onDetected: (String, String, Double?, Double?) -> U
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(24.dp)),
-        colors = CardDefaults.cardColors(containerColor = CardBg.copy(alpha = 0.7f)),
+            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.1f), RoundedCornerShape(24.dp)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)),
         shape = RoundedCornerShape(24.dp)
     ) {
         Column(
@@ -213,28 +216,28 @@ fun EnvironmentDetectionStep(onDetected: (String, String, Double?, Double?) -> U
             Box(
                 modifier = Modifier
                     .size(100.dp)
-                    .background(AccentBlue.copy(alpha = 0.1f), CircleShape),
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.LocationOn, null, tint = AccentBlue, modifier = Modifier.size(48.dp))
+                Icon(Icons.Default.LocationOn, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(48.dp))
             }
             Spacer(modifier = Modifier.height(24.dp))
-            Text("Environment Scan", color = TextWhite, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Text("Environment Scan", color = MaterialTheme.colorScheme.onSurface, fontSize = 22.sp, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 "We're verifying your location and classroom network connection.",
-                color = TextMuted,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                 textAlign = TextAlign.Center,
                 fontSize = 14.sp
             )
             Spacer(modifier = Modifier.height(32.dp))
             CircularProgressIndicator(
-                color = AccentBlue,
+                color = MaterialTheme.colorScheme.primary,
                 strokeWidth = 3.dp,
                 modifier = Modifier.size(40.dp)
             )
             Spacer(modifier = Modifier.height(24.dp))
-            Text(status, color = AccentBlue, fontWeight = FontWeight.Medium, fontSize = 14.sp)
+            Text(status, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Medium, fontSize = 14.sp)
         }
     }
 }
@@ -255,7 +258,9 @@ fun QrScanningStep(
     var qrDetected by remember { mutableStateOf(false) }
 
     val scanner = remember {
-        val options = BarcodeScannerOptions.Builder().setBarcodeFormats(Barcode.FORMAT_QR_CODE).build()
+        val options = BarcodeScannerOptions.Builder()
+            .setBarcodeFormats(Barcode.FORMAT_QR_CODE, Barcode.FORMAT_AZTEC)
+            .build()
         BarcodeScanning.getClient(options)
     }
 
@@ -264,12 +269,23 @@ fun QrScanningStep(
         isVerifying = true
         scope.launch {
             try {
-                // 1. Extract IDs immediately
+                // 1. Extract IDs immediately and clean the string
                 val rawToken = qrToken.replace("\"", "").replace("'", "").trim()
-                val sid = if (rawToken.contains("|")) rawToken.substringBefore("|") else rawToken
-                val token = if (rawToken.contains("|")) rawToken.substringAfter("|") else rawToken
                 
-                Log.d("Attendance", "QR Scanned! Session ID: $sid")
+                // Handle different possible separator characters or plain IDs
+                val sid = when {
+                    rawToken.contains("|") -> rawToken.substringBefore("|")
+                    rawToken.contains(":") -> rawToken.substringBefore(":")
+                    else -> rawToken
+                }
+                
+                val token = when {
+                    rawToken.contains("|") -> rawToken.substringAfter("|")
+                    rawToken.contains(":") -> rawToken.substringAfter(":")
+                    else -> rawToken
+                }
+                
+                Log.d("Attendance", "QR Scanned! Raw: $qrToken -> SID: $sid")
 
                 // 2. Fire-and-forget the backend checks
                 scope.launch {
@@ -295,8 +311,8 @@ fun QrScanningStep(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(24.dp)),
-        colors = CardDefaults.cardColors(containerColor = CardBg.copy(alpha = 0.7f)),
+            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.1f), RoundedCornerShape(24.dp)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)),
         shape = RoundedCornerShape(24.dp)
     ) {
         Column(
@@ -306,17 +322,17 @@ fun QrScanningStep(
             Box(
                 modifier = Modifier
                     .size(64.dp)
-                    .background(AccentBlue.copy(alpha = 0.1f), CircleShape),
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.QrCodeScanner, null, tint = AccentBlue, modifier = Modifier.size(32.dp))
+                Icon(Icons.Default.QrCodeScanner, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(32.dp))
             }
             Spacer(modifier = Modifier.height(24.dp))
-            Text("Scan Faculty QR", color = TextWhite, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Text("Scan Faculty QR", color = MaterialTheme.colorScheme.onSurface, fontSize = 22.sp, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 "Align the faculty's QR code within the frame.",
-                color = TextMuted,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                 textAlign = TextAlign.Center,
                 fontSize = 14.sp
             )
@@ -326,35 +342,69 @@ fun QrScanningStep(
                 modifier = Modifier
                     .size(260.dp)
                     .clip(RoundedCornerShape(24.dp))
-                    .border(2.dp, AccentBlue.copy(alpha = 0.5f), RoundedCornerShape(24.dp)),
+                    .border(2.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f), RoundedCornerShape(24.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 AndroidView(
                     factory = { ctx ->
-                        val previewView = PreviewView(ctx)
+                        val previewView = PreviewView(ctx).apply {
+                            scaleType = PreviewView.ScaleType.FILL_CENTER
+                        }
                         val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
                         cameraProviderFuture.addListener({
                             val cameraProvider = cameraProviderFuture.get()
+                            
                             val preview = Preview.Builder().build()
-                            val imageAnalysis = ImageAnalysis.Builder().setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST).build()
+                            
+                            // Optimize resolution for analysis (720p is the sweet spot for ML Kit)
+                            val resolutionSelector = ResolutionSelector.Builder()
+                                .setResolutionStrategy(
+                                    ResolutionStrategy(
+                                        android.util.Size(1280, 720),
+                                        ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER
+                                    )
+                                )
+                                .build()
+
+                            val imageAnalysis = ImageAnalysis.Builder()
+                                .setResolutionSelector(resolutionSelector)
+                                .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                                .build()
 
                             imageAnalysis.setAnalyzer(Executors.newSingleThreadExecutor()) { imageProxy ->
                                 val mediaImage = imageProxy.image
                                 if (mediaImage != null && !qrDetected) {
                                     val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
-                                    scanner.process(image).addOnSuccessListener { barcodes ->
-                                        for (barcode in barcodes) {
-                                            barcode.rawValue?.let { value ->
-                                                qrDetected = true
-                                                verifyEverything(value)
+                                    scanner.process(image)
+                                        .addOnSuccessListener { barcodes ->
+                                            if (barcodes.isNotEmpty() && !qrDetected) {
+                                                barcodes[0].rawValue?.let { value ->
+                                                    qrDetected = true
+                                                    verifyEverything(value)
+                                                }
                                             }
                                         }
-                                    }.addOnCompleteListener { imageProxy.close() }
-                                } else { imageProxy.close() }
+                                        .addOnFailureListener {
+                                            Log.e("Scanner", "ML Kit Error", it)
+                                        }
+                                        .addOnCompleteListener { imageProxy.close() }
+                                } else {
+                                    imageProxy.close()
+                                }
                             }
-                            cameraProvider.unbindAll()
-                            cameraProvider.bindToLifecycle(lifecycleOwner, CameraSelector.DEFAULT_BACK_CAMERA, preview, imageAnalysis)
-                            preview.surfaceProvider = previewView.surfaceProvider
+
+                            try {
+                                cameraProvider.unbindAll()
+                                cameraProvider.bindToLifecycle(
+                                    lifecycleOwner,
+                                    CameraSelector.DEFAULT_BACK_CAMERA,
+                                    preview,
+                                    imageAnalysis
+                                )
+                                preview.surfaceProvider = previewView.surfaceProvider
+                            } catch (e: Exception) {
+                                Log.e("Camera", "Binding failed", e)
+                            }
                         }, ContextCompat.getMainExecutor(ctx))
                         previewView
                     },
@@ -362,7 +412,7 @@ fun QrScanningStep(
                 )
                 
                 // Scanner Animation Overlay
-                val infiniteTransition = rememberInfiniteTransition()
+                val infiniteTransition = rememberInfiniteTransition(label = "scan_transition")
                 val scanOffset by infiniteTransition.animateFloat(
                     initialValue = 0f,
                     targetValue = 260f,
@@ -372,14 +422,60 @@ fun QrScanningStep(
                     ), label = "scan_animation"
                 )
                 
+                // Pulsing glow effect for the scanning line
+                val glowAlpha by infiniteTransition.animateFloat(
+                    initialValue = 0.3f,
+                    targetValue = 0.8f,
+                    animationSpec = infiniteRepeatable(
+                        animation = tween(1000, easing = FastOutSlowInEasing),
+                        repeatMode = RepeatMode.Reverse
+                    ), label = "glow_animation"
+                )
+                
                 if (!isVerifying) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(2.dp)
+                            .height(4.dp)
                             .offset(y = (-130).dp + scanOffset.dp)
-                            .background(AccentBlue.copy(alpha = 0.5f))
+                            .background(
+                                Brush.verticalGradient(
+                                    listOf(
+                                        Color.Transparent,
+                                        MaterialTheme.colorScheme.primary.copy(alpha = glowAlpha),
+                                        Color.Transparent
+                                    )
+                                )
+                            )
                     )
+                    
+                    // Add a corner guide effect
+                    Box(modifier = Modifier.fillMaxSize().padding(20.dp)) {
+                        val stroke = 3.dp
+                        val length = 30.dp
+                        val color = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+                        
+                        Canvas(modifier = Modifier.fillMaxSize()) {
+                            val s = stroke.toPx()
+                            val l = length.toPx()
+                            
+                            // Top Left
+                            drawRect(color, size = Size(l, s))
+                            drawRect(color, size = Size(s, l))
+                            
+                            // Top Right
+                            drawRect(color, topLeft = androidx.compose.ui.geometry.Offset(size.width - l, 0f), size = Size(l, s))
+                            drawRect(color, topLeft = androidx.compose.ui.geometry.Offset(size.width - s, 0f), size = Size(s, l))
+                            
+                            // Bottom Left
+                            drawRect(color, topLeft = androidx.compose.ui.geometry.Offset(0f, size.height - s), size = Size(l, s))
+                            drawRect(color, topLeft = androidx.compose.ui.geometry.Offset(0f, size.height - l), size = Size(s, l))
+                            
+                            // Bottom Right
+                            drawRect(color, topLeft = androidx.compose.ui.geometry.Offset(size.width - l, size.height - s), size = Size(l, s))
+                            drawRect(color, topLeft = androidx.compose.ui.geometry.Offset(size.width - s, size.height - l), size = Size(s, l))
+                        }
+                    }
                 }
 
                 if (isVerifying) {
@@ -387,7 +483,7 @@ fun QrScanningStep(
                         modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.4f)),
                         contentAlignment = Alignment.Center
                     ) {
-                        CircularProgressIndicator(color = SuccessGreen)
+                        CircularProgressIndicator(color = FacebookBlue)
                     }
                 }
             }
@@ -538,8 +634,8 @@ fun FaceVerificationStep(sessionId: String, onSuccess: () -> Unit, onFailure: (S
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(24.dp)),
-        colors = CardDefaults.cardColors(containerColor = CardBg.copy(alpha = 0.7f)),
+            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.1f), RoundedCornerShape(24.dp)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)),
         shape = RoundedCornerShape(24.dp)
     ) {
         Column(
@@ -548,7 +644,7 @@ fun FaceVerificationStep(sessionId: String, onSuccess: () -> Unit, onFailure: (S
         ) {
             Text(
                 "Face Verification",
-                color = TextWhite,
+                color = MaterialTheme.colorScheme.onSurface,
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold
             )
@@ -563,11 +659,11 @@ fun FaceVerificationStep(sessionId: String, onSuccess: () -> Unit, onFailure: (S
                     .padding(12.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Lightbulb, contentDescription = null, tint = Color.Yellow, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Default.Lightbulb, contentDescription = null, tint = YellowAccent, modifier = Modifier.size(20.dp))
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         "Hold phone at eye level in a well-lit area.",
-                        color = TextMuted,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                         fontSize = 12.sp
                     )
                 }
@@ -581,11 +677,11 @@ fun FaceVerificationStep(sessionId: String, onSuccess: () -> Unit, onFailure: (S
                     .clip(CircleShape)
                     .border(4.dp, 
                         when {
-                            isUploading -> AccentBlue
-                            errorMessage != null -> Color.Red
-                            capturedBitmap != null -> SuccessGreen
-                            faceDetected -> SuccessGreen 
-                            else -> AccentBlue.copy(alpha = 0.5f)
+                            isUploading -> MaterialTheme.colorScheme.primary
+                            errorMessage != null -> RedAccent
+                            capturedBitmap != null -> FacebookBlue
+                            faceDetected -> FacebookBlue 
+                            else -> MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
                         }, 
                         CircleShape
                     ),
@@ -657,7 +753,7 @@ fun FaceVerificationStep(sessionId: String, onSuccess: () -> Unit, onFailure: (S
                 }
 
                 if (isUploading) {
-                    CircularProgressIndicator(color = SuccessGreen, modifier = Modifier.size(60.dp))
+                    CircularProgressIndicator(color = FacebookBlue, modifier = Modifier.size(60.dp))
                 }
             }
 
@@ -666,10 +762,10 @@ fun FaceVerificationStep(sessionId: String, onSuccess: () -> Unit, onFailure: (S
             Text(
                 statusMessage,
                 color = when {
-                    errorMessage != null -> Color.Red
-                    capturedBitmap != null -> SuccessGreen
-                    faceDetected -> SuccessGreen
-                    else -> TextWhite
+                    errorMessage != null -> RedAccent
+                    capturedBitmap != null -> FacebookBlue
+                    faceDetected -> FacebookBlue
+                    else -> MaterialTheme.colorScheme.onSurface
                 },
                 fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -690,24 +786,24 @@ fun FaceVerificationStep(sessionId: String, onSuccess: () -> Unit, onFailure: (S
                             errorMessage = null
                             statusMessage = "Position your face in the circle"
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = CardBg),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surface),
                         modifier = Modifier.weight(1f).padding(horizontal = 4.dp).height(48.dp),
                         shape = RoundedCornerShape(24.dp)
                     ) {
-                        Icon(Icons.Default.Refresh, null, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.Refresh, null, modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurface)
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Retake", fontSize = 14.sp)
+                        Text("Retake", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
                     }
 
                     Button(
                         onClick = { uploadAndVerify() },
-                        colors = ButtonDefaults.buttonColors(containerColor = SuccessGreen),
+                        colors = ButtonDefaults.buttonColors(containerColor = FacebookBlue),
                         modifier = Modifier.weight(1f).padding(horizontal = 4.dp).height(48.dp),
                         shape = RoundedCornerShape(24.dp)
                     ) {
-                        Icon(Icons.Default.CloudUpload, null, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.CloudUpload, null, modifier = Modifier.size(18.dp), tint = Color.White)
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Upload", fontSize = 14.sp)
+                        Text("Upload", fontSize = 14.sp, color = Color.White)
                     }
                 }
             } else if (capturedBitmap == null && !isUploading && countdown == 0) {
@@ -721,16 +817,17 @@ fun FaceVerificationStep(sessionId: String, onSuccess: () -> Unit, onFailure: (S
                         .fillMaxWidth()
                         .height(56.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (faceDetected) SuccessGreen else AccentBlue
+                        containerColor = if (faceDetected) FacebookBlue else MaterialTheme.colorScheme.primary
                     ),
                     shape = RoundedCornerShape(28.dp)
                 ) {
-                    Icon(Icons.Default.CameraAlt, null)
+                    Icon(Icons.Default.CameraAlt, null, tint = Color.White)
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
                         if (faceDetected) "Capture Photo" else "Manual Capture", 
                         fontSize = 16.sp, 
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
                     )
                 }
             }
@@ -739,7 +836,7 @@ fun FaceVerificationStep(sessionId: String, onSuccess: () -> Unit, onFailure: (S
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
                     errorMessage!!,
-                    color = Color.Red.copy(alpha = 0.8f),
+                    color = RedAccent.copy(alpha = 0.8f),
                     fontSize = 12.sp,
                     textAlign = TextAlign.Center
                 )
@@ -749,7 +846,7 @@ fun FaceVerificationStep(sessionId: String, onSuccess: () -> Unit, onFailure: (S
                 if (countdown > 0) {
                     Text(
                         "Please wait ${countdown}s...",
-                        color = TextMuted,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -761,13 +858,13 @@ fun FaceVerificationStep(sessionId: String, onSuccess: () -> Unit, onFailure: (S
                             capturedBitmap = null
                             countdown = 0
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = SuccessGreen),
+                        colors = ButtonDefaults.buttonColors(containerColor = FacebookBlue),
                         modifier = Modifier.fillMaxWidth().height(48.dp),
                         shape = RoundedCornerShape(24.dp)
                     ) {
-                        Icon(Icons.Default.Refresh, null, modifier = Modifier.size(20.dp))
+                        Icon(Icons.Default.Refresh, null, modifier = Modifier.size(20.dp), tint = Color.White)
                         Spacer(modifier = Modifier.width(12.dp))
-                        Text("Try Again Now", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Text("Try Again Now", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
                     }
                 }
             }
@@ -777,11 +874,15 @@ fun FaceVerificationStep(sessionId: String, onSuccess: () -> Unit, onFailure: (S
 
 @Composable
 fun SuccessStep(onFinish: () -> Unit) {
+    val context = LocalContext.current
+    val sessionManager = remember { SessionManager(context) }
+    val userName = sessionManager.getName()?.replace("\"", "") ?: "Student"
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, SuccessGreen.copy(alpha = 0.2f), RoundedCornerShape(24.dp)),
-        colors = CardDefaults.cardColors(containerColor = CardBg.copy(alpha = 0.7f)),
+            .border(1.dp, FacebookBlue.copy(alpha = 0.2f), RoundedCornerShape(24.dp)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)),
         shape = RoundedCornerShape(24.dp)
     ) {
         Column(
@@ -792,23 +893,23 @@ fun SuccessStep(onFinish: () -> Unit) {
             Box(
                 modifier = Modifier
                     .size(120.dp)
-                    .background(SuccessGreen.copy(alpha = 0.1f), CircleShape),
+                    .background(FacebookBlue.copy(alpha = 0.1f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.CheckCircle, null, tint = SuccessGreen, modifier = Modifier.size(80.dp))
+                Icon(Icons.Default.CheckCircle, null, tint = FacebookBlue, modifier = Modifier.size(80.dp))
             }
             Spacer(modifier = Modifier.height(32.dp))
             Text(
                 "Attendance Marked!",
-                color = TextWhite,
+                color = MaterialTheme.colorScheme.onSurface,
                 fontSize = 26.sp,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center
             )
             Spacer(modifier = Modifier.height(12.dp))
             Text(
-                "Your attendance has been successfully recorded for this session.",
-                color = TextMuted,
+                "Thank you, $userName. Your attendance has been successfully recorded.",
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                 fontSize = 14.sp,
                 textAlign = TextAlign.Center
             )
@@ -818,10 +919,10 @@ fun SuccessStep(onFinish: () -> Unit) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = SuccessGreen),
+                colors = ButtonDefaults.buttonColors(containerColor = FacebookBlue),
                 shape = RoundedCornerShape(28.dp)
             ) {
-                Text("Back to Dashboard", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text("Back to Dashboard", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.White)
             }
         }
     }
@@ -832,8 +933,8 @@ fun PermissionSection(onRequest: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(24.dp)),
-        colors = CardDefaults.cardColors(containerColor = CardBg.copy(alpha = 0.7f)),
+            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.1f), RoundedCornerShape(24.dp)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)),
         shape = RoundedCornerShape(24.dp)
     ) {
         Column(
@@ -844,17 +945,17 @@ fun PermissionSection(onRequest: () -> Unit) {
             Box(
                 modifier = Modifier
                     .size(80.dp)
-                    .background(AccentBlue.copy(alpha = 0.1f), CircleShape),
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.Security, null, tint = AccentBlue, modifier = Modifier.size(40.dp))
+                Icon(Icons.Default.Security, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(40.dp))
             }
             Spacer(modifier = Modifier.height(24.dp))
-            Text("Permissions Required", color = TextWhite, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Text("Permissions Required", color = MaterialTheme.colorScheme.onSurface, fontSize = 22.sp, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(12.dp))
             Text(
                 "AttendX needs Camera and Location access to verify your presence in the classroom.",
-                color = TextMuted,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                 textAlign = TextAlign.Center,
                 fontSize = 14.sp
             )
@@ -864,10 +965,10 @@ fun PermissionSection(onRequest: () -> Unit) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                 shape = RoundedCornerShape(28.dp)
             ) {
-                Text("Grant Access", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text("Grant Access", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.White)
             }
         }
     }
@@ -892,22 +993,22 @@ fun StepIndicator(currentStep: Int) {
                     modifier = Modifier
                         .size(40.dp)
                         .background(
-                            if (isActive) AccentBlue else CardBg,
+                            if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
                             CircleShape
                         )
                         .border(
                             2.dp,
-                            if (isActive) AccentBlue.copy(alpha = 0.5f) else Color.Transparent,
+                            if (isActive) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) else Color.Transparent,
                             CircleShape
                         ),
                     contentAlignment = Alignment.Center
                 ) {
                     if (isCompleted) {
-                        Icon(Icons.Default.Check, null, tint = TextWhite, modifier = Modifier.size(20.dp))
+                        Icon(Icons.Default.Check, null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(20.dp))
                     } else {
                         Text(
                             step.toString(),
-                            color = if (isActive) TextWhite else TextMuted,
+                            color = if (isActive) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -920,7 +1021,7 @@ fun StepIndicator(currentStep: Int) {
                         .width(60.dp)
                         .height(2.dp)
                         .padding(horizontal = 4.dp)
-                        .background(if (step < currentStep) AccentBlue else CardBg.copy(alpha = 0.5f))
+                        .background(if (step < currentStep) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
                 )
             }
         }

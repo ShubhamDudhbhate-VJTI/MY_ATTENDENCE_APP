@@ -40,10 +40,12 @@ fun SplashScreen(navController: NavController) {
         }
     }
     
+    val colorScheme = MaterialTheme.colorScheme
+    
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF0F172A)), 
+            .background(colorScheme.background), 
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -54,7 +56,7 @@ fun SplashScreen(navController: NavController) {
                 modifier = Modifier
                     .size(120.dp)
                     .background(
-                        Brush.linearGradient(listOf(Color(0xFF3B82F6), Color(0xFF8B5CF6))),
+                        Brush.linearGradient(listOf(colorScheme.primary, colorScheme.secondary)),
                         shape = CircleShape
                     )
                     .padding(4.dp),
@@ -63,14 +65,14 @@ fun SplashScreen(navController: NavController) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color(0xFF0F172A), shape = CircleShape),
+                        .background(colorScheme.background, shape = CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = "AX",
                         fontSize = 48.sp,
                         fontWeight = FontWeight.Black,
-                        color = Color.White
+                        color = colorScheme.primary
                     )
                 }
             }
@@ -81,7 +83,7 @@ fun SplashScreen(navController: NavController) {
                 text = "AttendX",
                 fontSize = 40.sp,
                 fontWeight = FontWeight.ExtraBold,
-                color = Color.White,
+                color = colorScheme.onBackground,
                 letterSpacing = 2.sp
             )
             
@@ -89,14 +91,14 @@ fun SplashScreen(navController: NavController) {
                 text = "Next-Gen Attendance System",
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium,
-                color = Color(0xFF94A3B8),
+                color = colorScheme.onBackground.copy(alpha = 0.6f),
                 modifier = Modifier.padding(top = 8.dp)
             )
             
             Spacer(modifier = Modifier.height(80.dp))
             
             CircularProgressIndicator(
-                color = Color(0xFF3B82F6),
+                color = colorScheme.primary,
                 modifier = Modifier.size(32.dp),
                 strokeWidth = 3.dp
             )

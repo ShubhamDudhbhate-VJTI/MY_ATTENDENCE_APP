@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.google.services)
 }
 
 android {
@@ -19,9 +20,8 @@ android {
 
     buildTypes {
         debug {
-            applicationIdSuffix = ".debug"
             resValue("string", "app_name", "AttendX (Local)")
-            buildConfigField("String", "BASE_URL", "\"http://192.168.1.141:8000/\"")
+            buildConfigField("String", "BASE_URL", "\"http://10.188.246.244:8000/\"")
         }
         release {
             isMinifyEnabled = true
@@ -73,6 +73,8 @@ dependencies {
     implementation(libs.retrofit.gson)
     implementation(libs.okhttp)
     implementation(libs.okhttp.logging)
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.messaging)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

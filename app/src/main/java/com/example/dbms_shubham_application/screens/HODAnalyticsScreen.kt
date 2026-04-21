@@ -27,38 +27,29 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.dbms_shubham_application.data.local.SessionManager
 
-private val DarkBg = Color(0xFF0F172A)
-private val CardBg = Color(0xFF1E293B)
-private val GlassBorder = Color(0xFF334155)
-private val AccentBlue = Color(0xFF3B82F6)
-private val AccentPurple = Color(0xFF8B5CF6)
-private val SuccessGreen = Color(0xFF10B981)
-private val TextWhite = Color(0xFFF8FAFC)
-private val TextMuted = Color(0xFF94A3B8)
-private val AccentRed = Color(0xFFEF4444)
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HODAnalyticsScreen(navController: NavController) {
+    val colorScheme = MaterialTheme.colorScheme
     val stats = listOf(
-        StatItem("Avg. Attendance", "82.5%", Icons.AutoMirrored.Filled.TrendingUp, SuccessGreen),
-        StatItem("Active Sessions", "14", Icons.Default.BarChart, AccentBlue),
-        StatItem("Low Attendance", "3", Icons.AutoMirrored.Filled.TrendingDown, AccentRed)
+        StatItem("Avg. Attendance", "82.5%", Icons.AutoMirrored.Filled.TrendingUp, colorScheme.primary),
+        StatItem("Active Sessions", "14", Icons.Default.BarChart, colorScheme.secondary),
+        StatItem("Low Attendance", "3", Icons.AutoMirrored.Filled.TrendingDown, colorScheme.error)
     )
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Department Analytics", fontWeight = FontWeight.Bold, color = TextWhite) },
+                title = { Text("Department Analytics", fontWeight = FontWeight.Bold, color = colorScheme.onBackground) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = TextWhite)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = colorScheme.onBackground)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = DarkBg)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = colorScheme.background)
             )
         },
-        containerColor = DarkBg
+        containerColor = colorScheme.background
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier
@@ -72,7 +63,7 @@ fun HODAnalyticsScreen(navController: NavController) {
                     "Overview",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
-                    color = TextWhite,
+                    color = colorScheme.onBackground,
                     modifier = Modifier.padding(vertical = 10.dp)
                 )
             }
@@ -87,7 +78,7 @@ fun HODAnalyticsScreen(navController: NavController) {
                     "Department Performance",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
-                    color = TextWhite,
+                    color = colorScheme.onBackground,
                     modifier = Modifier.padding(top = 10.dp)
                 )
             }
@@ -107,11 +98,12 @@ data class StatItem(val title: String, val value: String, val icon: ImageVector,
 
 @Composable
 fun AnalyticsStatCard(stat: StatItem) {
+    val colorScheme = MaterialTheme.colorScheme
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = CardBg),
+        colors = CardDefaults.cardColors(containerColor = colorScheme.surface),
         shape = RoundedCornerShape(20.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, GlassBorder)
+        border = androidx.compose.foundation.BorderStroke(1.dp, colorScheme.outline.copy(alpha = 0.2f))
     ) {
         Row(
             modifier = Modifier.padding(20.dp),
@@ -128,8 +120,8 @@ fun AnalyticsStatCard(stat: StatItem) {
                 Icon(stat.icon, null, tint = stat.color, modifier = Modifier.size(24.dp))
             }
             Column {
-                Text(stat.title, fontSize = 14.sp, color = TextMuted)
-                Text(stat.value, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, color = TextWhite)
+                Text(stat.title, fontSize = 14.sp, color = colorScheme.onSurface.copy(alpha = 0.6f))
+                Text(stat.value, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, color = colorScheme.onSurface)
             }
         }
     }
@@ -137,20 +129,21 @@ fun AnalyticsStatCard(stat: StatItem) {
 
 @Composable
 fun PerformanceChartPlaceholder() {
+    val colorScheme = MaterialTheme.colorScheme
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .height(250.dp),
-        colors = CardDefaults.cardColors(containerColor = CardBg),
+        colors = CardDefaults.cardColors(containerColor = colorScheme.surface),
         shape = RoundedCornerShape(24.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, GlassBorder)
+        border = androidx.compose.foundation.BorderStroke(1.dp, colorScheme.outline.copy(alpha = 0.2f))
     ) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(Icons.Default.BarChart, null, modifier = Modifier.size(60.dp), tint = AccentPurple.copy(alpha = 0.3f))
+                Icon(Icons.Default.BarChart, null, modifier = Modifier.size(60.dp), tint = colorScheme.tertiary.copy(alpha = 0.3f))
                 Spacer(modifier = Modifier.height(16.dp))
-                Text("Attendance Trend Visualizer", color = TextMuted, fontWeight = FontWeight.Medium)
-                Text("Data rendering coming soon", fontSize = 12.sp, color = TextMuted.copy(alpha = 0.7f))
+                Text("Attendance Trend Visualizer", color = colorScheme.onSurface.copy(alpha = 0.6f), fontWeight = FontWeight.Medium)
+                Text("Data rendering coming soon", fontSize = 12.sp, color = colorScheme.onSurface.copy(alpha = 0.4f))
             }
             
             // Decorative elements to look like a chart

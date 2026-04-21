@@ -34,11 +34,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
 
-private val DarkBg = Color(0xFF0F172A)
-private val CardBg = Color(0xFF1E293B)
-private val AccentBlue = Color(0xFF3B82F6)
-private val TextWhite = Color(0xFFFFFFFF)
-private val TextMuted = Color(0xFF94A3B8)
+// --- THEME CONSISTENCY REMOVED LEGACY COLORS ---
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,6 +47,8 @@ fun ReportsScreen(navController: NavController) {
     var reports by remember { mutableStateOf<List<ReportData>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var isDownloading by remember { mutableStateOf<String?>(null) }
+
+    val colorScheme = MaterialTheme.colorScheme
 
     fun downloadPdf(sessionId: String, fileName: String) {
         isDownloading = sessionId
@@ -110,33 +108,33 @@ fun ReportsScreen(navController: NavController) {
     }
 
     Scaffold(
-        containerColor = DarkBg,
+        containerColor = colorScheme.background,
         topBar = {
             TopAppBar(
                 title = { 
                     Column {
-                        Text("Faculty Reports", color = TextWhite, fontWeight = FontWeight.Bold, fontSize = 20.sp)
-                        Text("View and download session logs", color = TextMuted, fontSize = 12.sp, fontWeight = FontWeight.Normal)
+                        Text("Faculty Reports", color = colorScheme.onBackground, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                        Text("View and download session logs", color = colorScheme.onBackground.copy(alpha = 0.6f), fontSize = 12.sp, fontWeight = FontWeight.Normal)
                     }
                 },
                 navigationIcon = {
                     IconButton(onClick = { navController.navigateUp() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextWhite)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = colorScheme.onBackground)
                     }
                 },
                 actions = {
                     IconButton(onClick = { /* Filter Logic */ }) {
-                        Icon(Icons.Default.FilterList, contentDescription = "Filter", tint = AccentBlue)
+                        Icon(Icons.Default.FilterList, contentDescription = "Filter", tint = colorScheme.primary)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = DarkBg)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = colorScheme.background)
             )
         }
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             if (isLoading) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = AccentBlue)
+                    CircularProgressIndicator(color = colorScheme.primary)
                 }
             } else if (reports.isEmpty()) {
                 Column(
@@ -144,9 +142,9 @@ fun ReportsScreen(navController: NavController) {
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center
                 ) {
-                    Icon(Icons.Default.Assessment, contentDescription = null, tint = TextMuted.copy(alpha = 0.3f), modifier = Modifier.size(64.dp))
+                    Icon(Icons.Default.Assessment, contentDescription = null, tint = colorScheme.onBackground.copy(alpha = 0.3f), modifier = Modifier.size(64.dp))
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text("No session reports available yet.", color = TextMuted)
+                    Text("No session reports available yet.", color = colorScheme.onBackground.copy(alpha = 0.6f))
                 }
             } else {
                 LazyColumn(
@@ -173,11 +171,12 @@ fun ReportCard(
     isDownloading: Boolean,
     onDownload: () -> Unit
 ) {
+    val colorScheme = MaterialTheme.colorScheme
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(24.dp)),
-        colors = CardDefaults.cardColors(containerColor = CardBg.copy(alpha = 0.7f)),
+            .border(1.dp, colorScheme.outline.copy(alpha = 0.2f), RoundedCornerShape(24.dp)),
+        colors = CardDefaults.cardColors(containerColor = colorScheme.surface.copy(alpha = 0.7f)),
         shape = RoundedCornerShape(24.dp)
     ) {
         Row(
@@ -187,35 +186,35 @@ fun ReportCard(
             Box(
                 modifier = Modifier
                     .size(48.dp)
-                    .background(AccentBlue.copy(alpha = 0.1f), CircleShape)
-                    .border(1.dp, AccentBlue.copy(alpha = 0.2f), CircleShape),
+                    .background(colorScheme.primary.copy(alpha = 0.1f), CircleShape)
+                    .border(1.dp, colorScheme.primary.copy(alpha = 0.2f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.Assessment, contentDescription = null, tint = AccentBlue, modifier = Modifier.size(24.dp))
+                Icon(Icons.Default.Assessment, contentDescription = null, tint = colorScheme.primary, modifier = Modifier.size(24.dp))
             }
             
             Spacer(modifier = Modifier.width(16.dp))
             
             Column(modifier = Modifier.weight(1f)) {
-                Text(report.name, color = TextWhite, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text(report.name, color = colorScheme.onSurface, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 Spacer(modifier = Modifier.height(4.dp))
-                Text(report.description, color = TextMuted, fontSize = 12.sp)
+                Text(report.description, color = colorScheme.onSurface.copy(alpha = 0.6f), fontSize = 12.sp)
             }
             
             IconButton(
                 onClick = { if (!isDownloading) onDownload() },
                 modifier = Modifier
-                    .background(Color.White.copy(alpha = 0.05f), CircleShape)
+                    .background(colorScheme.onSurface.copy(alpha = 0.05f), CircleShape)
                     .size(40.dp)
             ) {
                 if (isDownloading) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(20.dp),
                         strokeWidth = 2.dp,
-                        color = AccentBlue
+                        color = colorScheme.primary
                     )
                 } else {
-                    Icon(Icons.Default.FileDownload, contentDescription = "Download", tint = AccentBlue, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Default.FileDownload, contentDescription = "Download", tint = colorScheme.primary, modifier = Modifier.size(20.dp))
                 }
             }
         }

@@ -11,6 +11,15 @@ class SessionManager(context: Context) {
         private const val KEY_ROLE = "role"
         private const val KEY_NAME = "name"
         private const val KEY_IS_LOGGED_IN = "is_logged_in"
+        private const val KEY_DARK_MODE = "dark_mode"
+    }
+
+    fun setDarkMode(isDark: Boolean) {
+        prefs.edit().putBoolean(KEY_DARK_MODE, isDark).apply()
+    }
+
+    fun isDarkMode(systemDefault: Boolean): Boolean {
+        return prefs.getBoolean(KEY_DARK_MODE, systemDefault)
     }
 
     fun saveSession(userId: String, role: String, name: String) {

@@ -24,42 +24,32 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.dbms_shubham_application.data.local.SessionManager
 
-private val DarkBg = Color(0xFF0F172A)
-private val CardBg = Color(0xFF1E293B)
-private val GlassBorder = Color(0xFF334155)
-private val AccentBlue = Color(0xFF3B82F6)
-private val AccentPurple = Color(0xFF8B5CF6)
-private val SuccessGreen = Color(0xFF10B981)
-private val TextWhite = Color(0xFFF8FAFC)
-private val TextMuted = Color(0xFF94A3B8)
-private val AccentOrange = Color(0xFFF59E0B)
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HODManageScreen(navController: NavController) {
+    val colorScheme = MaterialTheme.colorScheme
     val context = LocalContext.current
-    val sessionManager = remember { SessionManager(context) }
     
     val manageItems = listOf(
-        ManageAction("Faculty Members", "Assign and update faculty roles", Icons.Default.People, AccentBlue),
-        ManageAction("Course Schedules", "Edit departmental class schedule", Icons.Default.CalendarToday, SuccessGreen),
-        ManageAction("Academic Records", "Access departmental attendance logs", Icons.Default.Description, AccentPurple),
-        ManageAction("Configuration", "Set department-wide parameters", Icons.Default.Settings, TextMuted)
+        ManageAction("Faculty Members", "Assign and update faculty roles", Icons.Default.People, colorScheme.primary),
+        ManageAction("Course Schedules", "Edit departmental class schedule", Icons.Default.CalendarToday, colorScheme.secondary),
+        ManageAction("Academic Records", "Access departmental attendance logs", Icons.Default.Description, colorScheme.tertiary),
+        ManageAction("Configuration", "Set department-wide parameters", Icons.Default.Settings, colorScheme.onSurface.copy(alpha = 0.6f))
     )
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Department Management", fontWeight = FontWeight.Bold, color = TextWhite) },
+                title = { Text("Department Management", fontWeight = FontWeight.Bold, color = colorScheme.onBackground) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = TextWhite)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = colorScheme.onBackground)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = DarkBg)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = colorScheme.background)
             )
         },
-        containerColor = DarkBg
+        containerColor = colorScheme.background
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier
@@ -73,7 +63,7 @@ fun HODManageScreen(navController: NavController) {
                     "Department Operations",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = TextMuted,
+                    color = colorScheme.onBackground.copy(alpha = 0.6f),
                     modifier = Modifier.padding(bottom = 10.dp)
                 )
             }
@@ -85,18 +75,18 @@ fun HODManageScreen(navController: NavController) {
             item {
                 Spacer(modifier = Modifier.height(30.dp))
                 // Quick info or recent activity
-                Text("System Health", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextWhite)
+                Text("System Health", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = colorScheme.onBackground)
                 Spacer(modifier = Modifier.height(12.dp))
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = CardBg),
+                    colors = CardDefaults.cardColors(containerColor = colorScheme.surface),
                     shape = RoundedCornerShape(16.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, GlassBorder)
+                    border = androidx.compose.foundation.BorderStroke(1.dp, colorScheme.outline.copy(alpha = 0.2f))
                 ) {
                    Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                       Box(modifier = Modifier.size(10.dp).background(SuccessGreen, CircleShape))
+                       Box(modifier = Modifier.size(10.dp).background(colorScheme.primary, CircleShape))
                        Spacer(modifier = Modifier.width(12.dp))
-                       Text("Attendance System Online", color = SuccessGreen, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                       Text("Attendance System Online", color = colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                    }
                 }
             }
@@ -108,11 +98,12 @@ data class ManageAction(val title: String, val description: String, val icon: Im
 
 @Composable
 fun ManageCard(action: ManageAction) {
+    val colorScheme = MaterialTheme.colorScheme
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = CardBg),
+        colors = CardDefaults.cardColors(containerColor = colorScheme.surface),
         shape = RoundedCornerShape(20.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, GlassBorder)
+        border = androidx.compose.foundation.BorderStroke(1.dp, colorScheme.outline.copy(alpha = 0.2f))
     ) {
         Row(
             modifier = Modifier.padding(20.dp),
@@ -129,11 +120,11 @@ fun ManageCard(action: ManageAction) {
             }
             
             Column(modifier = Modifier.weight(1f)) {
-                Text(action.title, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextWhite)
-                Text(action.description, fontSize = 12.sp, color = TextMuted)
+                Text(action.title, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = colorScheme.onSurface)
+                Text(action.description, fontSize = 12.sp, color = colorScheme.onSurface.copy(alpha = 0.6f))
             }
             
-            Icon(Icons.Default.ChevronRight, null, tint = TextMuted)
+            Icon(Icons.Default.ChevronRight, null, tint = colorScheme.onSurface.copy(alpha = 0.3f))
         }
     }
 }

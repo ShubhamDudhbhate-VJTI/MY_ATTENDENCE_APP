@@ -34,18 +34,94 @@ import androidx.navigation.compose.rememberNavController
 import com.example.dbms_shubham_application.navigation.AppNavigation
 import com.example.dbms_shubham_application.ui.theme.DBMS_Shubham_ApplicationTheme
 
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.WbSunny
+import androidx.compose.material.icons.filled.NightsStay
+import android.os.Build
+import android.Manifest
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.content.Context
+import androidx.activity.result.contract.ActivityResultContracts
+import com.example.dbms_shubham_application.data.local.SessionManager
+import com.example.dbms_shubham_application.service.MyFirebaseMessagingService
+import com.google.firebase.messaging.FirebaseMessaging
+import com.example.dbms_shubham_application.network.RetrofitClient
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.launch
+import android.util.Log
+
 class MainActivity : ComponentActivity() {
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                MyFirebaseMessagingService.CHANNEL_ID,
+                MyFirebaseMessagingService.CHANNEL_NAME,
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Urgent alerts and attendance notifications"
+                enableLights(true)
+                enableVibration(true)
+            }
+            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.createNotificationChannel(channel)
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        
+        // Initialize Firebase
+        com.google.firebase.FirebaseApp.initializeApp(this)
+        
+        createNotificationChannel()
+        
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerForActivityResult(ActivityResultContracts.RequestPermission()) {}.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+
+        val sessionManager = SessionManager(this)
+        
+        // Sync FCM Token for notifications
+        FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+            if (task.isSuccessful) {
+                val token = task.result
+                val userId = sessionManager.getUserId()
+                if (userId != null && token != null) {
+                    MainScope().launch {
+                        try {
+                            RetrofitClient.apiService.updateFcmToken(mapOf(
+                                "user_id" to userId,
+                                "fcm_token" to token
+                            ))
+                            Log.d("FCM", "Token synced successfully: $token")
+                        } catch (e: Exception) {
+                            Log.e("FCM", "Token sync failed", e)
+                        }
+                    }
+                }
+            }
+        }
+        
         setContent {
-            DBMS_Shubham_ApplicationTheme {
+            val systemDark = isSystemInDarkTheme()
+            var isDark by remember { mutableStateOf(sessionManager.isDarkMode(systemDark)) }
+            
+            DBMS_Shubham_ApplicationTheme(darkTheme = isDark) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = Color(0xFF0F172A)
+                    color = MaterialTheme.colorScheme.background
                 ) {
-                    AppNavigation()
+                    AppNavigation(
+                        isDark = isDark,
+                        onThemeChange = { newMode -> 
+                            isDark = newMode
+                            sessionManager.setDarkMode(newMode)
+                        }
+                    )
                 }
             }
         }
@@ -55,10 +131,11 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun SplashContent(modifier: Modifier = Modifier) {
     val scroll = rememberScrollState()
+    val colorScheme = MaterialTheme.colorScheme
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(Color(0xFF2196F3))
+            .background(colorScheme.primary)
     ) {
         Column(
             modifier = Modifier
@@ -72,14 +149,14 @@ fun SplashContent(modifier: Modifier = Modifier) {
             text = "Smart Attendance",
             fontSize = 32.sp,
             fontWeight = FontWeight.Bold,
-            color = Color.White,
+            color = colorScheme.onPrimary,
             modifier = Modifier.padding(top = 24.dp)
         )
 
         Text(
             text = "Face Recognition & QR Code Based",
             fontSize = 16.sp,
-            color = Color.White.copy(alpha = 0.9f),
+            color = colorScheme.onPrimary.copy(alpha = 0.9f),
             modifier = Modifier.padding(top = 8.dp, bottom = 28.dp)
         )
 
@@ -118,8 +195,8 @@ fun SplashContent(modifier: Modifier = Modifier) {
                 .height(56.dp),
             shape = RoundedCornerShape(28.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = Color.White,
-                contentColor = Color(0xFF1976D2)
+                containerColor = colorScheme.onPrimary,
+                contentColor = colorScheme.primary
             )
         ) {
             Text(
@@ -134,13 +211,14 @@ fun SplashContent(modifier: Modifier = Modifier) {
 
 @Composable
 fun FeatureCard(title: String, description: String, icon: String) {
+    val colorScheme = MaterialTheme.colorScheme
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color.White.copy(alpha = 0.95f)
+            containerColor = colorScheme.surface.copy(alpha = 0.95f)
         )
     ) {
         Row(
@@ -155,7 +233,7 @@ fun FeatureCard(title: String, description: String, icon: String) {
                 modifier = Modifier
                     .size(48.dp)
                     .background(
-                        androidx.compose.ui.graphics.Color.Blue.copy(alpha = 0.2f),
+                        colorScheme.primary.copy(alpha = 0.2f),
                         CircleShape
                     ),
                 contentAlignment = Alignment.Center
@@ -164,7 +242,7 @@ fun FeatureCard(title: String, description: String, icon: String) {
                     text = icon.first().uppercaseChar().toString(),
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
-                    color = androidx.compose.ui.graphics.Color.Blue
+                    color = colorScheme.primary
                 )
             }
             
@@ -177,12 +255,12 @@ fun FeatureCard(title: String, description: String, icon: String) {
                     text = title,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = androidx.compose.ui.graphics.Color.Black
+                    color = colorScheme.onSurface
                 )
                 Text(
                     text = description,
                     fontSize = 14.sp,
-                    color = androidx.compose.ui.graphics.Color.DarkGray
+                    color = colorScheme.onSurfaceVariant
                 )
             }
         }

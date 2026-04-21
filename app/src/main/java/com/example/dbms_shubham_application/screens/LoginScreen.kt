@@ -30,16 +30,10 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.dbms_shubham_application.data.local.SessionManager
 import com.example.dbms_shubham_application.network.RetrofitClient
+import com.example.dbms_shubham_application.ui.components.ModernTextField
 import kotlinx.coroutines.launch
 
-// --- THEME CONSISTENCY ---
-private val DarkBg = Color(0xFF0F172A)
-private val CardBg = Color(0xFF1E293B)
-private val GlassBorder = Color(0xFF334155)
-private val AccentBlue = Color(0xFF3B82F6)
-private val AccentPurple = Color(0xFF8B5CF6)
-private val TextWhite = Color(0xFFF8FAFC)
-private val TextMuted = Color(0xFF94A3B8)
+// --- THEME CONSISTENCY REMOVED LEGACY COLORS ---
 
 @Composable
 fun LoginScreen(navController: NavController, role: String) {
@@ -51,10 +45,19 @@ fun LoginScreen(navController: NavController, role: String) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     
+    // Get colors from theme
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val secondaryColor = MaterialTheme.colorScheme.secondary
+    val backgroundColor = MaterialTheme.colorScheme.background
+    val surfaceColor = MaterialTheme.colorScheme.surface
+    val onSurfaceColor = MaterialTheme.colorScheme.onSurface
+    val onBackground = MaterialTheme.colorScheme.onBackground
+    val outlineColor = MaterialTheme.colorScheme.outline
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(DarkBg)
+            .background(backgroundColor)
             .systemBarsPadding()
     ) {
         // Decorative background elements
@@ -62,7 +65,7 @@ fun LoginScreen(navController: NavController, role: String) {
             modifier = Modifier
                 .size(350.dp)
                 .offset(x = (-120).dp, y = (-120).dp)
-                .background(AccentBlue.copy(alpha = 0.12f), CircleShape)
+                .background(primaryColor.copy(alpha = 0.12f), CircleShape)
         )
 
         Column(
@@ -78,8 +81,8 @@ fun LoginScreen(navController: NavController, role: String) {
                 modifier = Modifier
                     .size(90.dp)
                     .clip(RoundedCornerShape(24.dp))
-                    .background(Brush.linearGradient(listOf(AccentBlue, AccentPurple)))
-                    .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(24.dp)),
+                    .background(Brush.linearGradient(listOf(primaryColor, secondaryColor)))
+                    .border(1.dp, onBackground.copy(alpha = 0.2f), RoundedCornerShape(24.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -89,7 +92,7 @@ fun LoginScreen(navController: NavController, role: String) {
                         else -> Icons.Default.AdminPanelSettings
                     },
                     contentDescription = null,
-                    tint = Color.White,
+                    tint = MaterialTheme.colorScheme.onPrimary,
                     modifier = Modifier.size(44.dp)
                 )
             }
@@ -100,14 +103,14 @@ fun LoginScreen(navController: NavController, role: String) {
                 text = "${role.replaceFirstChar { it.uppercase() }} Portal",
                 fontSize = 32.sp,
                 fontWeight = FontWeight.Black,
-                color = TextWhite,
+                color = onBackground,
                 letterSpacing = (-1).sp
             )
             
             Text(
                 text = "Secure access to your dashboard",
                 fontSize = 15.sp,
-                color = TextMuted,
+                color = onBackground.copy(alpha = 0.6f),
                 fontWeight = FontWeight.Medium,
                 modifier = Modifier.padding(top = 8.dp, bottom = 48.dp)
             )
@@ -118,7 +121,10 @@ fun LoginScreen(navController: NavController, role: String) {
                 onValueChange = { username = it },
                 label = "Username / ID",
                 icon = Icons.Default.AlternateEmail,
-                keyboardType = KeyboardType.Text
+                keyboardType = KeyboardType.Text,
+                colors = primaryColor to outlineColor,
+                textColor = onBackground,
+                surfaceColor = surfaceColor
             )
             
             Spacer(modifier = Modifier.height(20.dp))
@@ -131,12 +137,15 @@ fun LoginScreen(navController: NavController, role: String) {
                 keyboardType = KeyboardType.Password,
                 isPassword = true,
                 passwordVisible = passwordVisible,
-                onPasswordToggle = { passwordVisible = !passwordVisible }
+                onPasswordToggle = { passwordVisible = !passwordVisible },
+                colors = primaryColor to outlineColor,
+                textColor = onBackground,
+                surfaceColor = surfaceColor
             )
             
             Text(
                 text = "Forgot Password?",
-                color = AccentBlue,
+                color = primaryColor,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier
@@ -188,18 +197,20 @@ fun LoginScreen(navController: NavController, role: String) {
                                     popUpTo("role_selection") { inclusive = false }
                                 }
                             } else {
-                                val errorMsg = if (response.code() == 503 || response.code() == 504) {
-                                    "Server is starting up, please wait a moment and try again."
-                                } else {
-                                    "Authentication Failed: ${response.message()}"
+                                val errorMsg = when (response.code()) {
+                                    503, 504 -> "Server is starting up, please wait a moment."
+                                    404 -> "User not found. Please check your credentials."
+                                    401 -> "Invalid password. Try again."
+                                    else -> "Authentication Failed (${response.code()}): ${response.message()}"
                                 }
                                 Toast.makeText(context, errorMsg, Toast.LENGTH_LONG).show()
                             }
                         } catch (e: Exception) {
-                            val errorMsg = if (e is java.net.SocketTimeoutException || e is java.io.IOException) {
-                                "Server is starting up, please wait a moment and try again."
-                            } else {
-                                "Network Error: ${e.message}"
+                            val errorMsg = when (e) {
+                                is java.net.SocketTimeoutException -> "Connection Timeout: Check your Wi-Fi signal."
+                                is java.net.ConnectException -> "Cannot reach Server: Ensure PC and Mobile are on same Wi-Fi."
+                                is java.io.IOException -> "Network Error: ${e.localizedMessage}"
+                                else -> "Error: ${e.message}"
                             }
                             Toast.makeText(context, errorMsg, Toast.LENGTH_LONG).show()
                         } finally {
@@ -211,12 +222,15 @@ fun LoginScreen(navController: NavController, role: String) {
                     .fillMaxWidth()
                     .height(60.dp)
                     .clip(RoundedCornerShape(20.dp)),
-                colors = ButtonDefaults.buttonColors(containerColor = AccentBlue),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = primaryColor,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                ),
                 shape = RoundedCornerShape(20.dp),
                 enabled = !isLoading && username.isNotBlank() && password.isNotBlank()
             ) {
                 if (isLoading) {
-                    CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp), strokeWidth = 3.dp)
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(24.dp), strokeWidth = 3.dp)
                 } else {
                     Text("Secure Login", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
                 }
@@ -225,10 +239,10 @@ fun LoginScreen(navController: NavController, role: String) {
             Spacer(modifier = Modifier.height(32.dp))
             
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Not registered yet?", color = TextMuted, fontSize = 14.sp)
+                Text("Not registered yet?", color = onBackground.copy(alpha = 0.6f), fontSize = 14.sp)
                 Text(
                     text = " Create Account",
-                    color = AccentBlue,
+                    color = primaryColor,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.ExtraBold,
                     modifier = Modifier.clickable { navController.navigate("signup/$role") }
@@ -236,52 +250,6 @@ fun LoginScreen(navController: NavController, role: String) {
             }
         }
     }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun ModernTextField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    label: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    keyboardType: KeyboardType = KeyboardType.Text,
-    isPassword: Boolean = false,
-    passwordVisible: Boolean = false,
-    onPasswordToggle: () -> Unit = {}
-) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChange,
-        label = { Text(label, color = TextMuted, fontSize = 14.sp) },
-        leadingIcon = { Icon(icon, contentDescription = null, tint = AccentBlue, modifier = Modifier.size(20.dp)) },
-        trailingIcon = {
-            if (isPassword) {
-                IconButton(onClick = onPasswordToggle) {
-                    Icon(
-                        imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                        contentDescription = null,
-                        tint = TextMuted,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
-        },
-        modifier = Modifier.fillMaxWidth(),
-        visualTransformation = if (isPassword && !passwordVisible) PasswordVisualTransformation() else VisualTransformation.None,
-        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = AccentBlue,
-            unfocusedBorderColor = GlassBorder,
-            cursorColor = AccentBlue,
-            focusedTextColor = TextWhite,
-            unfocusedTextColor = TextWhite,
-            focusedContainerColor = CardBg.copy(alpha = 0.5f),
-            unfocusedContainerColor = CardBg.copy(alpha = 0.5f)
-        ),
-        shape = RoundedCornerShape(20.dp),
-        singleLine = true
-    )
 }
 
 private suspend fun downloadAndSaveFace(context: android.content.Context, userId: String, url: String) {

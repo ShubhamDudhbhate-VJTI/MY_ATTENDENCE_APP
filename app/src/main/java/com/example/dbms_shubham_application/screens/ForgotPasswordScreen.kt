@@ -21,29 +21,25 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-
-private val DarkBg = Color(0xFF0F172A)
-private val TextWhite = Color(0xFFFFFFFF)
-private val TextMuted = Color(0xFF94A3B8)
-private val AccentBlue = Color(0xFF3B82F6)
-private val AccentPurple = Color(0xFF8B5CF6)
+import com.example.dbms_shubham_application.ui.components.ModernTextField
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ForgotPasswordScreen(navController: NavController) {
+    val colorScheme = MaterialTheme.colorScheme
     var email by remember { mutableStateOf("") }
 
     Scaffold(
-        containerColor = DarkBg,
+        containerColor = colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text("Reset Password", color = TextWhite, fontWeight = FontWeight.Bold) },
+                title = { Text("Reset Password", color = colorScheme.onBackground, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = { navController.navigateUp() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = TextWhite)
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = colorScheme.onBackground)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = DarkBg)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = colorScheme.background)
             )
         }
     ) { padding ->
@@ -60,11 +56,11 @@ fun ForgotPasswordScreen(navController: NavController) {
                 modifier = Modifier
                     .size(80.dp)
                     .clip(RoundedCornerShape(20.dp))
-                    .background(Brush.linearGradient(listOf(AccentBlue, AccentPurple)))
+                    .background(Brush.linearGradient(listOf(colorScheme.primary, colorScheme.tertiary)))
                     .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(20.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.LockReset, null, tint = Color.White, modifier = Modifier.size(40.dp))
+                Icon(Icons.Default.LockReset, null, tint = colorScheme.onPrimary, modifier = Modifier.size(40.dp))
             }
 
             Spacer(modifier = Modifier.height(32.dp))
@@ -73,7 +69,7 @@ fun ForgotPasswordScreen(navController: NavController) {
                 text = "Trouble logging in?",
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Black,
-                color = TextWhite
+                color = colorScheme.onBackground
             )
             
             Spacer(modifier = Modifier.height(12.dp))
@@ -81,7 +77,7 @@ fun ForgotPasswordScreen(navController: NavController) {
             Text(
                 text = "Enter your institutional email and we'll send you a link to reset your password.",
                 fontSize = 14.sp,
-                color = TextMuted,
+                color = colorScheme.onBackground.copy(alpha = 0.6f),
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
                 lineHeight = 20.sp
@@ -93,7 +89,10 @@ fun ForgotPasswordScreen(navController: NavController) {
                 value = email,
                 onValueChange = { email = it },
                 label = "Institutional Email",
-                icon = Icons.Default.Email
+                icon = Icons.Default.Email,
+                colors = colorScheme.primary to colorScheme.outline,
+                textColor = colorScheme.onBackground,
+                surfaceColor = colorScheme.surface
             )
             
             Spacer(modifier = Modifier.height(40.dp))
@@ -102,7 +101,7 @@ fun ForgotPasswordScreen(navController: NavController) {
                 onClick = { /* Handle Reset */ },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = AccentBlue)
+                colors = ButtonDefaults.buttonColors(containerColor = colorScheme.primary)
             ) {
                 Text("Send Reset Link", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
             }
@@ -110,7 +109,7 @@ fun ForgotPasswordScreen(navController: NavController) {
             Spacer(modifier = Modifier.height(24.dp))
             
             TextButton(onClick = { navController.navigateUp() }) {
-                Text("Back to Sign In", color = TextMuted, fontWeight = FontWeight.Bold)
+                Text("Back to Sign In", color = colorScheme.onBackground.copy(alpha = 0.6f), fontWeight = FontWeight.Bold)
             }
         }
     }

@@ -110,12 +110,18 @@ interface ApiService {
     @POST("notifications/read/{notificationId}")
     suspend fun markNotificationAsRead(@Path("notificationId") notificationId: String): Response<Map<String, Any>>
 
+    @POST("notifications/clear/{userId}")
+    suspend fun clearAllNotifications(@Path("userId") userId: String): Response<Map<String, Any>>
+
     @GET("reports/pdf/{sessionId}")
     @Streaming
     suspend fun downloadReportPdf(@Path("sessionId") sessionId: String): Response<okhttp3.ResponseBody>
 
     @POST("notifications/send")
     suspend fun sendNotification(@Body request: Map<String, String>): Response<Map<String, Any>>
+
+    @POST("auth/update-fcm")
+    suspend fun updateFcmToken(@Body data: Map<String, String>): Response<Map<String, Any>>
 
     @GET("debug/check-setup")
     suspend fun checkSetup(): Response<Map<String, Any>>

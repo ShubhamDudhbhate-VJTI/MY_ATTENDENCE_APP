@@ -7,7 +7,7 @@ import androidx.navigation.compose.rememberNavController
 import com.example.dbms_shubham_application.screens.*
 
 @Composable
-fun AppNavigation() {
+fun AppNavigation(isDark: Boolean, onThemeChange: (Boolean) -> Unit) {
     val navController = rememberNavController()
 
     NavHost(navController = navController, startDestination = "splash") {
@@ -39,7 +39,7 @@ fun AppNavigation() {
             AttendanceHistoryScreen(navController = navController)
         }
         composable("profile") {
-            ProfileScreen(navController = navController)
+            ProfileScreen(navController = navController, isDark = isDark, onThemeChange = onThemeChange)
         }
         composable("alerts") {
             AlertsScreen(navController = navController)
