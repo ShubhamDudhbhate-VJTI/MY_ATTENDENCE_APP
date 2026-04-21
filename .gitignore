@@ -21,6 +21,12 @@ backend/.env
 *.db
 *.db-journal
 
+# Firebase & Secrets
+backend/serviceAccountKey.json
+app/google-services.json
+**/secrets.xml
+.env*
+
 # Python local data
 backend/static/faces/
 backend/static/faces/*
@@ -28,7 +34,3 @@ backend/attendance.db
 *.jpg
 *.png
 *.jpeg
-
-# Secrets
-.env*
-**/secrets.xml

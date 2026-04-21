@@ -16,7 +16,7 @@ import com.google.firebase.messaging.RemoteMessage
 class MyFirebaseMessagingService : FirebaseMessagingService() {
 
     companion object {
-        const val CHANNEL_ID = "attendx_urgent_v1"
+        const val CHANNEL_ID = "attendx_urgent_v2"
         const val CHANNEL_NAME = "Urgent Notifications"
     }
 
@@ -66,17 +66,16 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         val defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
         
         val notificationBuilder = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setContentTitle(title)
-            .setContentText(message)
+            .setSmallIcon(android.R.drawable.ic_dialog_info) // Standard system icon for testing
+            .setContentTitle(title ?: "AttendX Notification")
+            .setContentText(message ?: "You have a new update")
             .setAutoCancel(true)
             .setSound(defaultSoundUri)
             .setVibrate(longArrayOf(0, 500, 200, 500))
             .setPriority(NotificationCompat.PRIORITY_MAX) 
             .setDefaults(NotificationCompat.DEFAULT_ALL)
-            .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setFullScreenIntent(pendingIntent, true)
             .setContentIntent(pendingIntent)
 
         notificationManager.notify(System.currentTimeMillis().toInt(), notificationBuilder.build())
