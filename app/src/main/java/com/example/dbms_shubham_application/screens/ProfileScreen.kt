@@ -19,6 +19,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -126,13 +127,13 @@ fun ProfileScreen(
                         
                         userProfile?.let { profile ->
                             if (profile.role == "student") {
-                                academicItems.add(Triple(Icons.Default.School, "Branch", profile.academic["branch"] ?: "Information Technology"))
-                                academicItems.add(Triple(Icons.Default.Class, "Year", profile.academic["year"] ?: "S.Y. B.Tech"))
-                                academicItems.add(Triple(Icons.Default.Fingerprint, "Roll Number", profile.academic["reg_no"] ?: userId))
+                                academicItems.add(Triple(Icons.Default.School, "Branch", profile.academic?.get("branch") ?: "Information Technology"))
+                                academicItems.add(Triple(Icons.Default.Class, "Year", profile.academic?.get("year") ?: "S.Y. B.Tech"))
+                                academicItems.add(Triple(Icons.Default.Fingerprint, "Roll Number", profile.academic?.get("reg_no") ?: userId))
                             } else {
-                                academicItems.add(Triple(Icons.Default.School, "Department", profile.academic["branch"] ?: "Information Technology"))
-                                academicItems.add(Triple(Icons.Default.Work, "Designation", profile.academic["designation"] ?: "Faculty"))
-                                academicItems.add(Triple(Icons.Default.Badge, "Employee ID", profile.academic["employee_id"] ?: userId))
+                                academicItems.add(Triple(Icons.Default.School, "Department", profile.academic?.get("branch") ?: "Information Technology"))
+                                academicItems.add(Triple(Icons.Default.Work, "Designation", profile.academic?.get("designation") ?: "Faculty"))
+                                academicItems.add(Triple(Icons.Default.Badge, "Employee ID", profile.academic?.get("employee_id") ?: userId))
                             }
                         }
 
@@ -178,66 +179,98 @@ fun ProfileHeaderCard(profile: UserProfile?) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            .shadow(
+                elevation = 16.dp,
+                shape = RoundedCornerShape(32.dp),
+                spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+            )
             .border(
-                1.dp, 
+                1.dp,
                 Brush.linearGradient(
-                    colors = listOf(MaterialTheme.colorScheme.primary.copy(alpha = 0.3f), MaterialTheme.colorScheme.tertiary.copy(alpha = 0.3f)),
+                    colors = listOf(
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                        MaterialTheme.colorScheme.tertiary.copy(alpha = 0.2f),
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                    ),
                     start = androidx.compose.ui.geometry.Offset(gradientShift, 0f),
-                    end = androidx.compose.ui.geometry.Offset(gradientShift + 500f, 500f)
-                ), 
-                RoundedCornerShape(24.dp)
+                    end = androidx.compose.ui.geometry.Offset(gradientShift + 600f, 600f)
+                ),
+                RoundedCornerShape(32.dp)
             ),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)),
-        shape = RoundedCornerShape(24.dp)
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)
+        ),
+        shape = RoundedCornerShape(32.dp)
     ) {
         Column(
-            modifier = Modifier.padding(24.dp),
+            modifier = Modifier
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.05f),
+                            Color.Transparent
+                        )
+                    )
+                )
+                .padding(28.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Box(
                 modifier = Modifier
-                    .size(100.dp)
+                    .size(110.dp)
                     .clip(CircleShape)
-                    .background(Brush.linearGradient(listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.secondary)))
-                    .border(4.dp, MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.2f), CircleShape),
+                    .background(
+                        Brush.linearGradient(
+                            listOf(
+                                MaterialTheme.colorScheme.primary,
+                                MaterialTheme.colorScheme.secondary,
+                                MaterialTheme.colorScheme.primary
+                            )
+                        )
+                    )
+                    .border(4.dp, Color.White.copy(alpha = 0.2f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = (profile?.full_name?.take(1) ?: profile?.username?.take(1) ?: "U").uppercase(),
-                    fontSize = 40.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = MaterialTheme.colorScheme.onPrimary
+                    fontSize = 44.sp,
+                    fontWeight = FontWeight.Black,
+                    color = Color.White
                 )
             }
             
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(20.dp))
             
             Text(
                 text = profile?.full_name ?: "User Name",
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center
+                fontSize = 26.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center,
+                letterSpacing = (-0.5).sp
             )
             
             Text(
                 text = profile?.email ?: "vjti.student@vjti.ac.in",
-                fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                textAlign = TextAlign.Center
+                fontSize = 15.sp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                textAlign = TextAlign.Center,
+                fontWeight = FontWeight.Medium
             )
             
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(28.dp))
             
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f), RoundedCornerShape(16.dp))
-                    .padding(vertical = 12.dp),
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
+                    .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), RoundedCornerShape(20.dp))
+                    .padding(vertical = 16.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 ProfileMiniStat("Role", profile?.role?.replaceFirstChar { it.uppercase() } ?: "User")
-                Box(modifier = Modifier.width(1.dp).height(30.dp).background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)))
+                Box(modifier = Modifier.width(1.dp).height(35.dp).background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)))
                 ProfileMiniStat("ID", profile?.username ?: "N/A")
             }
         }
@@ -268,34 +301,34 @@ fun ProfileInfoCard(items: List<Triple<ImageVector, String, String>>) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f), RoundedCornerShape(20.dp)),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
-        shape = RoundedCornerShape(20.dp)
+            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f), RoundedCornerShape(24.dp)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)),
+        shape = RoundedCornerShape(24.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(20.dp)) {
             items.forEachIndexed { index, item ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 12.dp),
+                        .padding(vertical = 14.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(40.dp)
+                            .size(44.dp)
                             .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(item.first, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                        Icon(item.first, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
                     }
-                    Spacer(modifier = Modifier.width(16.dp))
+                    Spacer(modifier = Modifier.width(18.dp))
                     Column {
-                        Text(item.second, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
-                        Text(item.third, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Medium)
+                        Text(item.second, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), fontWeight = FontWeight.SemiBold)
+                        Text(item.third, fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
                     }
                 }
                 if (index < items.size - 1) {
-                    HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f), thickness = 1.dp)
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.1f), thickness = 1.dp, modifier = Modifier.padding(horizontal = 8.dp))
                 }
             }
         }

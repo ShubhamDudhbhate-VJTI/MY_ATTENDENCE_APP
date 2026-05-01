@@ -62,9 +62,18 @@ data class LoginResponse(
 
 data class AttendanceRecord(
     val subject_id: String,
+    val subject_name: String = "",
     val session_id: String,
     val timestamp: String,
     val status: String
+)
+
+data class SubjectAttendance(
+    val subject_id: String,
+    val subject_name: String,
+    val total_classes: Int,
+    val attended_classes: Int,
+    val percentage: Double
 )
 
 data class SessionDetailsResponse(
@@ -119,8 +128,8 @@ data class ActiveSession(
 data class SessionReportResponse(
     val session_id: String,
     val total_present: Int,
-    val students: List<StudentReport>,
-    val course_id: String
+    val students: List<StudentReport>? = emptyList(),
+    val course_id: String? = null
 )
 
 data class StudentReport(
@@ -150,7 +159,7 @@ data class UserProfile(
     val full_name: String,
     val role: String,
     val image_url: String? = null,
-    val academic: Map<String, String?>
+    val academic: Map<String, String?>? = emptyMap()
 )
 
 data class SyncScheduleResponse(
@@ -164,5 +173,16 @@ data class NotificationRecord(
     val title: String,
     val message: String,
     val is_read: Boolean,
+    val created_at: String
+)
+
+data class LeaveRequestRecord(
+    val id: String,
+    val student_id: String,
+    val type: String, // OD, Medical, Other
+    val start_date: String,
+    val end_date: String,
+    val reason: String,
+    val status: String, // Pending, Approved, Rejected
     val created_at: String
 )

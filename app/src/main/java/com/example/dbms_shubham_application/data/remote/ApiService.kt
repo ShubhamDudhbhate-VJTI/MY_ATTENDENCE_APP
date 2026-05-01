@@ -2,6 +2,7 @@ package com.example.dbms_shubham_application.data.remote
 
 import com.example.dbms_shubham_application.data.model.*
 import okhttp3.MultipartBody
+import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.*
 
@@ -37,6 +38,9 @@ interface ApiService {
 
     @GET("student/attendance/{studentId}")
     suspend fun getAttendanceHistory(@Path("studentId") studentId: String): Response<List<AttendanceRecord>>
+
+    @GET("student/attendance/{studentId}/subjects")
+    suspend fun getSubjectAttendance(@Path("studentId") studentId: String): Response<List<SubjectAttendance>>
 
     @GET("faculty/sessions/{facultyId}")
     suspend fun getFacultySessions(
@@ -110,12 +114,69 @@ interface ApiService {
     @POST("notifications/read/{notificationId}")
     suspend fun markNotificationAsRead(@Path("notificationId") notificationId: String): Response<Map<String, Any>>
 
+    @POST("notifications/delete/{notificationId}")
+    suspend fun deleteNotification(@Path("notificationId") notificationId: String): Response<Map<String, Any>>
+
     @POST("notifications/clear/{userId}")
     suspend fun clearAllNotifications(@Path("userId") userId: String): Response<Map<String, Any>>
+
+    @DELETE("sessions/{sessionId}")
+    suspend fun deleteSession(@Path("sessionId") sessionId: String): Response<Map<String, Any>>
+
+    @POST("sessions/clear/{facultyId}")
+    suspend fun clearAllSessions(@Path("facultyId") facultyId: String): Response<Map<String, Any>>
+
+    @POST("attendance/manual")
+    suspend fun addManualAttendance(@Body request: Map<String, String>): Response<Map<String, Any>>
+
+    @GET("reports/excel/{sessionId}")
+    @Streaming
+    suspend fun downloadReportExcel(@Path("sessionId") sessionId: String): Response<okhttp3.ResponseBody>
 
     @GET("reports/pdf/{sessionId}")
     @Streaming
     suspend fun downloadReportPdf(@Path("sessionId") sessionId: String): Response<okhttp3.ResponseBody>
+
+    @GET("reports/bulk-pdf")
+    @Streaming
+    suspend fun downloadBulkReportPdf(
+        @Query("faculty_id") facultyId: String,
+        @Query("branch") branch: String? = "All",
+        @Query("year") year: String? = "All",
+        @Query("subject_id") subjectId: String? = "All",
+        @Query("start_date") startDate: String? = null,
+        @Query("end_date") endDate: String? = null,
+        @Query("student_id") studentId: String? = null
+    ): Response<okhttp3.ResponseBody>
+
+    @GET("reports/hod-master-pdf")
+    @Streaming
+    suspend fun downloadHodMasterPdf(
+        @Query("department_id") departmentId: String,
+        @Query("faculty_id") facultyId: String? = "All",
+        @Query("branch") branch: String? = "All",
+        @Query("year") year: String? = "All",
+        @Query("subject_id") subjectId: String? = "All",
+        @Query("start_date") startDate: String? = null,
+        @Query("end_date") endDate: String? = null,
+        @Query("student_id") studentId: String? = null
+    ): Response<okhttp3.ResponseBody>
+
+    @GET("reports/hod-master-excel")
+    @Streaming
+    suspend fun downloadHodMasterExcel(
+        @Query("department_id") departmentId: String,
+        @Query("faculty_id") facultyId: String? = "All",
+        @Query("branch") branch: String? = "All",
+        @Query("year") year: String? = "All",
+        @Query("subject_id") subjectId: String? = "All",
+        @Query("start_date") startDate: String? = null,
+        @Query("end_date") endDate: String? = null,
+        @Query("student_id") studentId: String? = null
+    ): Response<okhttp3.ResponseBody>
+
+    @GET("faculty/all")
+    suspend fun getAllFaculty(): Response<List<UserProfile>>
 
     @POST("notifications/send")
     suspend fun sendNotification(@Body request: Map<String, String>): Response<Map<String, Any>>
@@ -123,6 +184,28 @@ interface ApiService {
     @POST("auth/update-fcm")
     suspend fun updateFcmToken(@Body data: Map<String, String>): Response<Map<String, Any>>
 
+    @GET("analytics/faculty/{facultyId}")
+    suspend fun getFacultyAnalytics(
+        @Path("facultyId") facultyId: String
+    ): Response<FacultyAnalytics>
+
     @GET("debug/check-setup")
     suspend fun checkSetup(): Response<Map<String, Any>>
+
+    @GET("analytics/department/{deptId}")
+    suspend fun getDepartmentAnalytics(
+        @Path("deptId") deptId: String
+    ): Response<DepartmentAnalytics>
+
+    @GET("analytics/department/{deptId}/export")
+    suspend fun exportDepartmentExcel(
+        @Path("deptId") deptId: String
+    ): Response<ResponseBody>
+
+    // Leave Management
+    @POST("leaves/request")
+    suspend fun submitLeaveRequest(@Body request: Map<String, String>): Response<Map<String, Any>>
+
+    @GET("leaves/history/{userId}")
+    suspend fun getLeaveHistory(@Path("userId") userId: String): Response<List<LeaveRequestRecord>>
 }

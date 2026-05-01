@@ -110,6 +110,8 @@ class MainActivity : ComponentActivity() {
             val systemDark = isSystemInDarkTheme()
             var isDark by remember { mutableStateOf(sessionManager.isDarkMode(systemDark)) }
             
+            val intentRoute = intent.getStringExtra("navigate_to")
+
             DBMS_Shubham_ApplicationTheme(darkTheme = isDark) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
@@ -117,6 +119,7 @@ class MainActivity : ComponentActivity() {
                 ) {
                     AppNavigation(
                         isDark = isDark,
+                        startDestinationOverride = intentRoute,
                         onThemeChange = { newMode -> 
                             isDark = newMode
                             sessionManager.setDarkMode(newMode)

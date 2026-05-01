@@ -1,22 +1,26 @@
 package com.example.dbms_shubham_application.screens
 
 import android.util.Log
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -24,87 +28,140 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.dbms_shubham_application.data.local.SessionManager
 import com.example.dbms_shubham_application.network.RetrofitClient
-import java.time.ZonedDateTime
-import java.time.format.DateTimeFormatter
-import java.util.Locale
-
-// Remove hardcoded color constants
+import com.example.dbms_shubham_application.ui.components.ModernAttendanceCard
+import com.example.dbms_shubham_application.utils.PredictiveAttendanceUtils
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AttendanceHistoryScreen(navController: NavController) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val sessionManager = remember { SessionManager(context) }
-    val userId = remember { sessionManager.getUserId()?.replace("\"", "")?.replace("'", "") ?: "" }
+    val userId = remember { sessionManager.getUserId() ?: "" }
+    
+    val colorScheme = MaterialTheme.colorScheme
     
     var attendanceRecords by remember { mutableStateOf<List<com.example.dbms_shubham_application.data.model.AttendanceRecord>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
+    var isRefreshing by remember { mutableStateOf(false) }
 
-    LaunchedEffect(userId) {
-        if (userId.isNotEmpty()) {
+    val fetchAttendance = {
+        scope.launch {
+            isRefreshing = true
             try {
                 val response = RetrofitClient.apiService.getAttendanceHistory(userId)
                 if (response.isSuccessful) {
-                    attendanceRecords = response.body() ?: emptyList()
+                    attendanceRecords = (response.body() ?: emptyList()).sortedByDescending { it.timestamp }
                 }
             } catch (e: Exception) {
                 Log.e("AttendanceHistory", "Error: ${e.message}")
             } finally {
+                isRefreshing = false
                 isLoading = false
             }
         }
     }
+
+    LaunchedEffect(userId) {
+        if (userId.isNotEmpty()) {
+            fetchAttendance()
+        }
+    }
     
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = colorScheme.background,
         topBar = {
             TopAppBar(
-                title = { Text("Attendance History", color = MaterialTheme.colorScheme.onBackground, fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.navigateUp() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onBackground)
+                title = { 
+                    Column {
+                        Text("Academic Audit", color = colorScheme.onBackground, fontWeight = FontWeight.Black, fontSize = 22.sp)
+                        Text("Your attendance journey", color = colorScheme.primary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
+                navigationIcon = {
+                    IconButton(
+                        onClick = { navController.navigateUp() },
+                        modifier = Modifier
+                            .padding(8.dp)
+                            .size(40.dp)
+                            .background(colorScheme.surface, CircleShape)
+                            .border(1.dp, colorScheme.outline.copy(alpha = 0.1f), CircleShape)
+                    ) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", modifier = Modifier.size(20.dp))
+                    }
+                },
+                actions = {
+                    IconButton(
+                        onClick = { fetchAttendance() },
+                        modifier = Modifier
+                            .padding(end = 12.dp)
+                            .size(40.dp)
+                            .background(colorScheme.primary.copy(alpha = 0.1f), CircleShape)
+                    ) {
+                        Icon(Icons.Default.Refresh, "Refresh", tint = colorScheme.primary, modifier = Modifier.size(20.dp))
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
                 modifier = Modifier.statusBarsPadding()
             )
         }
     ) { padding ->
-        if (isLoading) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .padding(horizontal = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(20.dp),
-                contentPadding = PaddingValues(bottom = 24.dp)
-            ) {
-                // Stats Overview
-                item {
-                    val total = attendanceRecords.size
-                    val present = attendanceRecords.count { it.status.lowercase() == "present" }
-                    val absent = total - present
-                    val percentage = if (total > 0) (present.toFloat() / total) else 0f
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = { fetchAttendance() },
+            modifier = Modifier.fillMaxSize().padding(padding)
+        ) {
+            if (isLoading && attendanceRecords.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = colorScheme.primary)
+                }
+            } else if (attendanceRecords.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(Icons.Default.EventBusy, null, tint = colorScheme.primary.copy(alpha = 0.1f), modifier = Modifier.size(120.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("No attendance records found", color = colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold)
+                    }
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp)
+                ) {
+                    // Stats Overview
+                    item {
+                        val total = attendanceRecords.size
+                        val present = attendanceRecords.count { it.status.lowercase() == "present" }
+                        val absent = total - present
+                        val percentage = if (total > 0) (present.toFloat() / total) else 0f
+                        
+                        Column {
+                            ModernHistoryStatsCard(percentage, present, absent, total)
+                            
+                            Spacer(modifier = Modifier.height(16.dp))
+                            
+                            PredictiveAlertCard(present, total)
+                        }
+                    }
                     
-                    HistoryStatsCard(percentage, present, absent, total)
-                }
-                
-                item {
-                    Text(
-                        text = "Recent Records",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-                }
-                
-                // Attendance Records
-                items(attendanceRecords) { record ->
-                    HistoryRecordCard(record = record)
+                    item {
+                        Text(
+                            text = "Attendance Records",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Black,
+                            color = colorScheme.onBackground,
+                            modifier = Modifier.padding(top = 8.dp)
+                        )
+                    }
+                    
+                    // Attendance Records
+                    items(attendanceRecords) { record ->
+                        ModernAttendanceCard(record = record)
+                    }
+                    
+                    item { Spacer(modifier = Modifier.height(24.dp)) }
                 }
             }
         }
@@ -112,14 +169,18 @@ fun AttendanceHistoryScreen(navController: NavController) {
 }
 
 @Composable
-fun HistoryStatsCard(percentage: Float, present: Int, absent: Int, total: Int) {
+fun ModernHistoryStatsCard(percentage: Float, present: Int, absent: Int, total: Int) {
+    val colorScheme = MaterialTheme.colorScheme
     val percentText = "%.1f%%".format(percentage * 100)
+    val statusColor = if (percentage >= 0.75f) colorScheme.primary else colorScheme.error
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f), RoundedCornerShape(24.dp)),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.7f)),
-        shape = RoundedCornerShape(24.dp)
+            .shadow(4.dp, RoundedCornerShape(28.dp), spotColor = colorScheme.outline),
+        colors = CardDefaults.cardColors(containerColor = colorScheme.surface),
+        shape = RoundedCornerShape(28.dp),
+        border = BorderStroke(1.dp, colorScheme.outline.copy(alpha = 0.1f))
     ) {
         Column(modifier = Modifier.padding(24.dp)) {
             Row(
@@ -128,29 +189,37 @@ fun HistoryStatsCard(percentage: Float, present: Int, absent: Int, total: Int) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
-                    Text("Overall Rate", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
-                    Text(percentText, fontSize = 32.sp, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Attendance Velocity", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
+                    Text(percentText, fontSize = 40.sp, fontWeight = FontWeight.Black, color = colorScheme.onSurface)
                 }
                 Box(
                     modifier = Modifier
-                        .size(60.dp)
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), RoundedCornerShape(16.dp)),
+                        .size(64.dp)
+                        .background(
+                            Brush.linearGradient(listOf(statusColor.copy(alpha = 0.1f), statusColor.copy(alpha = 0.05f))),
+                            RoundedCornerShape(20.dp)
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Default.BarChart, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(32.dp))
+                    Icon(
+                        imageVector = if (percentage >= 0.75f) Icons.Default.TrendingUp else Icons.Default.TrendingDown,
+                        contentDescription = null,
+                        tint = statusColor,
+                        modifier = Modifier.size(32.dp)
+                    )
                 }
             }
             
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(20.dp))
             
             LinearProgressIndicator(
                 progress = { percentage },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(8.dp)
-                    .clip(RoundedCornerShape(4.dp)),
-                color = if (percentage >= 0.75f) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
-                trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
+                    .height(10.dp)
+                    .clip(RoundedCornerShape(5.dp)),
+                color = statusColor,
+                trackColor = colorScheme.outline.copy(alpha = 0.1f)
             )
             
             Spacer(modifier = Modifier.height(24.dp))
@@ -158,92 +227,94 @@ fun HistoryStatsCard(percentage: Float, present: Int, absent: Int, total: Int) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f), RoundedCornerShape(16.dp))
+                    .background(colorScheme.surfaceVariant.copy(alpha = 0.3f), RoundedCornerShape(20.dp))
                     .padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceAround
             ) {
-                MiniStatItem("Present", present.toString(), MaterialTheme.colorScheme.primary)
-                Box(modifier = Modifier.width(1.dp).height(24.dp).background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)))
-                MiniStatItem("Absent", absent.toString(), MaterialTheme.colorScheme.error)
-                Box(modifier = Modifier.width(1.dp).height(24.dp).background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)))
-                MiniStatItem("Total", total.toString(), MaterialTheme.colorScheme.onSurfaceVariant)
+                ModernMiniStatItem("Present", present.toString(), colorScheme.primary)
+                VerticalDivider(modifier = Modifier.height(30.dp), color = colorScheme.outline.copy(alpha = 0.2f))
+                ModernMiniStatItem("Absent", absent.toString(), colorScheme.error)
+                VerticalDivider(modifier = Modifier.height(30.dp), color = colorScheme.outline.copy(alpha = 0.2f))
+                ModernMiniStatItem("Total", total.toString(), colorScheme.onSurfaceVariant)
             }
         }
     }
 }
 
 @Composable
-fun MiniStatItem(label: String, value: String, color: Color) {
-    Column {
-        Text(label, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
-        Text(value, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = color)
+fun ModernMiniStatItem(label: String, value: String, color: Color) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(label, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
+        Text(value, fontSize = 18.sp, fontWeight = FontWeight.Black, color = color)
     }
 }
 
 @Composable
-fun HistoryRecordCard(record: com.example.dbms_shubham_application.data.model.AttendanceRecord) {
-    val isPresent = record.status.lowercase() == "present"
+fun PredictiveAlertCard(present: Int, total: Int) {
+    val colorScheme = MaterialTheme.colorScheme
+    val target = 0.75f
+    val currentPercentage = if (total > 0) present.toFloat() / total else 0f
     
-    // Parse timestamp
-    val (date, time) = try {
-        val zdt = ZonedDateTime.parse(record.timestamp)
-        val dateFormatter = DateTimeFormatter.ofPattern("dd MMM", Locale.getDefault())
-        val timeFormatter = DateTimeFormatter.ofPattern("hh:mm a", Locale.getDefault())
-        zdt.format(dateFormatter) to zdt.format(timeFormatter)
-    } catch (e: Exception) {
-        "N/A" to "N/A"
-    }
-
+    val isSafe = currentPercentage >= target
+    val statusColor = if (isSafe) colorScheme.primary else colorScheme.error
+    
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f), RoundedCornerShape(20.dp)),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
-        shape = RoundedCornerShape(20.dp)
+            .shadow(2.dp, RoundedCornerShape(24.dp), spotColor = statusColor.copy(alpha = 0.5f)),
+        colors = CardDefaults.cardColors(containerColor = statusColor.copy(alpha = 0.05f)),
+        shape = RoundedCornerShape(24.dp),
+        border = BorderStroke(1.dp, statusColor.copy(alpha = 0.1f))
     ) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(20.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
                     .size(48.dp)
-                    .background(
-                        if (isPresent) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f) else MaterialTheme.colorScheme.error.copy(alpha = 0.1f),
-                        RoundedCornerShape(12.dp)
-                    ),
+                    .background(statusColor.copy(alpha = 0.1f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = if (isPresent) Icons.Default.CheckCircle else Icons.Default.Cancel,
+                    imageVector = if (isSafe) Icons.Default.CheckCircle else Icons.Default.Warning,
                     contentDescription = null,
-                    tint = if (isPresent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
-                    modifier = Modifier.size(24.dp)
+                    tint = statusColor,
+                    modifier = Modifier.size(28.dp)
                 )
             }
             
             Spacer(modifier = Modifier.width(16.dp))
             
-            Column(modifier = Modifier.weight(1f)) {
-                Text(record.subject_id, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(date, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
-                    Text(" • ", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
-                    Text(time, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
-                }
-            }
-            
-            Column(horizontalAlignment = Alignment.End) {
-                Surface(
-                    color = (if (isPresent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error).copy(alpha = 0.1f),
-                    shape = RoundedCornerShape(8.dp)
-                ) {
+            Column {
+                if (isSafe) {
+                    val affordableAbsences = PredictiveAttendanceUtils.calculateAffordableAbsences(present, total, target)
                     Text(
-                        text = record.status.uppercase(),
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isPresent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        "Safely Above Target",
+                        fontWeight = FontWeight.ExtraBold,
+                        color = statusColor,
+                        fontSize = 16.sp
+                    )
+                    Text(
+                        if (affordableAbsences > 0) 
+                            "You can afford to miss $affordableAbsences more classes." 
+                        else 
+                            "Maintaining target! Don't miss next class.",
+                        fontSize = 13.sp,
+                        color = colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    val requiredClasses = PredictiveAttendanceUtils.calculateRequiredClasses(present, total, target)
+                    Text(
+                        "Attendance Alert",
+                        fontWeight = FontWeight.ExtraBold,
+                        color = statusColor,
+                        fontSize = 16.sp
+                    )
+                    Text(
+                        "Attend next $requiredClasses classes consecutively to reach 75%.",
+                        fontSize = 13.sp,
+                        color = colorScheme.onSurfaceVariant
                     )
                 }
             }

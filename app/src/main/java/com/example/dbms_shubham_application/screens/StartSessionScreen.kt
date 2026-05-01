@@ -24,6 +24,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -33,12 +34,17 @@ import androidx.navigation.NavController
 import com.example.dbms_shubham_application.data.local.SessionManager
 import com.example.dbms_shubham_application.data.model.*
 import com.example.dbms_shubham_application.network.RetrofitClient
+import com.example.dbms_shubham_application.ui.components.ModernTextField
+import com.example.dbms_shubham_application.utils.DateTimeUtils
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
 import java.text.SimpleDateFormat
 import java.util.*
+import com.example.dbms_shubham_application.utils.FileUtils
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -80,8 +86,7 @@ fun StartSessionScreen(
             try {
                 isLoadingInfo = true
                 val sessionManager = SessionManager(context)
-                val rawId = sessionManager.getUserId() ?: ""
-                val facultyId = rawId.replace("\"", "").replace("'", "").trim()
+                val facultyId = sessionManager.getUserId() ?: ""
 
                 val roomRes = RetrofitClient.apiService.getClassrooms()
                 if (roomRes.isSuccessful) {
@@ -147,6 +152,28 @@ fun StartSessionScreen(
         }
     }
 
+    fun downloadSessionReport(sid: String) {
+        scope.launch(Dispatchers.IO) {
+            try {
+                val response = RetrofitClient.apiService.downloadReportPdf(sid)
+                if (response.isSuccessful) {
+                    val body = response.body()
+                    if (body != null) {
+                        FileUtils.saveFile(body.byteStream(), "Report_$sid.pdf", "application/pdf", context)
+                    }
+                } else {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, "Failed to generate PDF", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
     LaunchedEffect(sessionStarted, sessionId) {
         if (sessionStarted && sessionId.isNotEmpty()) {
             timeLeft = 180
@@ -196,20 +223,32 @@ fun StartSessionScreen(
         topBar = {
             CenterAlignedTopAppBar(
                 title = { 
-                    Text(
-                        if (showReport) "Session Summary" else "New Session", 
-                        color = colorScheme.onBackground, 
-                        fontWeight = FontWeight.Black,
-                        fontSize = 20.sp
-                    ) 
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            if (showReport) "Session Summary" else "Live Audit", 
+                            color = colorScheme.onBackground, 
+                            fontWeight = FontWeight.Black,
+                            fontSize = 20.sp
+                        ) 
+                        if (!showReport && !sessionStarted) {
+                            Text("Initialize a new classroom log", color = colorScheme.primary, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
                 },
                 navigationIcon = {
-                    IconButton(onClick = { if (showReport) showReport = false else navController.navigateUp() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = colorScheme.onBackground)
+                    IconButton(
+                        onClick = { if (showReport) showReport = false else navController.navigateUp() },
+                        modifier = Modifier
+                            .padding(8.dp)
+                            .size(40.dp)
+                            .background(colorScheme.surface, CircleShape)
+                            .border(1.dp, colorScheme.outline.copy(alpha = 0.1f), CircleShape)
+                    ) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", modifier = Modifier.size(20.dp))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = colorScheme.background,
+                    containerColor = Color.Transparent,
                     titleContentColor = colorScheme.onBackground,
                     navigationIconContentColor = colorScheme.onBackground
                 )
@@ -219,11 +258,19 @@ fun StartSessionScreen(
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             if (showReport && sessionReport != null) {
-                ModernSessionSummaryView(sessionReport!!) { 
-                    showReport = false
-                    sessionStarted = false
-                    sessionId = ""
-                }
+                ModernSessionSummaryView(
+                    report = sessionReport!!,
+                    onDownload = { downloadSessionReport(sessionReport!!.session_id) },
+                    onDismiss = { 
+                        showReport = false
+                        sessionStarted = false
+                        sessionId = ""
+                        // Force navigate to reports and clear stack to ensure fresh entry is visible
+                        navController.navigate("reports") {
+                            popUpTo("dashboard") { inclusive = false }
+                        }
+                    }
+                )
             } else if (!sessionStarted) {
                 if (isLoadingInfo) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -244,21 +291,21 @@ fun StartSessionScreen(
                                     .clickable {
                                         scope.launch {
                                             try {
-                                                val currentDay = SimpleDateFormat("EEEE", Locale.getDefault()).format(Date())
-                                                val facultyId = SessionManager(context).getUserId()?.replace("\"", "")?.replace("'", "")?.trim() ?: ""
+                                                val currentDay = DateTimeUtils.getCurrentDayName()
+                                                val facultyId = SessionManager(context).getUserId() ?: ""
                                                 val res = RetrofitClient.apiService.getFacultySchedule(facultyId, currentDay)
                                                 if (res.isSuccessful) {
                                                     val todaySchedule = res.body() ?: emptyList()
-                                                    val now = Calendar.getInstance()
-                                                    val currentTimeStr = SimpleDateFormat("HH:mm", Locale.getDefault()).format(now.time)
+                                                    val currentMinutesSinceMidnight = DateTimeUtils.getCurrentMinutesSinceMidnight()
                                                     
                                                     val currentClass = todaySchedule.find { record ->
                                                         try {
                                                             val times = record.time.split("-")
                                                             if (times.size == 2) {
-                                                                val startTime = times[0].trim()
-                                                                val endTime = times[1].trim()
-                                                                currentTimeStr >= startTime && currentTimeStr <= endTime
+                                                                val startMins = DateTimeUtils.parseTimeToMinutes(times[0])
+                                                                val endMins = DateTimeUtils.parseTimeToMinutes(times[1])
+                                                                
+                                                                currentMinutesSinceMidnight in startMins..endMins
                                                             } else false
                                                         } catch (e: Exception) { false }
                                                     } ?: todaySchedule.firstOrNull()
@@ -275,26 +322,26 @@ fun StartSessionScreen(
                                         }
                                     },
                                 shape = RoundedCornerShape(24.dp),
-                                colors = CardDefaults.cardColors(containerColor = colorScheme.primary.copy(alpha = 0.1f)),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, colorScheme.primary.copy(alpha = 0.2f))
+                                colors = CardDefaults.cardColors(containerColor = colorScheme.primary.copy(alpha = 0.08f)),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, colorScheme.primary.copy(alpha = 0.1f))
                             ) {
                                 Row(
                                     modifier = Modifier.padding(20.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Box(
-                                        modifier = Modifier.size(48.dp).background(colorScheme.primary.copy(alpha = 0.2f), CircleShape),
+                                        modifier = Modifier.size(48.dp).background(colorScheme.primary.copy(alpha = 0.15f), CircleShape),
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        Icon(Icons.Default.AutoFixHigh, null, tint = colorScheme.primary)
+                                        Icon(Icons.Default.AutoFixHigh, null, tint = colorScheme.primary, modifier = Modifier.size(24.dp))
                                     }
                                     Spacer(Modifier.width(16.dp))
                                     Column {
-                                        Text("Today's Schedule", color = colorScheme.onBackground, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                                        Text("Auto-fill from timetable", color = colorScheme.primary, fontSize = 12.sp)
+                                        Text("Academic Context", color = colorScheme.onBackground, fontWeight = FontWeight.Black, fontSize = 16.sp)
+                                        Text("Sync with timetable", color = colorScheme.primary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                     }
                                     Spacer(Modifier.weight(1f))
-                                    Icon(Icons.Default.ChevronRight, null, tint = colorScheme.primary)
+                                    Icon(Icons.Default.ChevronRight, null, tint = colorScheme.primary.copy(alpha = 0.5f))
                                 }
                             }
                         }
@@ -302,10 +349,10 @@ fun StartSessionScreen(
                         item {
                             Text(
                                 "Configuration",
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier.fillMaxWidth().padding(start = 4.dp),
                                 color = colorScheme.onBackground,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp
+                                fontWeight = FontWeight.Black,
+                                fontSize = 18.sp
                             )
                         }
 
@@ -316,7 +363,8 @@ fun StartSessionScreen(
                                 expanded = classroomExpanded,
                                 items = classrooms,
                                 onExpandedChange = { classroomExpanded = it },
-                                onSelect = { selectedClassroom = it; classroomExpanded = false }
+                                onSelect = { selectedClassroom = it; classroomExpanded = false },
+                                icon = Icons.Default.LocationOn
                             )
                         }
 
@@ -327,7 +375,8 @@ fun StartSessionScreen(
                                 expanded = subjectExpanded,
                                 items = subjects,
                                 onExpandedChange = { subjectExpanded = it },
-                                onSelect = { selectedSubject = it; subjectExpanded = false }
+                                onSelect = { selectedSubject = it; subjectExpanded = false },
+                                icon = Icons.Default.MenuBook
                             )
                         }
 
@@ -341,9 +390,9 @@ fun StartSessionScreen(
                                 enabled = !isStarting && selectedClassroom != null && selectedSubject != null
                             ) {
                                 if (isStarting) {
-                                    CircularProgressIndicator(color = colorScheme.onPrimary, modifier = Modifier.size(24.dp))
+                                    CircularProgressIndicator(color = colorScheme.onPrimary, modifier = Modifier.size(24.dp), strokeWidth = 3.dp)
                                 } else {
-                                    Text("Generate Secure QR", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
+                                    Text("Initialize Secure Channel", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
                                 }
                             }
                         }
@@ -387,12 +436,12 @@ fun StartSessionScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column {
-                            Text("Real-time Attendance", color = colorScheme.onBackground, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                            Text("${attendanceList.size} students verified", color = colorScheme.primary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                            Text("Real-time Intelligence", color = colorScheme.onBackground, fontWeight = FontWeight.Black, fontSize = 18.sp)
+                            Text("${attendanceList.size} students verified", color = colorScheme.primary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                         }
                         IconButton(
                             onClick = { fetchAttendance() },
-                            modifier = Modifier.background(colorScheme.surface, CircleShape).border(1.dp, colorScheme.outline.copy(alpha = 0.2f), CircleShape)
+                            modifier = Modifier.background(colorScheme.surface, CircleShape).border(1.dp, colorScheme.outline.copy(alpha = 0.1f), CircleShape)
                         ) {
                             Icon(Icons.Default.Refresh, null, tint = colorScheme.primary, modifier = Modifier.size(20.dp))
                         }
@@ -408,7 +457,7 @@ fun StartSessionScreen(
                         if (attendanceList.isEmpty()) {
                             item {
                                 Box(modifier = Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
-                                    Text("Waiting for scans...", color = colorScheme.onBackground.copy(alpha = 0.6f), fontSize = 14.sp)
+                                    Text("Waiting for authentication scans...", color = colorScheme.onBackground.copy(alpha = 0.5f), fontSize = 14.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
                         } else {
@@ -430,10 +479,10 @@ fun StartSessionScreen(
                     Button(
                         onClick = { endSessionOnServer() },
                         modifier = Modifier.fillMaxWidth().height(56.dp),
-                        shape = RoundedCornerShape(16.dp),
+                        shape = RoundedCornerShape(20.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = colorScheme.error)
                     ) {
-                        Text("Finish Session", fontWeight = FontWeight.Black)
+                        Text("Terminate & Save Log", fontWeight = FontWeight.Black)
                     }
                 }
             }
@@ -473,27 +522,37 @@ fun ModernAttendanceItem(log: AttendanceLog) {
     val colorScheme = MaterialTheme.colorScheme
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = colorScheme.surface.copy(alpha = 0.6f)),
+        colors = CardDefaults.cardColors(containerColor = colorScheme.surface),
         shape = RoundedCornerShape(16.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, colorScheme.outline.copy(alpha = 0.2f))
+        border = androidx.compose.foundation.BorderStroke(1.dp, colorScheme.outline.copy(alpha = 0.1f))
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
-                modifier = Modifier.size(40.dp).background(colorScheme.primary.copy(alpha = 0.1f), CircleShape),
+                modifier = Modifier.size(44.dp).background(colorScheme.primary.copy(alpha = 0.1f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(Icons.Default.Person, null, tint = colorScheme.primary, modifier = Modifier.size(20.dp))
             }
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(log.student_name ?: "Unknown Student", color = colorScheme.onSurface, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                Text(log.student_id, color = colorScheme.onSurface.copy(alpha = 0.6f), fontSize = 12.sp)
+                Text(log.student_name ?: "Unknown Student", color = colorScheme.onSurface, fontWeight = FontWeight.Black, fontSize = 15.sp)
+                Text(log.student_id, color = colorScheme.onSurface.copy(alpha = 0.6f), fontSize = 12.sp, fontWeight = FontWeight.Bold)
             }
             if (log.face_verified) {
-                Icon(Icons.Default.Verified, null, tint = colorScheme.primary, modifier = Modifier.size(18.dp))
+                Surface(
+                    color = Color(0xFF4CAF50).copy(alpha = 0.1f),
+                    shape = RoundedCornerShape(8.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF4CAF50).copy(alpha = 0.2f))
+                ) {
+                    Row(modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Verified, null, tint = Color(0xFF4CAF50), modifier = Modifier.size(14.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("VERIFIED", color = Color(0xFF4CAF50), fontSize = 10.sp, fontWeight = FontWeight.Black)
+                    }
+                }
             }
         }
     }
@@ -507,36 +566,29 @@ fun <T> ModernDropdown(
     expanded: Boolean,
     items: List<T>,
     onExpandedChange: (Boolean) -> Unit,
-    onSelect: (T) -> Unit
+    onSelect: (T) -> Unit,
+    icon: ImageVector
 ) {
     val colorScheme = MaterialTheme.colorScheme
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = onExpandedChange
-    ) {
-        OutlinedTextField(
+    
+    Box(modifier = Modifier.fillMaxWidth()) {
+        ModernTextField(
             value = selected,
             onValueChange = {},
-            readOnly = true,
-            label = { Text(label, color = colorScheme.onSurface.copy(alpha = 0.6f)) },
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-            modifier = Modifier
-                .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryEditable, true)
-                .fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = colorScheme.primary,
-                unfocusedBorderColor = colorScheme.outline.copy(alpha = 0.2f),
-                focusedTextColor = colorScheme.onSurface,
-                unfocusedTextColor = colorScheme.onSurface,
-                focusedContainerColor = colorScheme.surface.copy(alpha = 0.5f),
-                unfocusedContainerColor = colorScheme.surface.copy(alpha = 0.5f)
-            )
+            label = label,
+            icon = icon,
+            modifier = Modifier.clickable { onExpandedChange(true) },
+            colors = colorScheme.primary to colorScheme.outline,
+            textColor = colorScheme.onBackground,
+            surfaceColor = colorScheme.surface
         )
-        ExposedDropdownMenu(
+        // Overlay a transparent box to capture clicks since ModernTextField is not read-only by default in its params
+        Box(modifier = Modifier.matchParentSize().clickable { onExpandedChange(true) })
+
+        DropdownMenu(
             expanded = expanded,
             onDismissRequest = { onExpandedChange(false) },
-            modifier = Modifier.background(colorScheme.surface).border(1.dp, colorScheme.outline.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+            modifier = Modifier.background(colorScheme.surface).width(300.dp).border(1.dp, colorScheme.outline.copy(alpha = 0.1f), RoundedCornerShape(12.dp))
         ) {
             items.forEach { item ->
                 val text = when(item) {
@@ -545,7 +597,7 @@ fun <T> ModernDropdown(
                     else -> item.toString()
                 }
                 DropdownMenuItem(
-                    text = { Text(text, color = colorScheme.onSurface, fontWeight = FontWeight.Medium) },
+                    text = { Text(text, color = colorScheme.onSurface, fontWeight = FontWeight.Bold) },
                     onClick = { onSelect(item) }
                 )
             }
@@ -554,60 +606,116 @@ fun <T> ModernDropdown(
 }
 
 @Composable
-fun ModernSessionSummaryView(report: SessionReportResponse, onDismiss: () -> Unit) {
+fun ModernSessionSummaryView(
+    report: SessionReportResponse, 
+    onDownload: () -> Unit,
+    onDismiss: () -> Unit
+) {
     val colorScheme = MaterialTheme.colorScheme
+    var isDownloading by remember { mutableStateOf(false) }
+
     Column(
         modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Card(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
             colors = CardDefaults.cardColors(containerColor = colorScheme.surface),
             shape = RoundedCornerShape(32.dp),
-            border = androidx.compose.foundation.BorderStroke(1.dp, colorScheme.outline.copy(alpha = 0.2f))
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+            border = androidx.compose.foundation.BorderStroke(1.dp, colorScheme.outline.copy(alpha = 0.1f))
         ) {
             Column(
                 modifier = Modifier.padding(32.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Box(
-                    modifier = Modifier.size(80.dp).background(colorScheme.primary.copy(alpha = 0.1f), CircleShape),
+                    modifier = Modifier
+                        .size(88.dp)
+                        .background(
+                            Brush.linearGradient(listOf(colorScheme.primary, colorScheme.secondary)),
+                            CircleShape
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Default.CheckCircle, null, tint = colorScheme.primary, modifier = Modifier.size(48.dp))
+                    Icon(Icons.Default.CheckCircle, null, tint = Color.White, modifier = Modifier.size(48.dp))
                 }
-                Spacer(modifier = Modifier.height(20.dp))
-                Text("Session Completed", color = colorScheme.onSurface, fontSize = 22.sp, fontWeight = FontWeight.Black)
-                Text(report.course_id, color = colorScheme.primary, fontWeight = FontWeight.Bold)
+                
+                Spacer(modifier = Modifier.height(24.dp))
+                
+                Text("Session Audited", color = colorScheme.onSurface, fontSize = 24.sp, fontWeight = FontWeight.Black)
+                Text(report.course_id ?: "Academic Record", color = colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 
                 Spacer(modifier = Modifier.height(32.dp))
                 
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(), 
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     SummaryStat("Present", report.total_present.toString(), colorScheme.primary)
+                    VerticalDivider(modifier = Modifier.height(40.dp), color = colorScheme.outline.copy(alpha = 0.2f))
+                    SummaryStat("Success", "100%", Color(0xFF4CAF50))
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(24.dp))
         
-        Text("Participant List", color = colorScheme.onBackground, fontWeight = FontWeight.Bold, fontSize = 18.sp, modifier = Modifier.fillMaxWidth())
+        OutlinedButton(
+            onClick = { 
+                isDownloading = true
+                onDownload()
+            },
+            modifier = Modifier.fillMaxWidth().height(60.dp),
+            shape = RoundedCornerShape(20.dp),
+            border = androidx.compose.foundation.BorderStroke(2.dp, colorScheme.primary),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = colorScheme.primary)
+        ) {
+            Icon(Icons.Default.FileDownload, null)
+            Spacer(modifier = Modifier.width(12.dp))
+            Text("Secure PDF Report", fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+        
+        Text("Participant Intel", color = colorScheme.onBackground, fontWeight = FontWeight.Black, fontSize = 18.sp, modifier = Modifier.fillMaxWidth())
         
         LazyColumn(
             modifier = Modifier.weight(1f).fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(10.dp),
             contentPadding = PaddingValues(vertical = 16.dp)
         ) {
-            items(report.students) { student ->
-                Row(
-                    modifier = Modifier.fillMaxWidth().background(colorScheme.surface.copy(alpha = 0.4f), RoundedCornerShape(12.dp)).padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(student.name, color = colorScheme.onSurface, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                        Text(student.id, color = colorScheme.onSurface.copy(alpha = 0.6f), fontSize = 11.sp)
+            val studentList = report.students ?: emptyList()
+            if (studentList.isEmpty()) {
+                item {
+                    Box(modifier = Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
+                        Text("No participants recorded", color = colorScheme.onBackground.copy(alpha = 0.5f), fontWeight = FontWeight.Bold)
                     }
-                    Text(student.time.takeLast(8), color = colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                }
+            } else {
+                items(studentList) { student ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(colorScheme.surfaceVariant.copy(alpha = 0.2f), RoundedCornerShape(16.dp))
+                            .border(1.dp, colorScheme.outline.copy(alpha = 0.05f), RoundedCornerShape(16.dp))
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(modifier = Modifier.size(36.dp).background(colorScheme.primary.copy(alpha = 0.1f), CircleShape), contentAlignment = Alignment.Center) {
+                                Text(student.name?.firstOrNull()?.toString() ?: "?", color = colorScheme.primary, fontWeight = FontWeight.Black)
+                            }
+                            Spacer(Modifier.width(12.dp))
+                            Column {
+                                Text(student.name ?: "Unknown", color = colorScheme.onSurface, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                Text(student.id ?: "---", color = colorScheme.onSurface.copy(alpha = 0.6f), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                        Text(DateTimeUtils.formatTimeOnly(student.time), color = colorScheme.primary, fontWeight = FontWeight.Black, fontSize = 12.sp)
+                    }
                 }
             }
         }
@@ -618,7 +726,7 @@ fun ModernSessionSummaryView(report: SessionReportResponse, onDismiss: () -> Uni
             shape = RoundedCornerShape(20.dp),
             colors = ButtonDefaults.buttonColors(containerColor = colorScheme.primary)
         ) {
-            Text("Return to Dashboard", fontWeight = FontWeight.ExtraBold, color = colorScheme.onPrimary)
+            Text("Complete & Return", fontWeight = FontWeight.ExtraBold, color = colorScheme.onPrimary)
         }
     }
 }
@@ -627,7 +735,7 @@ fun ModernSessionSummaryView(report: SessionReportResponse, onDismiss: () -> Uni
 fun SummaryStat(label: String, value: String, color: Color) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(value, color = color, fontSize = 40.sp, fontWeight = FontWeight.Black)
-        Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f), fontSize = 12.sp, fontWeight = FontWeight.Black)
     }
 }
 

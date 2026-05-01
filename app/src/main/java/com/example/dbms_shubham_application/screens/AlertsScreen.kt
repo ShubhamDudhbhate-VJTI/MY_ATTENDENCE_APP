@@ -29,6 +29,7 @@ import androidx.navigation.NavController
 import com.example.dbms_shubham_application.data.local.SessionManager
 import com.example.dbms_shubham_application.data.model.NotificationRecord
 import com.example.dbms_shubham_application.network.RetrofitClient
+import com.example.dbms_shubham_application.ui.components.AlertCardShimmer
 import kotlinx.coroutines.launch
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
@@ -84,6 +85,19 @@ fun AlertsScreen(navController: NavController) {
         }
     }
 
+    fun deleteNotification(notificationId: String) {
+        scope.launch {
+            try {
+                val response = RetrofitClient.apiService.deleteNotification(notificationId)
+                if (response.isSuccessful) {
+                    fetchNotifications()
+                }
+            } catch (e: Exception) {
+                Log.e("AlertsScreen", "Error deleting notification", e)
+            }
+        }
+    }
+
     LaunchedEffect(userId) {
         fetchNotifications()
     }
@@ -122,8 +136,12 @@ fun AlertsScreen(navController: NavController) {
         }
     ) { padding ->
         if (isLoading) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = colorScheme.primary)
+            LazyColumn(
+                modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                contentPadding = PaddingValues(top = 16.dp, bottom = 24.dp)
+            ) {
+                items(6) { AlertCardShimmer() }
             }
         } else if (notifications.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -140,13 +158,19 @@ fun AlertsScreen(navController: NavController) {
                 contentPadding = PaddingValues(top = 16.dp, bottom = 24.dp)
             ) {
                 items(notifications) { alert ->
-                    AlertCard(alert) {
-                        // Optional: Mark as read when clicked
-                        scope.launch {
-                            RetrofitClient.apiService.markNotificationAsRead(alert.id)
-                            fetchNotifications() // Refresh
+                    AlertCard(
+                        alert = alert,
+                        onClick = {
+                            // Optional: Mark as read when clicked
+                            scope.launch {
+                                RetrofitClient.apiService.markNotificationAsRead(alert.id)
+                                fetchNotifications() // Refresh
+                            }
+                        },
+                        onDelete = {
+                            deleteNotification(alert.id)
                         }
-                    }
+                    )
                 }
             }
         }
@@ -154,7 +178,7 @@ fun AlertsScreen(navController: NavController) {
 }
 
 @Composable
-fun AlertCard(alert: NotificationRecord, onClick: () -> Unit) {
+fun AlertCard(alert: NotificationRecord, onClick: () -> Unit, onDelete: () -> Unit) {
     val colorScheme = MaterialTheme.colorScheme
     
     val type = when {
@@ -215,13 +239,13 @@ fun AlertCard(alert: NotificationRecord, onClick: () -> Unit) {
             
             Spacer(modifier = Modifier.width(16.dp))
             
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(alert.title, color = colorScheme.onSurface, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text(alert.title, color = colorScheme.onSurface, fontWeight = FontWeight.Bold, fontSize = 16.sp, modifier = Modifier.weight(1f))
                     Text(timeAgo, color = colorScheme.onSurface.copy(alpha = 0.6f), fontSize = 11.sp)
                 }
                 Spacer(modifier = Modifier.height(6.dp))
@@ -242,6 +266,15 @@ fun AlertCard(alert: NotificationRecord, onClick: () -> Unit) {
                         fontWeight = FontWeight.ExtraBold
                     )
                 }
+            }
+
+            IconButton(onClick = onDelete) {
+                Icon(
+                    imageVector = Icons.Default.DeleteSweep,
+                    contentDescription = "Delete",
+                    tint = colorScheme.onSurface.copy(alpha = 0.3f),
+                    modifier = Modifier.size(20.dp)
+                )
             }
         }
     }

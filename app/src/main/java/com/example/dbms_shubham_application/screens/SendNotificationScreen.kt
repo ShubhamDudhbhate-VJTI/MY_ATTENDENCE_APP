@@ -1,18 +1,17 @@
 package com.example.dbms_shubham_application.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Group
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.School
-import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -25,6 +24,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.dbms_shubham_application.data.local.SessionManager
 import com.example.dbms_shubham_application.network.RetrofitClient
+import com.example.dbms_shubham_application.ui.components.ModernTextField
 import kotlinx.coroutines.launch
 
 enum class NotificationTarget {
@@ -44,43 +44,56 @@ fun SendNotificationScreen(navController: NavController) {
     val snackbarHostState = remember { SnackbarHostState() }
     val context = androidx.compose.ui.platform.LocalContext.current
     val sessionManager = remember { SessionManager(context) }
+    val colorScheme = MaterialTheme.colorScheme
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("Send Notification", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = MaterialTheme.colorScheme.onBackground)
+                title = { 
+                    Column {
+                        Text("Broadcast", fontWeight = FontWeight.Black, color = colorScheme.onBackground, fontSize = 22.sp)
+                        Text("Notify students & groups", color = colorScheme.primary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
+                navigationIcon = {
+                    IconButton(
+                        onClick = { navController.popBackStack() },
+                        modifier = Modifier
+                            .padding(8.dp)
+                            .size(40.dp)
+                            .background(colorScheme.surface, CircleShape)
+                            .border(1.dp, colorScheme.outline.copy(alpha = 0.1f), CircleShape)
+                    ) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", modifier = Modifier.size(20.dp))
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent)
             )
         },
-        containerColor = MaterialTheme.colorScheme.background
+        containerColor = colorScheme.background
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .padding(horizontal = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+                .padding(horizontal = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp),
+            contentPadding = PaddingValues(top = 16.dp, bottom = 32.dp)
         ) {
             item {
                 Text(
-                    "Select Recipients",
+                    "Recipient Scope",
                     fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier.padding(top = 10.dp)
+                    fontWeight = FontWeight.Black,
+                    color = colorScheme.onBackground
                 )
             }
 
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     TargetOption(
                         "Individual", 
@@ -90,15 +103,15 @@ fun SendNotificationScreen(navController: NavController) {
                     ) { selectedTarget = NotificationTarget.INDIVIDUAL }
                     
                     TargetOption(
-                        "Group", 
-                        Icons.Default.Group, 
+                        "Subject", 
+                        Icons.AutoMirrored.Filled.MenuBook,
                         selectedTarget == NotificationTarget.GROUP,
                         Modifier.weight(1f)
                     ) { selectedTarget = NotificationTarget.GROUP }
                     
                     TargetOption(
-                        "Whole Class", 
-                        Icons.Default.School, 
+                        "Class", 
+                        Icons.Default.Groups, 
                         selectedTarget == NotificationTarget.CLASS,
                         Modifier.weight(1f)
                     ) { selectedTarget = NotificationTarget.CLASS }
@@ -106,80 +119,55 @@ fun SendNotificationScreen(navController: NavController) {
             }
 
             item {
-                OutlinedTextField(
+                ModernTextField(
                     value = targetId,
                     onValueChange = { targetId = it },
-                    label = { 
-                        Text(when(selectedTarget) {
-                            NotificationTarget.INDIVIDUAL -> "Registration Number (e.g. 241080017)"
-                            NotificationTarget.GROUP -> "Subject Name (e.g. DBMS)"
-                            NotificationTarget.CLASS -> "Branch-Year (e.g. Information Technology-Second Year)"
-                        })
+                    label = when(selectedTarget) {
+                        NotificationTarget.INDIVIDUAL -> "Registration ID"
+                        NotificationTarget.GROUP -> "Subject Name"
+                        NotificationTarget.CLASS -> "Branch-Year"
                     },
-                    placeholder = {
-                        Text(when(selectedTarget) {
-                            NotificationTarget.INDIVIDUAL -> "241080017"
-                            NotificationTarget.GROUP -> "DBMS"
-                            NotificationTarget.CLASS -> "Information Technology-Second Year"
-                        }, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
+                    placeholder = when(selectedTarget) {
+                        NotificationTarget.INDIVIDUAL -> "e.g. 241080017"
+                        NotificationTarget.GROUP -> "e.g. DBMS"
+                        NotificationTarget.CLASS -> "e.g. IT-Second Year"
                     },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                        focusedLabelColor = MaterialTheme.colorScheme.primary,
-                        unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
-                    ),
-                    shape = RoundedCornerShape(12.dp)
+                    icon = when(selectedTarget) {
+                        NotificationTarget.INDIVIDUAL -> Icons.Default.Fingerprint
+                        NotificationTarget.GROUP -> Icons.Default.Tag
+                        NotificationTarget.CLASS -> Icons.Default.Hub
+                    }
                 )
             }
 
             item {
                 Text(
-                    "Message Content",
+                    "Announcement Details",
                     fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
+                    fontWeight = FontWeight.Black,
+                    color = colorScheme.onBackground
                 )
             }
 
             item {
-                OutlinedTextField(
+                ModernTextField(
                     value = title,
                     onValueChange = { title = it },
-                    label = { Text("Title") },
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                        focusedLabelColor = MaterialTheme.colorScheme.primary,
-                        unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
-                    ),
-                    shape = RoundedCornerShape(12.dp)
+                    label = "Notification Title",
+                    placeholder = "Enter a catchy headline",
+                    icon = Icons.Default.Title
                 )
             }
 
             item {
-                OutlinedTextField(
+                ModernTextField(
                     value = message,
                     onValueChange = { message = it },
-                    label = { Text("Message") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(150.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                        focusedLabelColor = MaterialTheme.colorScheme.primary,
-                        unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
-                    ),
-                    shape = RoundedCornerShape(12.dp)
+                    label = "Detailed Message",
+                    placeholder = "What would you like to say?",
+                    icon = Icons.Default.ChatBubbleOutline,
+                    singleLine = false,
+                    modifier = Modifier.height(150.dp)
                 )
             }
 
@@ -210,7 +198,7 @@ fun SendNotificationScreen(navController: NavController) {
                                 
                                 val response = RetrofitClient.apiService.sendNotification(payload)
                                 if (response.isSuccessful) {
-                                    snackbarHostState.showSnackbar("Notification sent successfully!")
+                                    snackbarHostState.showSnackbar("Broadcast sent successfully!")
                                     title = ""
                                     message = ""
                                     targetId = ""
@@ -226,17 +214,18 @@ fun SendNotificationScreen(navController: NavController) {
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(56.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                    shape = RoundedCornerShape(12.dp),
+                        .height(60.dp)
+                        .padding(top = 8.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = colorScheme.primary),
+                    shape = RoundedCornerShape(20.dp),
                     enabled = !isLoading
                 ) {
                     if (isLoading) {
-                        CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(24.dp))
+                        CircularProgressIndicator(color = colorScheme.onPrimary, modifier = Modifier.size(24.dp), strokeWidth = 3.dp)
                     } else {
-                        Icon(Icons.Default.Send, null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Send Now", fontWeight = FontWeight.Bold)
+                        Icon(Icons.Default.RocketLaunch, null, modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text("Send Broadcast", fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
                     }
                 }
             }
@@ -252,34 +241,33 @@ fun TargetOption(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    Column(
-        modifier = modifier
-            .background(
-                if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surfaceVariant,
-                RoundedCornerShape(16.dp)
-            )
-            .border(
-                1.dp,
-                if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
-                RoundedCornerShape(16.dp)
-            )
-            .clickable { onClick() }
-            .padding(12.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+    val colorScheme = MaterialTheme.colorScheme
+    
+    Surface(
+        onClick = onClick,
+        modifier = modifier.height(84.dp),
+        shape = RoundedCornerShape(20.dp),
+        color = if (isSelected) colorScheme.primary else colorScheme.surfaceVariant.copy(alpha = 0.4f),
+        border = BorderStroke(1.dp, if (isSelected) colorScheme.primary else colorScheme.outline.copy(alpha = 0.1f))
     ) {
-        Icon(
-            icon, 
-            null, 
-            tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(24.dp)
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            label, 
-            fontSize = 12.sp, 
-            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-        )
+        Column(
+            modifier = Modifier.padding(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                icon, 
+                null, 
+                tint = if (isSelected) colorScheme.onPrimary else colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(24.dp)
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                label, 
+                fontSize = 11.sp, 
+                color = if (isSelected) colorScheme.onPrimary else colorScheme.onSurfaceVariant,
+                fontWeight = if (isSelected) FontWeight.Black else FontWeight.Bold
+            )
+        }
     }
 }

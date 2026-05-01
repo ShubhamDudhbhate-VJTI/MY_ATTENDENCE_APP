@@ -63,6 +63,18 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        val notificationId = System.currentTimeMillis().toInt()
+        
+        // Add Delete Action
+        val deleteIntent = Intent(this, NotificationReceiver::class.java).apply {
+            action = "ACTION_DELETE_NOTIFICATION"
+            putExtra("notification_id", notificationId)
+        }
+        val deletePendingIntent = PendingIntent.getBroadcast(
+            this, notificationId, deleteIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
         val defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
         
         val notificationBuilder = NotificationCompat.Builder(this, CHANNEL_ID)
@@ -77,8 +89,9 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setContentIntent(pendingIntent)
+            .addAction(android.R.drawable.ic_menu_delete, "Delete", deletePendingIntent)
 
-        notificationManager.notify(System.currentTimeMillis().toInt(), notificationBuilder.build())
+        notificationManager.notify(notificationId, notificationBuilder.build())
     }
 
     override fun onNewToken(token: String) {

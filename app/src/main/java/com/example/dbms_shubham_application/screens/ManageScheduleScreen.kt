@@ -29,6 +29,7 @@ import com.example.dbms_shubham_application.data.model.ScheduleRecord
 import com.example.dbms_shubham_application.data.model.Subject
 import com.example.dbms_shubham_application.network.RetrofitClient
 import com.example.dbms_shubham_application.ui.components.EditScheduleDialog
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlinx.coroutines.launch
@@ -51,16 +52,27 @@ fun ManageScheduleScreen(navController: NavController) {
     var subjects by remember { mutableStateOf<List<Subject>>(emptyList()) }
     var classrooms by remember { mutableStateOf<List<Classroom>>(emptyList()) }
 
+    var selectedDay by remember { mutableStateOf(SimpleDateFormat("EEEE", Locale.getDefault()).format(Date())) }
+    val daysOfWeek = listOf("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")
+
     fun loadData() {
         scope.launch {
             isLoading = true
             try {
-                val currentDay = SimpleDateFormat("EEEE", Locale.getDefault()).format(Date())
-                val schedRes = RetrofitClient.apiService.getFacultySchedule(facultyId, currentDay)
+                val schedRes = RetrofitClient.apiService.getFacultySchedule(facultyId, selectedDay)
                 if (schedRes.isSuccessful) schedule = schedRes.body() ?: emptyList()
 
                 val subRes = RetrofitClient.apiService.getFacultySubjects(facultyId)
-                if (subRes.isSuccessful) subjects = subRes.body() ?: emptyList()
+                if (subRes.isSuccessful) {
+                    val list = subRes.body() ?: emptyList()
+                    if (list.isEmpty()) {
+                        // Fallback to all subjects if faculty-specific list is empty
+                        val allSubRes = RetrofitClient.apiService.getSubjects()
+                        if (allSubRes.isSuccessful) subjects = allSubRes.body() ?: emptyList()
+                    } else {
+                        subjects = list
+                    }
+                }
 
                 val roomRes = RetrofitClient.apiService.getClassrooms()
                 if (roomRes.isSuccessful) classrooms = roomRes.body() ?: emptyList()
@@ -72,7 +84,7 @@ fun ManageScheduleScreen(navController: NavController) {
         }
     }
 
-    LaunchedEffect(Unit) { loadData() }
+    LaunchedEffect(selectedDay) { loadData() }
 
     Scaffold(
         containerColor = colorScheme.background,
@@ -97,8 +109,7 @@ fun ManageScheduleScreen(navController: NavController) {
                         scope.launch {
                             isLoading = true
                             try {
-                                val currentDay = SimpleDateFormat("EEEE", Locale.getDefault()).format(Date())
-                                val res = RetrofitClient.apiService.syncOfficialSchedule(facultyId, currentDay)
+                                val res = RetrofitClient.apiService.syncOfficialSchedule(facultyId, selectedDay)
                                 if (res.isSuccessful) {
                                     val body = res.body()
                                     schedule = body?.schedule ?: emptyList()
@@ -131,40 +142,65 @@ fun ManageScheduleScreen(navController: NavController) {
             }
         }
     ) { padding ->
-        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
-            if (isLoading) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = colorScheme.primary)
+        Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+            // Day Selector Row
+            ScrollableTabRow(
+                selectedTabIndex = daysOfWeek.indexOf(selectedDay).coerceAtLeast(0),
+                containerColor = Color.Transparent,
+                contentColor = colorScheme.primary,
+                edgePadding = 16.dp,
+                divider = {},
+                indicator = { tabPositions ->
+                    TabRowDefaults.SecondaryIndicator(
+                        Modifier.tabIndicatorOffset(tabPositions[daysOfWeek.indexOf(selectedDay).coerceAtLeast(0)]),
+                        color = colorScheme.primary
+                    )
                 }
-            } else if (schedule.isEmpty()) {
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Icon(Icons.Default.CalendarToday, null, tint = colorScheme.onBackground.copy(alpha = 0.3f), modifier = Modifier.size(64.dp))
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text("No records found for today", color = colorScheme.onBackground.copy(alpha = 0.6f))
+            ) {
+                daysOfWeek.forEach { day ->
+                    Tab(
+                        selected = selectedDay == day,
+                        onClick = { selectedDay = day },
+                        text = { Text(day, fontWeight = if (selectedDay == day) FontWeight.Bold else FontWeight.Normal) }
+                    )
                 }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                    contentPadding = PaddingValues(top = 16.dp, bottom = 80.dp)
-                ) {
-                    items(schedule) { record ->
-                        ScheduleEditCard(
-                            record = record,
-                            onEdit = { editingRecord = record },
-                            onDelete = {
-                                scope.launch {
-                                    record.id?.let { id ->
-                                        val res = RetrofitClient.apiService.deleteScheduleRecord(id)
-                                        if (res.isSuccessful) loadData()
+            }
+
+            Box(modifier = Modifier.fillMaxSize()) {
+                if (isLoading) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = colorScheme.primary)
+                    }
+                } else if (schedule.isEmpty()) {
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Icon(Icons.Default.CalendarToday, null, tint = colorScheme.onBackground.copy(alpha = 0.3f), modifier = Modifier.size(64.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("No records found for $selectedDay", color = colorScheme.onBackground.copy(alpha = 0.6f))
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        contentPadding = PaddingValues(top = 16.dp, bottom = 80.dp)
+                    ) {
+                        items(schedule) { record ->
+                            ScheduleEditCard(
+                                record = record,
+                                onEdit = { editingRecord = record },
+                                onDelete = {
+                                    scope.launch {
+                                        record.id?.let { id ->
+                                            val res = RetrofitClient.apiService.deleteScheduleRecord(id)
+                                            if (res.isSuccessful) loadData()
+                                        }
                                     }
                                 }
-                            }
-                        )
+                            )
+                        }
                     }
                 }
             }

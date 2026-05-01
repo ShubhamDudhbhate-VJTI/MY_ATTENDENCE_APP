@@ -23,8 +23,9 @@ class SessionManager(context: Context) {
     }
 
     fun saveSession(userId: String, role: String, name: String) {
+        val sanitizedId = userId.replace("\"", "").replace("'", "")
         prefs.edit().apply {
-            putString(KEY_USER_ID, userId)
+            putString(KEY_USER_ID, sanitizedId)
             putString(KEY_ROLE, role)
             putString(KEY_NAME, name)
             putBoolean(KEY_IS_LOGGED_IN, true)

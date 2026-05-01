@@ -1,5 +1,10 @@
 package com.example.dbms_shubham_application.navigation
 
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.runtime.Composable
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -7,10 +12,29 @@ import androidx.navigation.compose.rememberNavController
 import com.example.dbms_shubham_application.screens.*
 
 @Composable
-fun AppNavigation(isDark: Boolean, onThemeChange: (Boolean) -> Unit) {
+fun AppNavigation(
+    isDark: Boolean, 
+    onThemeChange: (Boolean) -> Unit,
+    startDestinationOverride: String? = null
+) {
     val navController = rememberNavController()
 
-    NavHost(navController = navController, startDestination = "splash") {
+    NavHost(
+        navController = navController, 
+        startDestination = startDestinationOverride ?: "splash",
+        enterTransition = {
+            slideInHorizontally(initialOffsetX = { 1000 }, animationSpec = tween(400)) + fadeIn(animationSpec = tween(400))
+        },
+        exitTransition = {
+            slideOutHorizontally(targetOffsetX = { -1000 }, animationSpec = tween(400)) + fadeOut(animationSpec = tween(400))
+        },
+        popEnterTransition = {
+            slideInHorizontally(initialOffsetX = { -1000 }, animationSpec = tween(400)) + fadeIn(animationSpec = tween(400))
+        },
+        popExitTransition = {
+            slideOutHorizontally(targetOffsetX = { 1000 }, animationSpec = tween(400)) + fadeOut(animationSpec = tween(400))
+        }
+    ) {
         composable("splash") {
             SplashScreen(navController = navController)
         }
@@ -62,8 +86,14 @@ fun AppNavigation(isDark: Boolean, onThemeChange: (Boolean) -> Unit) {
         composable("hod_manage") {
             HODManageScreen(navController = navController)
         }
+        composable("faculty_list") {
+            FacultyListScreen(navController = navController)
+        }
         composable("send_notification") {
             SendNotificationScreen(navController = navController)
+        }
+        composable("leave_management") {
+            LeaveManagementScreen(navController = navController)
         }
         composable(
             route = "start_session?subject_id={subject_id}&classroom_id={classroom_id}&subject_name={subject_name}&room_name={room_name}",

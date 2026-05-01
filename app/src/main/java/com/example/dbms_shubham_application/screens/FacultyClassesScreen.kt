@@ -31,6 +31,9 @@ import com.example.dbms_shubham_application.data.model.ScheduleRecord
 import com.example.dbms_shubham_application.data.model.Subject
 import com.example.dbms_shubham_application.network.RetrofitClient
 import com.example.dbms_shubham_application.ui.components.EditScheduleDialog
+import com.example.dbms_shubham_application.ui.components.DashboardStatShimmer
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -65,16 +68,15 @@ fun FacultyClassesScreen(navController: NavController) {
         scope.launch {
             isLoading = true
             try {
-                val response = RetrofitClient.apiService.getFacultySchedule(facultyId, day)
-                if (response.isSuccessful) {
-                    schedule = response.body() ?: emptyList()
+                coroutineScope {
+                    val scheduleDeferred = async { RetrofitClient.apiService.getFacultySchedule(facultyId, day) }
+                    val subjectsDeferred = async { RetrofitClient.apiService.getFacultySubjects(facultyId) }
+                    val classroomsDeferred = async { RetrofitClient.apiService.getClassrooms() }
+
+                    scheduleDeferred.await().let { if (it.isSuccessful) schedule = it.body() ?: emptyList() }
+                    subjectsDeferred.await().let { if (it.isSuccessful) subjects = it.body() ?: emptyList() }
+                    classroomsDeferred.await().let { if (it.isSuccessful) classrooms = it.body() ?: emptyList() }
                 }
-
-                val subRes = RetrofitClient.apiService.getFacultySubjects(facultyId)
-                if (subRes.isSuccessful) subjects = subRes.body() ?: emptyList()
-
-                val roomRes = RetrofitClient.apiService.getClassrooms()
-                if (roomRes.isSuccessful) classrooms = roomRes.body() ?: emptyList()
             } catch (e: Exception) {
                 Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
             } finally {
@@ -179,8 +181,11 @@ fun FacultyClassesScreen(navController: NavController) {
             }
 
             if (isLoading) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = colorScheme.primary)
+                Column(
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    repeat(3) { DashboardStatShimmer() }
                 }
             } else if (schedule.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -251,71 +256,68 @@ fun ScheduleCard(item: ScheduleRecord, onStart: () -> Unit, onEdit: () -> Unit, 
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, colorScheme.outline.copy(alpha = 0.1f), RoundedCornerShape(24.dp)),
-        colors = CardDefaults.cardColors(containerColor = colorScheme.surface.copy(alpha = 0.7f)),
-        shape = RoundedCornerShape(24.dp)
+            .border(1.dp, colorScheme.outline.copy(alpha = 0.1f), RoundedCornerShape(32.dp)),
+        colors = CardDefaults.cardColors(containerColor = colorScheme.surface),
+        shape = RoundedCornerShape(32.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Column(modifier = Modifier.padding(20.dp)) {
+        Column(modifier = Modifier.padding(24.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Schedule, null, tint = colorScheme.primary, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(item.time, color = colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Surface(
+                    color = colorScheme.primary.copy(alpha = 0.1f),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.Schedule, null, tint = colorScheme.primary, modifier = Modifier.size(14.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(item.time, color = colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                    }
                 }
                 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = onEdit, modifier = Modifier.size(32.dp)) {
-                        Icon(Icons.Default.Edit, "Edit", tint = colorScheme.onSurface.copy(alpha = 0.6f), modifier = Modifier.size(16.dp))
+                Row {
+                    IconButton(onClick = onEdit, modifier = Modifier.size(36.dp).background(colorScheme.surface, CircleShape).border(1.dp, colorScheme.outline.copy(alpha = 0.2f), CircleShape)) {
+                        Icon(Icons.Default.Edit, "Edit", tint = colorScheme.primary, modifier = Modifier.size(16.dp))
                     }
-                    IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
+                    Spacer(Modifier.width(8.dp))
+                    IconButton(onClick = onDelete, modifier = Modifier.size(36.dp).background(colorScheme.error.copy(alpha = 0.1f), CircleShape)) {
                         Icon(Icons.Default.Delete, "Delete", tint = colorScheme.error, modifier = Modifier.size(16.dp))
                     }
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Box(
-                        modifier = Modifier
-                            .background(colorScheme.primary.copy(alpha = 0.1f), RoundedCornerShape(10.dp))
-                            .border(1.dp, colorScheme.primary.copy(alpha = 0.2f), RoundedCornerShape(10.dp))
-                            .padding(horizontal = 10.dp, vertical = 6.dp)
-                    ) {
-                        Text(item.room, color = colorScheme.primary, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold)
-                    }
                 }
             }
             
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(20.dp))
             
-            Text(item.subject, color = colorScheme.onSurface, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+            Text(item.subject, color = colorScheme.onSurface, fontWeight = FontWeight.Black, fontSize = 22.sp, lineHeight = 28.sp)
             
-            if (!item.subject_code.isNullOrEmpty()) {
-                Text(item.subject_code, color = colorScheme.onSurface.copy(alpha = 0.6f), fontSize = 12.sp, modifier = Modifier.padding(top = 2.dp))
-            }
-            
-            if (!item.branch.isNullOrEmpty()) {
-                Row(
-                    modifier = Modifier.padding(top = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(Icons.Default.Group, null, tint = colorScheme.onSurface.copy(alpha = 0.6f), modifier = Modifier.size(14.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("${item.branch} • ${item.year}", color = colorScheme.onSurface.copy(alpha = 0.6f), fontSize = 12.sp)
-                }
+            Row(modifier = Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Default.LocationOn, null, tint = Color.Gray, modifier = Modifier.size(14.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(item.room, color = Color.Gray, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                Spacer(modifier = Modifier.width(16.dp))
+                Icon(Icons.Default.Group, null, tint = Color.Gray, modifier = Modifier.size(14.dp))
+                Spacer(modifier = Modifier.width(4.dp))
+                Text("${item.branch} • ${item.year}", color = Color.Gray, fontSize = 14.sp)
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(28.dp))
 
             Button(
                 onClick = onStart,
-                modifier = Modifier.fillMaxWidth().height(50.dp),
+                modifier = Modifier.fillMaxWidth().height(56.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = colorScheme.primary),
-                shape = RoundedCornerShape(16.dp)
+                shape = RoundedCornerShape(16.dp),
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
             ) {
-                Icon(Icons.Default.PlayArrow, null, modifier = Modifier.size(20.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Start This Session", fontWeight = FontWeight.Bold)
+                Icon(Icons.Default.QrCode, null, modifier = Modifier.size(20.dp))
+                Spacer(modifier = Modifier.width(12.dp))
+                Text("Launch Attendance QR", fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
             }
         }
     }

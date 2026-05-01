@@ -21,7 +21,7 @@ android {
     buildTypes {
         debug {
             resValue("string", "app_name", "AttendX (Local)")
-            buildConfigField("String", "BASE_URL", "\"http://10.188.246.244:8000/\"")
+            buildConfigField("String", "BASE_URL", "\"http://172.23.148.244:8000/\"")
         }
         release {
             isMinifyEnabled = true
@@ -31,6 +31,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // Updated to use the correct Render URL without typos
             buildConfigField("String", "BASE_URL", "\"https://sd-backend-attenedence-app.onrender.com/\"")
             signingConfig = signingConfigs.getByName("debug")
         }

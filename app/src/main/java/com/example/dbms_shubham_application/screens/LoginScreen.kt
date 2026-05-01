@@ -120,6 +120,7 @@ fun LoginScreen(navController: NavController, role: String) {
                 value = username,
                 onValueChange = { username = it },
                 label = "Username / ID",
+                placeholder = "e.g. 2021001 or name@college.edu",
                 icon = Icons.Default.AlternateEmail,
                 keyboardType = KeyboardType.Text,
                 colors = primaryColor to outlineColor,

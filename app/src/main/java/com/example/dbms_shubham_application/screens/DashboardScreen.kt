@@ -17,6 +17,8 @@ import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -36,6 +38,8 @@ import com.example.dbms_shubham_application.data.model.AttendanceRecord
 import com.example.dbms_shubham_application.data.model.FacultySessionRecord
 import com.example.dbms_shubham_application.data.model.ScheduleRecord
 import com.example.dbms_shubham_application.network.RetrofitClient
+import com.example.dbms_shubham_application.ui.components.DashboardShimmer
+import com.example.dbms_shubham_application.ui.components.shimmerEffect
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import java.util.Calendar
@@ -43,6 +47,7 @@ import java.util.Calendar
 // --- MODERN GLASSMORPHIC PALETTE ---
 // Removed hardcoded colors, using MaterialTheme.colorScheme instead
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(navController: NavController, role: String) {
     val context = LocalContext.current
@@ -74,52 +79,44 @@ fun DashboardScreen(navController: NavController, role: String) {
 
     var userProfile by remember { mutableStateOf<com.example.dbms_shubham_application.data.model.UserProfile?>(null) }
     
+    // Use a key for refreshing
+    var refreshCount by remember { mutableIntStateOf(0) }
+
     // --- CONNECTION LOGIC (UPDATED) ---
-    LaunchedEffect(userId, normalizedRole) {
+    LaunchedEffect(userId, normalizedRole, refreshCount) {
         if (userId.isNotEmpty()) {
             try {
                 coroutineScope {
-                    // Fetch user profile for branch/year details
-                    val profileRes = RetrofitClient.apiService.getUserProfile(userId)
-                    if (profileRes.isSuccessful) userProfile = profileRes.body()
-
-                    if (normalizedRole == "student") {
-                        val historyJob = async { RetrofitClient.apiService.getAttendanceHistory(userId) }
-                        val scheduleJob = async { RetrofitClient.apiService.getStudentSchedule(userId, currentDay) }
-                        val notifJob = async { RetrofitClient.apiService.getNotifications(userId) }
-                        
-                        val historyRes = historyJob.await()
-                        if (historyRes.isSuccessful) studentHistory = historyRes.body() ?: emptyList()
-                        
-                        val scheduleRes = scheduleJob.await()
-                        if (scheduleRes.isSuccessful) todaySchedule = scheduleRes.body() ?: emptyList()
-
-                        val notifRes = notifJob.await()
-                        if (notifRes.isSuccessful) {
-                            unreadNotificationsCount = notifRes.body()?.count { !it.is_read } ?: 0
-                        }
-                    } else if (normalizedRole == "faculty") {
-                        val sessionsJob = async { RetrofitClient.apiService.getFacultySessions(userId) }
-                        val scheduleJob = async { RetrofitClient.apiService.getFacultySchedule(userId, currentDay) }
-                        val notifJob = async { RetrofitClient.apiService.getNotifications(userId) }
-                        
-                        val sessionsRes = sessionsJob.await()
-                        if (sessionsRes.isSuccessful) facultySessions = sessionsRes.body() ?: emptyList()
-                        
-                        val scheduleRes = scheduleJob.await()
-                        if (scheduleRes.isSuccessful) todaySchedule = scheduleRes.body() ?: emptyList()
-
-                        val notifRes = notifJob.await()
-                        if (notifRes.isSuccessful) {
-                            unreadNotificationsCount = notifRes.body()?.count { !it.is_read } ?: 0
-                        }
-                    } else if (normalizedRole == "hod") {
-                         val notifJob = async { RetrofitClient.apiService.getNotifications(userId) }
-                         val notifRes = notifJob.await()
-                         if (notifRes.isSuccessful) {
-                            unreadNotificationsCount = notifRes.body()?.count { !it.is_read } ?: 0
-                         }
+                    // Start fetching data in parallel
+                    val profileDeferred = async { RetrofitClient.apiService.getUserProfile(userId) }
+                    val notifDeferred = async { RetrofitClient.apiService.getNotifications(userId) }
+                    
+                    val (historyDeferred, scheduleDeferred, sessionsDeferred) = when (normalizedRole) {
+                        "student" -> Triple(
+                            async { RetrofitClient.apiService.getAttendanceHistory(userId) },
+                            async { RetrofitClient.apiService.getStudentSchedule(userId, currentDay) },
+                            null
+                        )
+                        "faculty" -> Triple(
+                            null,
+                            async { RetrofitClient.apiService.getFacultySchedule(userId, currentDay) },
+                            async { RetrofitClient.apiService.getFacultySessions(userId) }
+                        )
+                        else -> Triple(null, null, null)
                     }
+
+                    // Await profile
+                    profileDeferred.await().let { if (it.isSuccessful) userProfile = it.body() }
+                    
+                    // Await notifications
+                    notifDeferred.await().let { 
+                        if (it.isSuccessful) unreadNotificationsCount = it.body()?.count { n -> !n.is_read } ?: 0
+                    }
+
+                    // Await role-specific data
+                    historyDeferred?.await()?.let { if (it.isSuccessful) studentHistory = it.body() ?: emptyList() }
+                    scheduleDeferred?.await()?.let { if (it.isSuccessful) todaySchedule = it.body() ?: emptyList() }
+                    sessionsDeferred?.await()?.let { if (it.isSuccessful) facultySessions = it.body() ?: emptyList() }
                 }
             } catch (e: Exception) {
                 Log.e("DashboardScreen", "Error fetching dashboard data", e)
@@ -135,11 +132,16 @@ fun DashboardScreen(navController: NavController, role: String) {
         bottomBar = { BottomNavBar(navController, role) },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
-        Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
-            if (isLoading) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary, strokeWidth = 3.dp)
-                }
+        PullToRefreshBox(
+            isRefreshing = isLoading && refreshCount > 0,
+            onRefresh = { 
+                isLoading = true
+                refreshCount++
+            },
+            modifier = Modifier.fillMaxSize().padding(innerPadding)
+        ) {
+            if (isLoading && refreshCount == 0) {
+                DashboardShimmer()
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
@@ -178,9 +180,9 @@ fun DashboardScreen(navController: NavController, role: String) {
                     // Stats Section
                     item {
                         if (normalizedRole == "student") {
-                            StudentStatsRow(studentHistory)
+                            StudentStatsRow(studentHistory, isLoading)
                         } else {
-                            FacultyStatsRow(facultySessions, todaySchedule)
+                            FacultyStatsRow(facultySessions, todaySchedule, isLoading)
                         }
                     }
 
@@ -304,55 +306,149 @@ fun HeaderSection(navController: NavController, unreadCount: Int) {
 
 @Composable
 fun GreetingSection(role: String, name: String, subtext: String, modifier: Modifier = Modifier) {
-    Column(modifier = modifier) {
-        Text(
-            text = "Hello,",
-            fontSize = 16.sp,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-            fontWeight = FontWeight.Medium
-        )
-        Text(
-            text = name,
-            fontSize = 24.sp,
-            fontWeight = FontWeight.ExtraBold,
-            color = MaterialTheme.colorScheme.onBackground,
-            letterSpacing = (-0.5).sp
-        )
-        Spacer(modifier = Modifier.height(6.dp))
-        Surface(
-            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-            shape = RoundedCornerShape(8.dp),
-            modifier = Modifier.wrapContentSize()
-        ) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = subtext,
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                text = "Welcome back,",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
             )
+            Text(
+                text = name,
+                style = MaterialTheme.typography.headlineMedium.copy(
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = (-0.5).sp
+                ),
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Surface(
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = if (role == "student") Icons.Default.School else Icons.Default.Badge,
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = subtext,
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+        }
+        
+        // Premium Dynamic Role Badge
+        Box(
+            modifier = Modifier
+                .size(64.dp)
+                .clip(RoundedCornerShape(20.dp))
+                .background(
+                    Brush.linearGradient(
+                        listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.tertiary)
+                    )
+                )
+                .padding(2.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(MaterialTheme.colorScheme.surface)
+                    .padding(8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = role.take(1).uppercase(),
+                    style = MaterialTheme.typography.headlineSmall.copy(
+                        fontWeight = FontWeight.Black,
+                        brush = Brush.linearGradient(
+                            listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.tertiary)
+                        )
+                    )
+                )
+            }
         }
     }
 }
 
 @Composable
-fun StudentStatsRow(history: List<AttendanceRecord>) {
+fun StudentStatsRow(history: List<AttendanceRecord>, isLoading: Boolean = false) {
     val total = history.size
     val present = history.count { it.status.lowercase() == "present" }
-    val percentage = if (total > 0) (present.toDouble() / total * 100) else 0.0
-    val formattedPercent = "%.1f%%".format(percentage)
+    val percentage = if (total > 0) (present.toDouble() / total) else 0.0
+    val displayPercent = (percentage * 100).toInt()
 
     Column(modifier = Modifier.padding(horizontal = 24.dp)) {
-        Text("Your Progress", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+        Text("Attendance Health", style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold))
         Spacer(modifier = Modifier.height(16.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(if (isLoading) Modifier.shimmerEffect() else Modifier),
+            shape = RoundedCornerShape(32.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.1f)),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
         ) {
-            ModernStatCard("Overall", formattedPercent, if (percentage >= 75) "Stable" else "At Risk", if (percentage >= 75) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error, Modifier.weight(1.2f))
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                SmallStatCard("Present", present.toString(), MaterialTheme.colorScheme.primary)
-                SmallStatCard("Missed", (total - present).toString(), MaterialTheme.colorScheme.secondary)
+            Box(modifier = Modifier.background(
+                Brush.linearGradient(
+                    listOf(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f), Color.Transparent)
+                )
+            )) {
+                Row(
+                    modifier = Modifier.padding(24.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(
+                            progress = { percentage.toFloat() },
+                            modifier = Modifier.size(85.dp),
+                            color = if (percentage >= 0.75) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                            strokeWidth = 10.dp,
+                            trackColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                            strokeCap = androidx.compose.ui.graphics.StrokeCap.Round
+                        )
+                        Text(
+                            text = "$displayPercent%",
+                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Black)
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.width(24.dp))
+                    
+                    Column {
+                        Text(
+                            text = if (percentage >= 0.75) "Looking Great!" else "Attention Needed",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                        )
+                        Text(
+                            text = "You have attended $present out of $total sessions.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        LinearProgressIndicator(
+                            progress = { (present.toFloat() / (total.coerceAtLeast(1))) },
+                            modifier = Modifier.fillMaxWidth().height(8.dp).clip(CircleShape),
+                            color = if (percentage >= 0.75) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                            trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)
+                        )
+                    }
+                }
             }
         }
     }
@@ -381,17 +477,55 @@ fun SmallStatCard(title: String, value: String, color: Color) {
 }
 
 @Composable
-fun FacultyStatsRow(sessions: List<FacultySessionRecord>, schedule: List<ScheduleRecord>) {
+fun FacultyStatsRow(sessions: List<FacultySessionRecord>, schedule: List<ScheduleRecord>, isLoading: Boolean = false) {
+    val totalSessions = sessions.size
+    val todayClasses = schedule.size
+    
     Column(modifier = Modifier.padding(horizontal = 24.dp)) {
-        Text("Daily Overview", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+        Text("Teaching Overview", style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold))
         Spacer(modifier = Modifier.height(16.dp))
+        
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            ModernStatCard("Today", schedule.size.toString(), "Classes", MaterialTheme.colorScheme.primary, Modifier.weight(1f))
-            ModernStatCard("Total", sessions.size.toString(), "Sessions", MaterialTheme.colorScheme.secondary, Modifier.weight(1f))
-            ModernStatCard("Alerts", "0", "Students", MaterialTheme.colorScheme.error, Modifier.weight(1f))
+            // Today's Load Card
+            Card(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(120.dp)
+                    .then(if (isLoading) Modifier.shimmerEffect() else Modifier),
+                shape = RoundedCornerShape(28.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f))
+            ) {
+                if (!isLoading) {
+                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.Center) {
+                        Icon(Icons.Default.AutoGraph, null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(todayClasses.toString(), style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Black))
+                        Text("Classes Today", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f))
+                    }
+                }
+            }
+            
+            // Monthly Impact Card
+            Card(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(120.dp)
+                    .then(if (isLoading) Modifier.shimmerEffect() else Modifier),
+                shape = RoundedCornerShape(28.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f))
+            ) {
+                if (!isLoading) {
+                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.Center) {
+                        Icon(Icons.Default.People, null, tint = MaterialTheme.colorScheme.tertiary, modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(totalSessions.toString(), style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Black))
+                        Text("Total Sessions", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f))
+                    }
+                }
+            }
         }
     }
 }
@@ -439,8 +573,8 @@ fun QuickActionsSection(navController: NavController, modifier: Modifier = Modif
             ModernActionItem("History", Icons.Default.History, MaterialTheme.colorScheme.secondary, Modifier.weight(1f)) {
                 navController.navigate("attendance_history")
             }
-            ModernActionItem("Resources", Icons.AutoMirrored.Filled.LibraryBooks, MaterialTheme.colorScheme.tertiary, Modifier.weight(1f)) {
-                /* TODO */
+            ModernActionItem("Leaves", Icons.Default.EventNote, MaterialTheme.colorScheme.tertiary, Modifier.weight(1f)) {
+                navController.navigate("leave_management")
             }
         }
     }
@@ -449,39 +583,67 @@ fun QuickActionsSection(navController: NavController, modifier: Modifier = Modif
 @Composable
 fun FacultyManagementSection(navController: NavController, modifier: Modifier = Modifier) {
     Column(modifier = modifier) {
-        Text("Management", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+        Text("Management Hub", style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold))
         Spacer(modifier = Modifier.height(16.dp))
         
-        // Single prominent Start Session action as requested
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { navController.navigate("start_session") },
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
-            ),
-            shape = RoundedCornerShape(24.dp),
-            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
-        ) {
-            Row(
-                modifier = Modifier.padding(20.dp),
-                verticalAlignment = Alignment.CenterVertically
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            // Start Session Action - Premium Gradient
+            Surface(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(180.dp)
+                    .clickable { navController.navigate("start_session") },
+                shape = RoundedCornerShape(32.dp),
+                color = MaterialTheme.colorScheme.primary,
+                shadowElevation = 12.dp
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(52.dp)
-                        .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(16.dp)),
-                    contentAlignment = Alignment.Center
+                Box(modifier = Modifier.background(
+                    Brush.verticalGradient(listOf(Color.White.copy(alpha = 0.25f), Color.Transparent))
+                )) {
+                    Column(
+                        modifier = Modifier.padding(24.dp).fillMaxSize(),
+                        verticalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Box(
+                            modifier = Modifier.size(52.dp).background(Color.White.copy(alpha = 0.2f), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.Add, null, tint = Color.White, modifier = Modifier.size(34.dp))
+                        }
+                        Column {
+                            Text("New Session", fontWeight = FontWeight.ExtraBold, color = Color.White, fontSize = 20.sp)
+                            Text("Start live QR class", color = Color.White.copy(alpha = 0.8f), fontSize = 13.sp)
+                        }
+                    }
+                }
+            }
+
+            // Reports Action - Sophisticated Look
+            Surface(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(180.dp)
+                    .clickable { navController.navigate("reports") },
+                shape = RoundedCornerShape(32.dp),
+                color = MaterialTheme.colorScheme.surface,
+                border = androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.outlineVariant),
+                shadowElevation = 2.dp
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp).fillMaxSize(),
+                    verticalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Icon(Icons.Default.AddCircle, null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(28.dp))
+                    Box(
+                        modifier = Modifier.size(52.dp).background(MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.Assessment, null, tint = MaterialTheme.colorScheme.secondary, modifier = Modifier.size(26.dp))
+                    }
+                    Column {
+                        Text("Reports", fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.onSurface, fontSize = 20.sp)
+                        Text("Analytics & PDF", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), fontSize = 13.sp)
+                    }
                 }
-                Spacer(modifier = Modifier.width(16.dp))
-                Column {
-                    Text("Start New Session", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                    Text("Begin tracking attendance now", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
-                }
-                Spacer(modifier = Modifier.weight(1f))
-                Icon(Icons.AutoMirrored.Filled.ArrowForward, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
             }
         }
     }
@@ -511,7 +673,8 @@ fun ModernActionItem(label: String, icon: ImageVector, color: Color, modifier: M
         modifier = modifier.clickable { onClick() },
         color = MaterialTheme.colorScheme.surface,
         shape = RoundedCornerShape(24.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f))
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.1f)),
+        shadowElevation = 2.dp
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -519,11 +682,11 @@ fun ModernActionItem(label: String, icon: ImageVector, color: Color, modifier: M
         ) {
             Box(
                 modifier = Modifier
-                    .size(48.dp)
-                    .background(color.copy(alpha = 0.1f), CircleShape),
+                    .size(52.dp)
+                    .background(color.copy(alpha = 0.12f), CircleShape),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(icon, null, tint = color, modifier = Modifier.size(24.dp))
+                Icon(icon, null, tint = color, modifier = Modifier.size(26.dp))
             }
             Spacer(modifier = Modifier.height(12.dp))
             Text(label, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)

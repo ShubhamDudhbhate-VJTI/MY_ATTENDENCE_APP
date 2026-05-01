@@ -3,6 +3,7 @@ package com.example.dbms_shubham_application.screens
 import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -69,7 +70,13 @@ fun HODManageScreen(navController: NavController) {
             }
 
             items(manageItems) { action ->
-                ManageCard(action)
+                ManageCard(action) {
+                    when(action.title) {
+                        "Faculty Members" -> navController.navigate("faculty_list")
+                        "Course Schedules" -> navController.navigate("manage_schedule")
+                        "Academic Records" -> navController.navigate("hod_analytics")
+                    }
+                }
             }
             
             item {
@@ -97,10 +104,10 @@ fun HODManageScreen(navController: NavController) {
 data class ManageAction(val title: String, val description: String, val icon: ImageVector, val color: Color)
 
 @Composable
-fun ManageCard(action: ManageAction) {
+fun ManageCard(action: ManageAction, onClick: () -> Unit = {}) {
     val colorScheme = MaterialTheme.colorScheme
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().clickable { onClick() },
         colors = CardDefaults.cardColors(containerColor = colorScheme.surface),
         shape = RoundedCornerShape(20.dp),
         border = androidx.compose.foundation.BorderStroke(1.dp, colorScheme.outline.copy(alpha = 0.2f))
