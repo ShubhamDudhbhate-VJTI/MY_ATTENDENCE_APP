@@ -4,6 +4,8 @@ import android.graphics.Bitmap
 import android.graphics.Color as AndroidColor
 import android.util.Log
 import android.widget.Toast
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -257,218 +259,231 @@ fun StartSessionScreen(
         containerColor = colorScheme.background
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
-            if (showReport && sessionReport != null) {
-                ModernSessionSummaryView(
-                    report = sessionReport!!,
-                    onDownload = { downloadSessionReport(sessionReport!!.session_id) },
-                    onDismiss = { 
-                        showReport = false
-                        sessionStarted = false
-                        sessionId = ""
-                        // Force navigate to reports and clear stack to ensure fresh entry is visible
-                        navController.navigate("reports") {
-                            popUpTo("dashboard") { inclusive = false }
+            AnimatedContent(
+                targetState = when {
+                    showReport && sessionReport != null -> 2
+                    sessionStarted -> 1
+                    else -> 0
+                },
+                transitionSpec = {
+                    fadeIn(tween(600)) togetherWith fadeOut(tween(600))
+                },
+                label = "session_state_transition"
+            ) { state ->
+                when (state) {
+                    2 -> ModernSessionSummaryView(
+                        report = sessionReport!!,
+                        onDownload = { downloadSessionReport(sessionReport!!.session_id) },
+                        onDismiss = {
+                            showReport = false
+                            sessionStarted = false
+                            sessionId = ""
+                            navController.navigate("reports") {
+                                popUpTo("dashboard") { inclusive = false }
+                            }
                         }
-                    }
-                )
-            } else if (!sessionStarted) {
-                if (isLoadingInfo) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = colorScheme.primary, strokeWidth = 3.dp)
-                    }
-                } else {
-                    LazyColumn(
+                    )
+                    1 -> Column(
                         modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(20.dp),
-                        contentPadding = PaddingValues(vertical = 20.dp)
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        item {
-                            // Smart Schedule Matcher
-                            Card(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        scope.launch {
-                                            try {
-                                                val currentDay = DateTimeUtils.getCurrentDayName()
-                                                val facultyId = SessionManager(context).getUserId() ?: ""
-                                                val res = RetrofitClient.apiService.getFacultySchedule(facultyId, currentDay)
-                                                if (res.isSuccessful) {
-                                                    val todaySchedule = res.body() ?: emptyList()
-                                                    val currentMinutesSinceMidnight = DateTimeUtils.getCurrentMinutesSinceMidnight()
-                                                    
-                                                    val currentClass = todaySchedule.find { record ->
-                                                        try {
-                                                            val times = record.time.split("-")
-                                                            if (times.size == 2) {
-                                                                val startMins = DateTimeUtils.parseTimeToMinutes(times[0])
-                                                                val endMins = DateTimeUtils.parseTimeToMinutes(times[1])
-                                                                
-                                                                currentMinutesSinceMidnight in startMins..endMins
-                                                            } else false
-                                                        } catch (e: Exception) { false }
-                                                    } ?: todaySchedule.firstOrNull()
+                        ActiveSessionHeader(selectedSubject?.name ?: "Class", classroomDisplay, timeLeft)
+                        
+                        Spacer(modifier = Modifier.height(24.dp))
 
-                                                    currentClass?.let { record ->
-                                                        selectedClassroom = classrooms.find { it.id == record.classroom_id || it.name == record.room }
-                                                        selectedSubject = subjects.find { it.id == record.subject_id || it.name == record.subject }
-                                                        Toast.makeText(context, "Matched: ${record.subject} in ${record.room}", Toast.LENGTH_SHORT).show()
-                                                    } ?: Toast.makeText(context, "No active class found in schedule", Toast.LENGTH_SHORT).show()
-                                                }
-                                            } catch (e: Exception) {
-                                                Toast.makeText(context, "Failed to sync schedule", Toast.LENGTH_SHORT).show()
-                                            }
-                                        }
-                                    },
-                                shape = RoundedCornerShape(24.dp),
-                                colors = CardDefaults.cardColors(containerColor = colorScheme.primary.copy(alpha = 0.08f)),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, colorScheme.primary.copy(alpha = 0.1f))
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(20.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Box(
-                                        modifier = Modifier.size(48.dp).background(colorScheme.primary.copy(alpha = 0.15f), CircleShape),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(Icons.Default.AutoFixHigh, null, tint = colorScheme.primary, modifier = Modifier.size(24.dp))
-                                    }
-                                    Spacer(Modifier.width(16.dp))
-                                    Column {
-                                        Text("Academic Context", color = colorScheme.onBackground, fontWeight = FontWeight.Black, fontSize = 16.sp)
-                                        Text("Sync with timetable", color = colorScheme.primary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                    }
-                                    Spacer(Modifier.weight(1f))
-                                    Icon(Icons.Default.ChevronRight, null, tint = colorScheme.primary.copy(alpha = 0.5f))
-                                }
-                            }
-                        }
-
-                        item {
-                            Text(
-                                "Configuration",
-                                modifier = Modifier.fillMaxWidth().padding(start = 4.dp),
-                                color = colorScheme.onBackground,
-                                fontWeight = FontWeight.Black,
-                                fontSize = 18.sp
-                            )
-                        }
-
-                        item {
-                            ModernDropdown(
-                                label = "Classroom Location",
-                                selected = selectedClassroom?.name ?: "Select Classroom",
-                                expanded = classroomExpanded,
-                                items = classrooms,
-                                onExpandedChange = { classroomExpanded = it },
-                                onSelect = { selectedClassroom = it; classroomExpanded = false },
-                                icon = Icons.Default.LocationOn
-                            )
-                        }
-
-                        item {
-                            ModernDropdown(
-                                label = "Teaching Subject",
-                                selected = selectedSubject?.name ?: "Select Subject",
-                                expanded = subjectExpanded,
-                                items = subjects,
-                                onExpandedChange = { subjectExpanded = it },
-                                onSelect = { selectedSubject = it; subjectExpanded = false },
-                                icon = Icons.Default.MenuBook
-                            )
-                        }
-
-                        item {
-                            Spacer(Modifier.height(12.dp))
-                            Button(
-                                onClick = { startSessionOnServer() },
-                                modifier = Modifier.fillMaxWidth().height(60.dp),
-                                shape = RoundedCornerShape(20.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = colorScheme.primary),
-                                enabled = !isStarting && selectedClassroom != null && selectedSubject != null
-                            ) {
-                                if (isStarting) {
-                                    CircularProgressIndicator(color = colorScheme.onPrimary, modifier = Modifier.size(24.dp), strokeWidth = 3.dp)
-                                } else {
-                                    Text("Initialize Secure Channel", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
-                                }
-                            }
-                        }
-                    }
-                }
-            } else {
-                // Active Session View
-                Column(
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    ActiveSessionHeader(selectedSubject?.name ?: "Class", classroomDisplay, timeLeft)
-                    
-                    Spacer(modifier = Modifier.height(24.dp))
-
-                    // Polished QR Container
-                    Box(
-                        modifier = Modifier
-                            .size(280.dp)
-                            .shadow(24.dp, RoundedCornerShape(32.dp), spotColor = colorScheme.primary)
-                            .background(Color.White, RoundedCornerShape(32.dp))
-                            .border(8.dp, Color.White, RoundedCornerShape(32.dp))
-                            .padding(24.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        qrBitmap?.let {
-                            Image(
-                                bitmap = it.asImageBitmap(),
-                                contentDescription = "QR",
-                                modifier = Modifier.fillMaxSize()
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(32.dp))
-
-                    // Live Attendance Header
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column {
-                            Text("Real-time Intelligence", color = colorScheme.onBackground, fontWeight = FontWeight.Black, fontSize = 18.sp)
-                            Text("${attendanceList.size} students verified", color = colorScheme.primary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                        }
-                        IconButton(
-                            onClick = { fetchAttendance() },
-                            modifier = Modifier.background(colorScheme.surface, CircleShape).border(1.dp, colorScheme.outline.copy(alpha = 0.1f), CircleShape)
+                        Box(
+                            modifier = Modifier
+                                .size(280.dp)
+                                .shadow(24.dp, RoundedCornerShape(32.dp), spotColor = colorScheme.primary)
+                                .background(Color.White, RoundedCornerShape(32.dp))
+                                .border(8.dp, Color.White, RoundedCornerShape(32.dp))
+                                .padding(24.dp),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Icon(Icons.Default.Refresh, null, tint = colorScheme.primary, modifier = Modifier.size(20.dp))
+                            qrBitmap?.let {
+                                Image(
+                                    bitmap = it.asImageBitmap(),
+                                    contentDescription = "QR",
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
                         }
-                    }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(32.dp))
 
-                    LazyColumn(
-                        modifier = Modifier.weight(1f).fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                        contentPadding = PaddingValues(bottom = 100.dp)
-                    ) {
-                        if (attendanceList.isEmpty()) {
-                            item {
-                                Box(modifier = Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
-                                    Text("Waiting for authentication scans...", color = colorScheme.onBackground.copy(alpha = 0.5f), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text("Real-time Intelligence", color = colorScheme.onBackground, fontWeight = FontWeight.Black, fontSize = 18.sp)
+                                Text("${attendanceList.size} students verified", color = colorScheme.primary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                            }
+                            IconButton(
+                                onClick = { fetchAttendance() },
+                                modifier = Modifier.background(colorScheme.surface, CircleShape).border(1.dp, colorScheme.outline.copy(alpha = 0.1f), CircleShape)
+                            ) {
+                                Icon(Icons.Default.Refresh, null, tint = colorScheme.primary, modifier = Modifier.size(20.dp))
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        LazyColumn(
+                            modifier = Modifier.weight(1f).fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                            contentPadding = PaddingValues(bottom = 100.dp)
+                        ) {
+                            if (attendanceList.isEmpty()) {
+                                item {
+                                    Box(modifier = Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
+                                        Text("Waiting for authentication scans...", color = colorScheme.onBackground.copy(alpha = 0.5f), fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            } else {
+                                items(attendanceList, key = { it.student_id }) { log ->
+                                    ModernAttendanceItem(log)
                                 }
                             }
-                        } else {
-                            items(attendanceList) { log ->
-                                ModernAttendanceItem(log)
+                        }
+                    }
+                    0 -> if (isLoadingInfo) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(color = colorScheme.primary, strokeWidth = 3.dp)
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(20.dp),
+                            contentPadding = PaddingValues(vertical = 20.dp)
+                        ) {
+                            item {
+                                var visible by remember { mutableStateOf(false) }
+                                LaunchedEffect(Unit) { visible = true }
+                                AnimatedVisibility(
+                                    visible = visible,
+                                    enter = fadeIn(tween(800)) + slideInVertically(tween(800)) { it / 4 }
+                                ) {
+                                    Card(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable {
+                                                scope.launch {
+                                                    try {
+                                                        val currentDay = DateTimeUtils.getCurrentDayName()
+                                                        val facultyId = SessionManager(context).getUserId() ?: ""
+                                                        val res = RetrofitClient.apiService.getFacultySchedule(facultyId, currentDay)
+                                                        if (res.isSuccessful) {
+                                                            val todaySchedule = res.body() ?: emptyList()
+                                                            val currentMinutesSinceMidnight = DateTimeUtils.getCurrentMinutesSinceMidnight()
+                                                            
+                                                            val currentClass = todaySchedule.find { record ->
+                                                                try {
+                                                                    val times = record.time.split("-")
+                                                                    if (times.size == 2) {
+                                                                        val startMins = DateTimeUtils.parseTimeToMinutes(times[0])
+                                                                        val endMins = DateTimeUtils.parseTimeToMinutes(times[1])
+                                                                        
+                                                                        currentMinutesSinceMidnight in startMins..endMins
+                                                                    } else false
+                                                                } catch (e: Exception) { false }
+                                                            } ?: todaySchedule.firstOrNull()
+
+                                                            currentClass?.let { record ->
+                                                                selectedClassroom = classrooms.find { it.id == record.classroom_id || it.name == record.room }
+                                                                selectedSubject = subjects.find { it.id == record.subject_id || it.name == record.subject }
+                                                                Toast.makeText(context, "Matched: ${record.subject} in ${record.room}", Toast.LENGTH_SHORT).show()
+                                                            } ?: Toast.makeText(context, "No active class found in schedule", Toast.LENGTH_SHORT).show()
+                                                        }
+                                                    } catch (e: Exception) {
+                                                        Toast.makeText(context, "Failed to sync schedule", Toast.LENGTH_SHORT).show()
+                                                    }
+                                                }
+                                            },
+                                        shape = RoundedCornerShape(24.dp),
+                                        colors = CardDefaults.cardColors(containerColor = colorScheme.primary.copy(alpha = 0.08f)),
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, colorScheme.primary.copy(alpha = 0.1f))
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(20.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Box(
+                                                modifier = Modifier.size(48.dp).background(colorScheme.primary.copy(alpha = 0.15f), CircleShape),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(Icons.Default.AutoFixHigh, null, tint = colorScheme.primary, modifier = Modifier.size(24.dp))
+                                            }
+                                            Spacer(Modifier.width(16.dp))
+                                            Column {
+                                                Text("Academic Context", color = colorScheme.onBackground, fontWeight = FontWeight.Black, fontSize = 16.sp)
+                                                Text("Sync with timetable", color = colorScheme.primary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                            }
+                                            Spacer(Modifier.weight(1f))
+                                            Icon(Icons.Default.ChevronRight, null, tint = colorScheme.primary.copy(alpha = 0.5f))
+                                        }
+                                    }
+                                }
+                            }
+
+                            item {
+                                Text(
+                                    "Configuration",
+                                    modifier = Modifier.fillMaxWidth().padding(start = 4.dp),
+                                    color = colorScheme.onBackground,
+                                    fontWeight = FontWeight.Black,
+                                    fontSize = 18.sp
+                                )
+                            }
+
+                            item {
+                                ModernDropdown(
+                                    label = "Classroom Location",
+                                    selected = selectedClassroom?.name ?: "Select Classroom",
+                                    expanded = classroomExpanded,
+                                    items = classrooms,
+                                    onExpandedChange = { classroomExpanded = it },
+                                    onSelect = { selectedClassroom = it; classroomExpanded = false },
+                                    icon = Icons.Default.LocationOn
+                                )
+                            }
+
+                            item {
+                                ModernDropdown(
+                                    label = "Teaching Subject",
+                                    selected = selectedSubject?.name ?: "Select Subject",
+                                    expanded = subjectExpanded,
+                                    items = subjects,
+                                    onExpandedChange = { subjectExpanded = it },
+                                    onSelect = { selectedSubject = it; subjectExpanded = false },
+                                    icon = Icons.Default.MenuBook
+                                )
+                            }
+
+                            item {
+                                Spacer(Modifier.height(12.dp))
+                                Button(
+                                    onClick = { startSessionOnServer() },
+                                    modifier = Modifier.fillMaxWidth().height(60.dp),
+                                    shape = RoundedCornerShape(20.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = colorScheme.primary),
+                                    enabled = !isStarting && selectedClassroom != null && selectedSubject != null
+                                ) {
+                                    if (isStarting) {
+                                        CircularProgressIndicator(color = colorScheme.onPrimary, modifier = Modifier.size(24.dp), strokeWidth = 3.dp)
+                                    } else {
+                                        Text("Initialize Secure Channel", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
+                                    }
+                                }
                             }
                         }
                     }
                 }
+            }
 
-                // Bottom Action Button
+            if (sessionStarted && !showReport) {
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
@@ -613,120 +628,194 @@ fun ModernSessionSummaryView(
 ) {
     val colorScheme = MaterialTheme.colorScheme
     var isDownloading by remember { mutableStateOf(false) }
+    var visible by remember { mutableStateOf(false) }
 
-    Column(
-        modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+    LaunchedEffect(Unit) {
+        visible = true
+    }
+
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn(tween(800)) + slideInVertically(tween(800)) { it / 4 }
     ) {
-        Card(
-            modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
-            colors = CardDefaults.cardColors(containerColor = colorScheme.surface),
-            shape = RoundedCornerShape(32.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-            border = androidx.compose.foundation.BorderStroke(1.dp, colorScheme.outline.copy(alpha = 0.1f))
+        Column(
+            modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Column(
-                modifier = Modifier.padding(32.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+                colors = CardDefaults.cardColors(containerColor = colorScheme.surface),
+                shape = RoundedCornerShape(32.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, colorScheme.outline.copy(alpha = 0.1f))
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(88.dp)
-                        .background(
-                            Brush.linearGradient(listOf(colorScheme.primary, colorScheme.secondary)),
-                            CircleShape
-                        ),
-                    contentAlignment = Alignment.Center
+                Column(
+                    modifier = Modifier.padding(32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Icon(Icons.Default.CheckCircle, null, tint = Color.White, modifier = Modifier.size(48.dp))
-                }
-                
-                Spacer(modifier = Modifier.height(24.dp))
-                
-                Text("Session Audited", color = colorScheme.onSurface, fontSize = 24.sp, fontWeight = FontWeight.Black)
-                Text(report.course_id ?: "Academic Record", color = colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                
-                Spacer(modifier = Modifier.height(32.dp))
-                
-                Row(
-                    modifier = Modifier.fillMaxWidth(), 
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    SummaryStat("Present", report.total_present.toString(), colorScheme.primary)
-                    VerticalDivider(modifier = Modifier.height(40.dp), color = colorScheme.outline.copy(alpha = 0.2f))
-                    SummaryStat("Success", "100%", Color(0xFF4CAF50))
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-        
-        OutlinedButton(
-            onClick = { 
-                isDownloading = true
-                onDownload()
-            },
-            modifier = Modifier.fillMaxWidth().height(60.dp),
-            shape = RoundedCornerShape(20.dp),
-            border = androidx.compose.foundation.BorderStroke(2.dp, colorScheme.primary),
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = colorScheme.primary)
-        ) {
-            Icon(Icons.Default.FileDownload, null)
-            Spacer(modifier = Modifier.width(12.dp))
-            Text("Secure PDF Report", fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-        
-        Text("Participant Intel", color = colorScheme.onBackground, fontWeight = FontWeight.Black, fontSize = 18.sp, modifier = Modifier.fillMaxWidth())
-        
-        LazyColumn(
-            modifier = Modifier.weight(1f).fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-            contentPadding = PaddingValues(vertical = 16.dp)
-        ) {
-            val studentList = report.students ?: emptyList()
-            if (studentList.isEmpty()) {
-                item {
-                    Box(modifier = Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
-                        Text("No participants recorded", color = colorScheme.onBackground.copy(alpha = 0.5f), fontWeight = FontWeight.Bold)
-                    }
-                }
-            } else {
-                items(studentList) { student ->
-                    Row(
+                    Box(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .background(colorScheme.surfaceVariant.copy(alpha = 0.2f), RoundedCornerShape(16.dp))
-                            .border(1.dp, colorScheme.outline.copy(alpha = 0.05f), RoundedCornerShape(16.dp))
-                            .padding(16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                            .size(88.dp)
+                            .background(
+                                Brush.linearGradient(listOf(colorScheme.primary, colorScheme.secondary)),
+                                CircleShape
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.CheckCircle, null, tint = Color.White, modifier = Modifier.size(48.dp))
+                    }
+                    
+                    Spacer(modifier = Modifier.height(24.dp))
+                    
+                    Text("Session Audited", color = colorScheme.onSurface, fontSize = 24.sp, fontWeight = FontWeight.Black)
+                    Text(report.course_id ?: "Academic Record", color = colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    
+                    Spacer(modifier = Modifier.height(32.dp))
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(), 
+                        horizontalArrangement = Arrangement.SpaceEvenly,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(modifier = Modifier.size(36.dp).background(colorScheme.primary.copy(alpha = 0.1f), CircleShape), contentAlignment = Alignment.Center) {
-                                Text(student.name?.firstOrNull()?.toString() ?: "?", color = colorScheme.primary, fontWeight = FontWeight.Black)
-                            }
-                            Spacer(Modifier.width(12.dp))
-                            Column {
-                                Text(student.name ?: "Unknown", color = colorScheme.onSurface, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                                Text(student.id ?: "---", color = colorScheme.onSurface.copy(alpha = 0.6f), fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                        Text(DateTimeUtils.formatTimeOnly(student.time), color = colorScheme.primary, fontWeight = FontWeight.Black, fontSize = 12.sp)
+                        SummaryStat("Present", report.total_present.toString(), colorScheme.primary)
+                        VerticalDivider(modifier = Modifier.height(40.dp), color = colorScheme.outline.copy(alpha = 0.2f))
+                        SummaryStat("Success", "100%", Color(0xFF4CAF50))
                     }
                 }
             }
-        }
 
-        Button(
-            onClick = onDismiss,
-            modifier = Modifier.fillMaxWidth().height(60.dp).padding(vertical = 8.dp),
-            shape = RoundedCornerShape(20.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = colorScheme.primary)
-        ) {
-            Text("Complete & Return", fontWeight = FontWeight.ExtraBold, color = colorScheme.onPrimary)
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            OutlinedButton(
+                onClick = { 
+                    isDownloading = true
+                    onDownload()
+                },
+                modifier = Modifier.fillMaxWidth().height(60.dp),
+                shape = RoundedCornerShape(20.dp),
+                border = androidx.compose.foundation.BorderStroke(2.dp, colorScheme.primary),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = colorScheme.primary)
+            ) {
+                Icon(Icons.Default.FileDownload, null)
+                Spacer(modifier = Modifier.width(12.dp))
+                Text("Secure PDF Report", fontWeight = FontWeight.ExtraBold, fontSize = 16.sp)
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            Text("Participant Intel", color = colorScheme.onBackground, fontWeight = FontWeight.Black, fontSize = 18.sp, modifier = Modifier.fillMaxWidth())
+            
+            var showManualEntry by remember { mutableStateOf(false) }
+            var manualStudentId by remember { mutableStateOf("") }
+            val scope = rememberCoroutineScope()
+            val context = LocalContext.current
+
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.End
+            ) {
+                TextButton(
+                    onClick = { showManualEntry = true },
+                    colors = ButtonDefaults.textButtonColors(contentColor = colorScheme.primary)
+                ) {
+                    Icon(Icons.Default.PersonAdd, null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Manual Entry", fontWeight = FontWeight.Bold)
+                }
+            }
+
+            if (showManualEntry) {
+                AlertDialog(
+                    onDismissRequest = { showManualEntry = false },
+                    title = { Text("Manual Attendance", fontWeight = FontWeight.Black) },
+                    text = {
+                        OutlinedTextField(
+                            value = manualStudentId,
+                            onValueChange = { manualStudentId = it },
+                            label = { Text("Student Roll Number") },
+                            placeholder = { Text("e.g. 210101") },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            singleLine = true
+                        )
+                    },
+                    confirmButton = {
+                        Button(onClick = {
+                            if (manualStudentId.isBlank()) return@Button
+                            scope.launch {
+                                try {
+                                    val response = RetrofitClient.apiService.addManualAttendance(mapOf(
+                                        "session_id" to report.session_id,
+                                        "student_id" to manualStudentId.trim()
+                                    ))
+                                    if (response.isSuccessful) {
+                                        Toast.makeText(context, "Attendance added", Toast.LENGTH_SHORT).show()
+                                        showManualEntry = false
+                                        manualStudentId = ""
+                                        // Note: In a real app, we'd ideally refresh the report object here
+                                    } else {
+                                        Toast.makeText(context, "Failed to add", Toast.LENGTH_SHORT).show()
+                                    }
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        }) { Text("Add") }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showManualEntry = false }) { Text("Cancel") }
+                    },
+                    shape = RoundedCornerShape(24.dp)
+                )
+            }
+            
+            LazyColumn(
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                contentPadding = PaddingValues(vertical = 16.dp)
+            ) {
+                val studentList = report.students ?: emptyList()
+                if (studentList.isEmpty()) {
+                    item {
+                        Box(modifier = Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
+                            Text("No participants recorded", color = colorScheme.onBackground.copy(alpha = 0.5f), fontWeight = FontWeight.Bold)
+                        }
+                    }
+                } else {
+                    items(studentList, key = { it.id ?: it.name ?: "" }) { student ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(colorScheme.surfaceVariant.copy(alpha = 0.2f), RoundedCornerShape(16.dp))
+                                .border(1.dp, colorScheme.outline.copy(alpha = 0.05f), RoundedCornerShape(16.dp))
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(modifier = Modifier.size(36.dp).background(colorScheme.primary.copy(alpha = 0.1f), CircleShape), contentAlignment = Alignment.Center) {
+                                    Text(student.name?.firstOrNull()?.toString() ?: "?", color = colorScheme.primary, fontWeight = FontWeight.Black)
+                                }
+                                Spacer(Modifier.width(12.dp))
+                                Column {
+                                    Text(student.name ?: "Unknown", color = colorScheme.onSurface, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                                    Text(student.id ?: "---", color = colorScheme.onSurface.copy(alpha = 0.6f), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                            Text(DateTimeUtils.formatTimeOnly(student.time), color = colorScheme.primary, fontWeight = FontWeight.Black, fontSize = 12.sp)
+                        }
+                    }
+                }
+            }
+
+            Button(
+                onClick = onDismiss,
+                modifier = Modifier.fillMaxWidth().height(60.dp).padding(vertical = 8.dp),
+                shape = RoundedCornerShape(20.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = colorScheme.primary)
+            ) {
+                Text("Complete & Return", fontWeight = FontWeight.ExtraBold, color = colorScheme.onPrimary)
+            }
         }
     }
 }

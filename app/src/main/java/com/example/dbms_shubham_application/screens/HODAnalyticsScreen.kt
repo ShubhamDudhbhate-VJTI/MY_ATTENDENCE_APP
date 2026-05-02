@@ -1,6 +1,8 @@
 package com.example.dbms_shubham_application.screens
 
 import android.widget.Toast
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -50,6 +52,14 @@ fun HODAnalyticsScreen(navController: NavController) {
     val userId = sessionManager.getUserId() ?: ""
     var departmentId by remember { mutableStateOf("IT") } // Default to IT, will update from profile
     val colorScheme = MaterialTheme.colorScheme
+
+    var visible by remember { mutableStateOf(false) }
+    var itemsVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { 
+        visible = true
+        kotlinx.coroutines.delay(300)
+        itemsVisible = true
+    }
 
     var selectedTab by remember { mutableIntStateOf(0) }
     var isDownloading by remember { mutableStateOf(false) }
@@ -160,10 +170,15 @@ fun HODAnalyticsScreen(navController: NavController) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { 
-                    Column {
-                        Text("Department Analytics", color = colorScheme.onBackground, fontWeight = FontWeight.Black, fontSize = 20.sp)
-                        Text("Department: $departmentId", color = colorScheme.primary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        title = { 
+                    AnimatedVisibility(
+                        visible = visible,
+                        enter = fadeIn(tween(600)) + slideInVertically(initialOffsetY = { -20 }, animationSpec = tween(600))
+                    ) {
+                        Column {
+                            Text("Department Analytics", color = colorScheme.onBackground, fontWeight = FontWeight.Black, fontSize = 20.sp)
+                            Text("Department: $departmentId", color = colorScheme.primary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
                     }
                 },
                 navigationIcon = {
@@ -197,31 +212,36 @@ fun HODAnalyticsScreen(navController: NavController) {
     ) { innerPadding ->
         Column(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
             // Modern Tab Selector
-            Surface(
-                modifier = Modifier.padding(20.dp).fillMaxWidth(),
-                color = colorScheme.surface,
-                shape = RoundedCornerShape(16.dp),
-                border = BorderStroke(1.dp, colorScheme.outline.copy(alpha = 0.1f))
+            AnimatedVisibility(
+                visible = visible,
+                enter = fadeIn(tween(600, 100)) + slideInVertically(initialOffsetY = { 20 }, animationSpec = tween(600, 100))
             ) {
-                Row(modifier = Modifier.padding(4.dp)) {
-                    listOf("Live Dashboard", "Master Reports").forEachIndexed { index, title ->
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(44.dp)
-                                .background(
-                                    if (selectedTab == index) colorScheme.primary else Color.Transparent,
-                                    RoundedCornerShape(12.dp)
+                Surface(
+                    modifier = Modifier.padding(20.dp).fillMaxWidth(),
+                    color = colorScheme.surface,
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, colorScheme.outline.copy(alpha = 0.1f))
+                ) {
+                    Row(modifier = Modifier.padding(4.dp)) {
+                        listOf("Live Dashboard", "Master Reports").forEachIndexed { index, title ->
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(44.dp)
+                                    .background(
+                                        if (selectedTab == index) colorScheme.primary else Color.Transparent,
+                                        RoundedCornerShape(12.dp)
+                                    )
+                                    .clickable { selectedTab = index },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    title,
+                                    color = if (selectedTab == index) colorScheme.onPrimary else colorScheme.onSurface.copy(alpha = 0.6f),
+                                    fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Medium,
+                                    fontSize = 14.sp
                                 )
-                                .clickable { selectedTab = index },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                title,
-                                color = if (selectedTab == index) colorScheme.onPrimary else colorScheme.onSurface.copy(alpha = 0.6f),
-                                fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Medium,
-                                fontSize = 14.sp
-                            )
+                            }
                         }
                     }
                 }
@@ -235,63 +255,88 @@ fun HODAnalyticsScreen(navController: NavController) {
                     contentPadding = PaddingValues(bottom = 24.dp)
                 ) {
                     item {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Real-time Overview", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                            Spacer(modifier = Modifier.width(12.dp))
-                            if (isRefreshing) {
-                                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                            } else {
-                                Box(modifier = Modifier.size(10.dp).background(Color(0xFF4CAF50), CircleShape))
+                        AnimatedVisibility(
+                            visible = itemsVisible,
+                            enter = fadeIn(tween(600)) + slideInVertically(initialOffsetY = { 30 }, animationSpec = tween(600))
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("Real-time Overview", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                                Spacer(modifier = Modifier.width(12.dp))
+                                if (isRefreshing) {
+                                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                                } else {
+                                    Box(modifier = Modifier.size(10.dp).background(Color(0xFF4CAF50), CircleShape))
+                                }
                             }
                         }
                     }
                     
                     item {
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            AnalyticsStatCard(
-                                StatItem("Avg. Attendance", analyticsData?.avg_attendance ?: "...", Icons.AutoMirrored.Filled.TrendingUp, colorScheme.primary),
-                                modifier = Modifier.weight(1f)
-                            )
-                            AnalyticsStatCard(
-                                StatItem("Faculty Count", analyticsData?.total_faculty?.toString() ?: "...", Icons.Default.People, colorScheme.tertiary),
-                                modifier = Modifier.weight(1f)
-                            )
+                        AnimatedVisibility(
+                            visible = itemsVisible,
+                            enter = fadeIn(tween(600, 100)) + slideInVertically(initialOffsetY = { 30 }, animationSpec = tween(600, 100))
+                        ) {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                AnalyticsStatCard(
+                                    StatItem("Avg. Attendance", analyticsData?.avg_attendance ?: "...", Icons.AutoMirrored.Filled.TrendingUp, colorScheme.primary),
+                                    modifier = Modifier.weight(1f)
+                                )
+                                AnalyticsStatCard(
+                                    StatItem("Faculty Count", analyticsData?.total_faculty?.toString() ?: "...", Icons.Default.People, colorScheme.tertiary),
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
                         }
                     }
 
                     item {
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            AnalyticsStatCard(
-                                StatItem("Total Classes", analyticsData?.total_classes?.toString() ?: "...", Icons.Default.BarChart, colorScheme.secondary),
-                                modifier = Modifier.weight(1f)
-                            )
-                            AnalyticsStatCard(
-                                StatItem("Defaulters", analyticsData?.defaulter_count?.toString() ?: "...", Icons.AutoMirrored.Filled.TrendingDown, colorScheme.error),
-                                modifier = Modifier.weight(1f)
-                            )
+                        AnimatedVisibility(
+                            visible = itemsVisible,
+                            enter = fadeIn(tween(600, 200)) + slideInVertically(initialOffsetY = { 30 }, animationSpec = tween(600, 200))
+                        ) {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                AnalyticsStatCard(
+                                    StatItem("Total Classes", analyticsData?.total_classes?.toString() ?: "...", Icons.Default.BarChart, colorScheme.secondary),
+                                    modifier = Modifier.weight(1f)
+                                )
+                                AnalyticsStatCard(
+                                    StatItem("Defaulters", analyticsData?.defaulter_count?.toString() ?: "...", Icons.AutoMirrored.Filled.TrendingDown, colorScheme.error),
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
                         }
                     }
                     
                     item { 
-                        if (analyticsData == null && !isRefreshing) {
-                            Card(
-                                modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp),
-                                colors = CardDefaults.cardColors(containerColor = colorScheme.errorContainer.copy(alpha = 0.3f)),
-                                shape = RoundedCornerShape(24.dp)
-                            ) {
-                                Row(modifier = Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.ErrorOutline, null, tint = colorScheme.error)
-                                    Spacer(modifier = Modifier.width(16.dp))
-                                    Text("No data available for this department.", color = colorScheme.onErrorContainer, fontWeight = FontWeight.Medium)
+                        AnimatedVisibility(
+                            visible = itemsVisible,
+                            enter = fadeIn(tween(600, 300)) + slideInVertically(initialOffsetY = { 40 }, animationSpec = tween(600, 300))
+                        ) {
+                            if (analyticsData == null && !isRefreshing) {
+                                Card(
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp),
+                                    colors = CardDefaults.cardColors(containerColor = colorScheme.errorContainer.copy(alpha = 0.3f)),
+                                    shape = RoundedCornerShape(24.dp)
+                                ) {
+                                    Row(modifier = Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.ErrorOutline, null, tint = colorScheme.error)
+                                        Spacer(modifier = Modifier.width(16.dp))
+                                        Text("No data available for this department.", color = colorScheme.onErrorContainer, fontWeight = FontWeight.Medium)
+                                    }
                                 }
+                            } else {
+                                DynamicTrendChart(trends = analyticsData?.trends ?: emptyList())
                             }
-                        } else {
-                            DynamicTrendChart(trends = analyticsData?.trends ?: emptyList())
                         }
                     }
 
                     item {
-                        PremiumDepartmentBadge(departmentId)
+                        AnimatedVisibility(
+                            visible = itemsVisible,
+                            enter = fadeIn(tween(600, 400)) + slideInVertically(initialOffsetY = { 50 }, animationSpec = tween(600, 400))
+                        ) {
+                            PremiumDepartmentBadge(departmentId)
+                        }
                     }
                 }
             } else {
@@ -301,57 +346,113 @@ fun HODAnalyticsScreen(navController: NavController) {
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text("Audit Parameters", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black)
-                    Text("Filter criteria for generating master academic reports.", color = Color.Gray, fontSize = 14.sp)
+                    AnimatedVisibility(
+                        visible = visible,
+                        enter = fadeIn(tween(600, 100)) + slideInHorizontally(initialOffsetX = { -30 }, animationSpec = tween(600, 100))
+                    ) {
+                        Column {
+                            Text("Audit Parameters", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black)
+                            Text("Filter criteria for generating master academic reports.", color = Color.Gray, fontSize = 14.sp)
+                        }
+                    }
 
                     HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp), color = colorScheme.outline.copy(alpha = 0.1f))
 
-                    FilterDropdown(label = "Branch", options = branches, selected = selectedBranch) { selectedBranch = it }
-                    FilterDropdown(label = "Academic Year", options = years, selected = selectedYear) { selectedYear = it }
-                    
-                    val facultyNames = listOf("All Faculty") + facultyList.map { it.full_name }
-                    FilterDropdown(label = "Faculty Member", options = facultyNames, selected = facultyList.find { it.id == selectedFacultyId }?.full_name ?: "All Faculty") { name ->
-                        selectedFacultyId = if (name == "All Faculty") "All" else facultyList.find { it.full_name == name }?.id ?: "All"
-                    }
+                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        val filterDelay = 200
+                        
+                        // Branch Filter
+                        AnimatedVisibility(
+                            visible = visible,
+                            enter = fadeIn(tween(600, filterDelay)) + slideInVertically(initialOffsetY = { 20 }, animationSpec = tween(600, filterDelay))
+                        ) {
+                            FilterDropdown(label = "Branch", options = branches, selected = selectedBranch) { selectedBranch = it }
+                        }
 
-                    val subjectNames = listOf("All Subjects") + subjects.map { it.name }
-                    FilterDropdown(label = "Subject", options = subjectNames, selected = subjects.find { it.id == selectedSubjectId }?.name ?: "All Subjects") { name ->
-                        selectedSubjectId = if (name == "All Subjects") "All" else subjects.find { it.name == name }?.id ?: "All"
-                    }
+                        // Academic Year Filter
+                        AnimatedVisibility(
+                            visible = visible,
+                            enter = fadeIn(tween(600, filterDelay + 100)) + slideInVertically(initialOffsetY = { 20 }, animationSpec = tween(600, filterDelay + 100))
+                        ) {
+                            FilterDropdown(label = "Academic Year", options = years, selected = selectedYear) { selectedYear = it }
+                        }
 
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        DatePickerField(label = "Start Date", value = startDate, modifier = Modifier.weight(1f)) { startDate = it }
-                        DatePickerField(label = "End Date", value = endDate, modifier = Modifier.weight(1f)) { endDate = it }
+                        // Faculty Filter
+                        AnimatedVisibility(
+                            visible = visible,
+                            enter = fadeIn(tween(600, filterDelay + 200)) + slideInVertically(initialOffsetY = { 20 }, animationSpec = tween(600, filterDelay + 200))
+                        ) {
+                            val facultyNames = listOf("All Faculty") + facultyList.map { it.full_name }
+                            FilterDropdown(
+                                label = "Faculty Member", 
+                                options = facultyNames, 
+                                selected = facultyList.find { it.id == selectedFacultyId }?.full_name ?: "All Faculty"
+                            ) { name ->
+                                selectedFacultyId = if (name == "All Faculty") "All" else facultyList.find { it.full_name == name }?.id ?: "All"
+                            }
+                        }
+
+                        // Subject Filter
+                        AnimatedVisibility(
+                            visible = visible,
+                            enter = fadeIn(tween(600, filterDelay + 300)) + slideInVertically(initialOffsetY = { 20 }, animationSpec = tween(600, filterDelay + 300))
+                        ) {
+                            val subjectNames = listOf("All Subjects") + subjects.map { it.name }
+                            FilterDropdown(
+                                label = "Subject", 
+                                options = subjectNames, 
+                                selected = subjects.find { it.id == selectedSubjectId }?.name ?: "All Subjects"
+                            ) { name ->
+                                selectedSubjectId = if (name == "All Subjects") "All" else subjects.find { it.name == name }?.id ?: "All"
+                            }
+                        }
+
+                        AnimatedVisibility(
+                            visible = visible,
+                            enter = fadeIn(tween(600, 600)) + slideInVertically(initialOffsetY = { 20 }, animationSpec = tween(600, 600))
+                        ) {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                DatePickerField(label = "Start Date", value = startDate, modifier = Modifier.weight(1f)) { startDate = it }
+                                DatePickerField(label = "End Date", value = endDate, modifier = Modifier.weight(1f)) { endDate = it }
+                            }
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(32.dp))
 
-                    Button(
-                        onClick = { downloadHodReport(isExcel = false) },
-                        modifier = Modifier.fillMaxWidth().height(56.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        enabled = !isDownloading,
-                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+                    AnimatedVisibility(
+                        visible = visible,
+                        enter = fadeIn(tween(600, 700)) + scaleIn(animationSpec = tween(600, 700))
                     ) {
-                        if (isDownloading) {
-                            CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
-                        } else {
-                            Icon(Icons.Default.CloudDownload, contentDescription = null)
-                            Spacer(Modifier.width(12.dp))
-                            Text("Generate Master PDF Report", fontWeight = FontWeight.ExtraBold)
-                        }
-                    }
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Button(
+                                onClick = { downloadHodReport(isExcel = false) },
+                                modifier = Modifier.fillMaxWidth().height(56.dp),
+                                shape = RoundedCornerShape(16.dp),
+                                enabled = !isDownloading,
+                                elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+                            ) {
+                                if (isDownloading) {
+                                    CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+                                } else {
+                                    Icon(Icons.Default.CloudDownload, contentDescription = null)
+                                    Spacer(Modifier.width(12.dp))
+                                    Text("Generate Master PDF Report", fontWeight = FontWeight.ExtraBold)
+                                }
+                            }
 
-                    OutlinedButton(
-                        onClick = { downloadHodReport(isExcel = true) },
-                        modifier = Modifier.fillMaxWidth().height(56.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        enabled = !isDownloading,
-                        border = BorderStroke(2.dp, colorScheme.primary)
-                    ) {
-                        Icon(Icons.Default.TableChart, contentDescription = null)
-                        Spacer(Modifier.width(12.dp))
-                        Text("Export Data to Excel/CSV", fontWeight = FontWeight.Bold)
+                            OutlinedButton(
+                                onClick = { downloadHodReport(isExcel = true) },
+                                modifier = Modifier.fillMaxWidth().height(56.dp),
+                                shape = RoundedCornerShape(16.dp),
+                                enabled = !isDownloading,
+                                border = BorderStroke(2.dp, colorScheme.primary)
+                            ) {
+                                Icon(Icons.Default.TableChart, contentDescription = null)
+                                Spacer(Modifier.width(12.dp))
+                                Text("Export Data to Excel/CSV", fontWeight = FontWeight.Bold)
+                            }
+                        }
                     }
                     
                     Spacer(modifier = Modifier.height(40.dp))

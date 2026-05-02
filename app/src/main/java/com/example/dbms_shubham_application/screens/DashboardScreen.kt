@@ -1,6 +1,9 @@
 package com.example.dbms_shubham_application.screens
 
 import android.util.Log
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -37,6 +40,7 @@ import com.example.dbms_shubham_application.data.local.SessionManager
 import com.example.dbms_shubham_application.data.model.AttendanceRecord
 import com.example.dbms_shubham_application.data.model.FacultySessionRecord
 import com.example.dbms_shubham_application.data.model.ScheduleRecord
+import com.example.dbms_shubham_application.data.model.SubjectAttendance
 import com.example.dbms_shubham_application.network.RetrofitClient
 import com.example.dbms_shubham_application.ui.components.DashboardShimmer
 import com.example.dbms_shubham_application.ui.components.shimmerEffect
@@ -58,6 +62,7 @@ fun DashboardScreen(navController: NavController, role: String) {
     val userName = remember { sessionManager.getName() ?: "User" }
     
     var studentHistory by remember { mutableStateOf<List<AttendanceRecord>>(emptyList()) }
+    var subjectAttendance by remember { mutableStateOf<List<SubjectAttendance>>(emptyList()) }
     var facultySessions by remember { mutableStateOf<List<FacultySessionRecord>>(emptyList()) }
     var todaySchedule by remember { mutableStateOf<List<ScheduleRecord>>(emptyList()) }
     var unreadNotificationsCount by remember { mutableIntStateOf(0) }
@@ -91,32 +96,26 @@ fun DashboardScreen(navController: NavController, role: String) {
                     val profileDeferred = async { RetrofitClient.apiService.getUserProfile(userId) }
                     val notifDeferred = async { RetrofitClient.apiService.getNotifications(userId) }
                     
-                    val (historyDeferred, scheduleDeferred, sessionsDeferred) = when (normalizedRole) {
-                        "student" -> Triple(
-                            async { RetrofitClient.apiService.getAttendanceHistory(userId) },
-                            async { RetrofitClient.apiService.getStudentSchedule(userId, currentDay) },
-                            null
-                        )
-                        "faculty" -> Triple(
-                            null,
-                            async { RetrofitClient.apiService.getFacultySchedule(userId, currentDay) },
-                            async { RetrofitClient.apiService.getFacultySessions(userId) }
-                        )
-                        else -> Triple(null, null, null)
+                    if (normalizedRole == "student") {
+                        val historyDeferred = async { RetrofitClient.apiService.getAttendanceHistory(userId) }
+                        val subjectAttendanceDeferred = async { RetrofitClient.apiService.getSubjectAttendance(userId) }
+                        val scheduleDeferred = async { RetrofitClient.apiService.getStudentSchedule(userId, currentDay) }
+                        
+                        historyDeferred.await().let { if (it.isSuccessful) studentHistory = it.body() ?: emptyList() }
+                        subjectAttendanceDeferred.await().let { if (it.isSuccessful) subjectAttendance = it.body() ?: emptyList() }
+                        scheduleDeferred.await().let { if (it.isSuccessful) todaySchedule = it.body() ?: emptyList() }
+                    } else if (normalizedRole == "faculty") {
+                        val scheduleDeferred = async { RetrofitClient.apiService.getFacultySchedule(userId, currentDay) }
+                        val sessionsDeferred = async { RetrofitClient.apiService.getFacultySessions(userId) }
+                        
+                        scheduleDeferred.await().let { if (it.isSuccessful) todaySchedule = it.body() ?: emptyList() }
+                        sessionsDeferred.await().let { if (it.isSuccessful) facultySessions = it.body() ?: emptyList() }
                     }
 
-                    // Await profile
                     profileDeferred.await().let { if (it.isSuccessful) userProfile = it.body() }
-                    
-                    // Await notifications
                     notifDeferred.await().let { 
                         if (it.isSuccessful) unreadNotificationsCount = it.body()?.count { n -> !n.is_read } ?: 0
                     }
-
-                    // Await role-specific data
-                    historyDeferred?.await()?.let { if (it.isSuccessful) studentHistory = it.body() ?: emptyList() }
-                    scheduleDeferred?.await()?.let { if (it.isSuccessful) todaySchedule = it.body() ?: emptyList() }
-                    sessionsDeferred?.await()?.let { if (it.isSuccessful) facultySessions = it.body() ?: emptyList() }
                 }
             } catch (e: Exception) {
                 Log.e("DashboardScreen", "Error fetching dashboard data", e)
@@ -150,37 +149,50 @@ fun DashboardScreen(navController: NavController, role: String) {
                 ) {
                     // Top Gradient Header
                     item {
-                        Box(modifier = Modifier
-                            .fillMaxWidth()
-                            .background(
-                                Brush.verticalGradient(listOf(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f), Color.Transparent))
-                            )
-                            .statusBarsPadding()
-                            .padding(20.dp)
+                        AnimatedVisibility(
+                            visible = true,
+                            enter = fadeIn() + slideInVertically(initialOffsetY = { -40 })
                         ) {
-                            HeaderSection(navController, unreadNotificationsCount)
+                            Box(modifier = Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    Brush.verticalGradient(listOf(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f), Color.Transparent))
+                                )
+                                .statusBarsPadding()
+                                .padding(20.dp)
+                            ) {
+                                HeaderSection(navController, unreadNotificationsCount)
+                            }
                         }
                     }
 
                     // Greeting
                     item {
-                        val branch = userProfile?.academic?.get("branch") ?: "N/A"
-                        val year = userProfile?.academic?.get("year") ?: "N/A"
-                        val regNo = userProfile?.academic?.get("reg_no") ?: userId
-                        
-                        val dynamicSubtext = if (normalizedRole == "student") {
-                            "$year $branch • $regNo"
-                        } else {
-                            "$branch Dept. • $userId"
+                        AnimatedVisibility(
+                            visible = true,
+                            enter = fadeIn() + slideInVertically(initialOffsetY = { 40 })
+                        ) {
+                            val branch = userProfile?.academic?.get("branch") ?: "N/A"
+                            val year = userProfile?.academic?.get("year") ?: "N/A"
+                            val regNo = userProfile?.academic?.get("reg_no") ?: userId
+                            
+                            val dynamicSubtext = if (normalizedRole == "student") {
+                                "$year $branch • $regNo"
+                            } else {
+                                "$branch Dept. • $userId"
+                            }
+                            
+                            GreetingSection(normalizedRole, userName, dynamicSubtext, modifier = Modifier.padding(horizontal = 24.dp))
                         }
-                        
-                        GreetingSection(normalizedRole, userName, dynamicSubtext, modifier = Modifier.padding(horizontal = 24.dp))
                     }
 
                     // Stats Section
                     item {
                         if (normalizedRole == "student") {
-                            StudentStatsRow(studentHistory, isLoading)
+                            Column(verticalArrangement = Arrangement.spacedBy(28.dp)) {
+                                StudentStatsRow(studentHistory, isLoading)
+                                SubjectAttendanceSection(subjectAttendance, isLoading)
+                            }
                         } else {
                             FacultyStatsRow(facultySessions, todaySchedule, isLoading)
                         }
@@ -715,8 +727,14 @@ fun ModernRecentAttendanceCard(modifier: Modifier = Modifier, history: List<Atte
                 val isPresent = latest.status.lowercase() == "present"
                 val statusColor = if (isPresent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    // Use readable subject name if available (even though AttendanceRecord might not have it yet, we handle it)
-                    Text(latest.subject_id, fontSize = 18.sp, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(
+                        text = latest.subject_name.ifEmpty { latest.subject_id },
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Black,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                     Text(latest.timestamp.take(10), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                     
                     Spacer(modifier = Modifier.height(8.dp))
@@ -792,6 +810,131 @@ fun ModernScheduleCard(modifier: Modifier = Modifier, schedule: List<ScheduleRec
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(next.room, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun SubjectAttendanceSection(attendance: List<SubjectAttendance>, isLoading: Boolean) {
+    Column(modifier = Modifier.padding(horizontal = 24.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                "Subject-wise Analysis",
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+            )
+            Text(
+                "${attendance.size} Subjects",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        if (isLoading && attendance.isEmpty()) {
+            repeat(3) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(100.dp)
+                        .padding(bottom = 12.dp)
+                        .shimmerEffect()
+                )
+            }
+        } else if (attendance.isEmpty()) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+            ) {
+                Box(modifier = Modifier.padding(24.dp).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Text("No subject data available", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        } else {
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                contentPadding = PaddingValues(end = 24.dp)
+            ) {
+                items(attendance.size) { index ->
+                    val item = attendance[index]
+                    SubjectAttendanceCard(item)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SubjectAttendanceCard(item: SubjectAttendance) {
+    val color = when {
+        item.percentage >= 0.75 -> MaterialTheme.colorScheme.primary
+        item.percentage >= 0.65 -> Color(0xFFFFA000)
+        else -> MaterialTheme.colorScheme.error
+    }
+
+    Card(
+        modifier = Modifier
+            .width(160.dp)
+            .height(180.dp),
+        shape = RoundedCornerShape(32.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.SpaceBetween
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .background(color.copy(alpha = 0.1f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    item.subject_id.take(2).uppercase(),
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                    color = color
+                )
+            }
+            
+            Column {
+                Text(
+                    item.subject_name,
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    "${item.attended_classes}/${item.total_classes} Classes",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Bottom
+                ) {
+                    Text(
+                        "${(item.percentage * 100).toInt()}%",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Black),
+                        color = color
+                    )
+                }
+                LinearProgressIndicator(
+                    progress = { item.percentage.toFloat() },
+                    modifier = Modifier.fillMaxWidth().height(6.dp).clip(CircleShape),
+                    color = color,
+                    trackColor = color.copy(alpha = 0.1f)
+                )
             }
         }
     }

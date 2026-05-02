@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.dbms_shubham_application.data.model.AttendanceRecord
@@ -36,9 +37,9 @@ fun ModernAttendanceCard(
     onClick: () -> Unit = {}
 ) {
     val colorScheme = MaterialTheme.colorScheme
-    val isPresent = record.status.lowercase() == "present"
-    val date = DateTimeUtils.formatDateOnly(record.timestamp)
-    val time = DateTimeUtils.formatTimeOnly(record.timestamp)
+    val isPresent = (record.status ?: "absent").lowercase() == "present"
+    val date = record.timestamp?.let { DateTimeUtils.formatDateOnly(it) } ?: "N/A"
+    val time = record.timestamp?.let { DateTimeUtils.formatTimeOnly(it) } ?: "N/A"
     val statusColor = if (isPresent) Color(0xFF00C853) else Color(0xFFFF3D00)
 
     Card(
@@ -76,10 +77,12 @@ fun ModernAttendanceCard(
             
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = record.subject_id,
+                    text = record.subject_name.ifEmpty { record.subject_id },
                     fontSize = 17.sp,
                     fontWeight = FontWeight.ExtraBold,
-                    color = colorScheme.onSurface
+                    color = colorScheme.onSurface,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Default.Schedule, null, tint = colorScheme.onSurfaceVariant.copy(alpha = 0.5f), modifier = Modifier.size(13.dp))

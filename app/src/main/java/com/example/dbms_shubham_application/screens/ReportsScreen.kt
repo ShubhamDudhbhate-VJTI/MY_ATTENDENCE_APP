@@ -77,11 +77,15 @@ fun ReportsScreen(navController: NavController) {
     var selectedBranch by remember { mutableStateOf("All") }
     var selectedYear by remember { mutableStateOf("All") }
     var selectedSubjectId by remember { mutableStateOf("All") }
+    var studentRollNo by remember { mutableStateOf("") }
     var startDate by remember { mutableStateOf("") }
     var endDate by remember { mutableStateOf("") }
 
     val colorScheme = MaterialTheme.colorScheme
     val lifecycleOwner = LocalLifecycleOwner.current
+
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { visible = true }
 
     fun fetchSessions() {
         if (userId.isEmpty()) return
@@ -143,7 +147,8 @@ fun ReportsScreen(navController: NavController) {
                         year = selectedYear,
                         subjectId = selectedSubjectId,
                         startDate = startDate.takeIf { it.isNotEmpty() },
-                        endDate = endDate.takeIf { it.isNotEmpty() }
+                        endDate = endDate.takeIf { it.isNotEmpty() },
+                        studentId = studentRollNo.takeIf { it.isNotEmpty() }
                     )
                 } else {
                     RetrofitClient.apiService.downloadReportPdf(sessionId)
@@ -272,9 +277,14 @@ fun ReportsScreen(navController: NavController) {
                         }
                     }
                     Spacer(Modifier.width(20.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("Audit Intelligence", fontWeight = FontWeight.Black, fontSize = 26.sp, letterSpacing = (-1).sp)
-                        Text("System Performance & Logs", color = colorScheme.primary, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 0.5.sp)
+                    AnimatedVisibility(
+                        visible = visible,
+                        enter = fadeIn(tween(600)) + slideInHorizontally(initialOffsetX = { -20 }, animationSpec = tween(600))
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Audit Intelligence", fontWeight = FontWeight.Black, fontSize = 26.sp, letterSpacing = (-1).sp)
+                            Text("System Performance & Logs", color = colorScheme.primary, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 0.5.sp)
+                        }
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         HeaderAction(Icons.Default.Analytics, colorScheme.primary) { fetchFacultyAnalytics() }
@@ -287,32 +297,37 @@ fun ReportsScreen(navController: NavController) {
             }
 
             // PREMIUM TAB SWITCHER
-            Box(
-                modifier = Modifier
-                    .padding(horizontal = 24.dp, vertical = 8.dp)
-                    .fillMaxWidth()
-                    .height(56.dp)
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(colorScheme.surfaceVariant.copy(0.4f))
-                    .padding(4.dp)
+            AnimatedVisibility(
+                visible = visible,
+                enter = fadeIn(tween(600, 200)) + slideInVertically(initialOffsetY = { 20 }, animationSpec = tween(600, 200))
             ) {
-                val transition = updateTransition(selectedTab, label = "TabTransition")
-                val indicatorOffset by transition.animateDp(label = "IndicatorOffset") { if (it == 0) 0.dp else 165.dp } // Approximation
-
-                // Sliding Indicator
                 Box(
                     modifier = Modifier
-                        .fillMaxHeight()
-                        .fillMaxWidth(0.5f)
-                        .padding(horizontal = 2.dp)
-                        .offset(x = indicatorOffset)
-                        .shadow(4.dp, RoundedCornerShape(16.dp))
-                        .background(colorScheme.primary, RoundedCornerShape(16.dp))
-                )
+                        .padding(horizontal = 24.dp, vertical = 8.dp)
+                        .fillMaxWidth()
+                        .height(56.dp)
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(colorScheme.surfaceVariant.copy(0.4f))
+                        .padding(4.dp)
+                ) {
+                    val transition = updateTransition(selectedTab, label = "TabTransition")
+                    val indicatorOffset by transition.animateDp(label = "IndicatorOffset") { if (it == 0) 0.dp else 165.dp } // Approximation
 
-                Row(modifier = Modifier.fillMaxSize()) {
-                    TabItem(Modifier.weight(1f), "Session Logs", selectedTab == 0) { selectedTab = 0 }
-                    TabItem(Modifier.weight(1f), "Audit Center", selectedTab == 1) { selectedTab = 1 }
+                    // Sliding Indicator
+                    Box(
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .fillMaxWidth(0.5f)
+                            .padding(horizontal = 2.dp)
+                            .offset(x = indicatorOffset)
+                            .shadow(4.dp, RoundedCornerShape(16.dp))
+                            .background(colorScheme.primary, RoundedCornerShape(16.dp))
+                    )
+
+                    Row(modifier = Modifier.fillMaxSize()) {
+                        TabItem(Modifier.weight(1f), "Session Logs", selectedTab == 0) { selectedTab = 0 }
+                        TabItem(Modifier.weight(1f), "Audit Center", selectedTab == 1) { selectedTab = 1 }
+                    }
                 }
             }
 
@@ -336,12 +351,14 @@ fun ReportsScreen(navController: NavController) {
                         selectedBranch = selectedBranch,
                         selectedYear = selectedYear,
                         selectedSubjectId = selectedSubjectId,
+                        studentRollNo = studentRollNo,
                         startDate = startDate,
                         endDate = endDate,
                         isDownloading = isDownloading == "BULK",
                         onBranchChange = { selectedBranch = it },
                         onYearChange = { selectedYear = it },
                         onSubjectChange = { selectedSubjectId = it },
+                        onRollNoChange = { studentRollNo = it },
                         onStartDateChange = { startDate = it },
                         onEndDateChange = { endDate = it },
                         onGenerate = { downloadPdf("", "Consolidated_Audit_${System.currentTimeMillis()}.pdf", true) }
@@ -632,12 +649,14 @@ fun AuditCenterView(
     selectedBranch: String,
     selectedYear: String,
     selectedSubjectId: String,
+    studentRollNo: String,
     startDate: String,
     endDate: String,
     isDownloading: Boolean,
     onBranchChange: (String) -> Unit,
     onYearChange: (String) -> Unit,
     onSubjectChange: (String) -> Unit,
+    onRollNoChange: (String) -> Unit,
     onStartDateChange: (String) -> Unit,
     onEndDateChange: (String) -> Unit,
     onGenerate: () -> Unit
@@ -676,6 +695,19 @@ fun AuditCenterView(
                     DatePickerField(label = "From Date", value = startDate, modifier = Modifier.weight(1f), onDateSelected = onStartDateChange)
                     DatePickerField(label = "To Date", value = endDate, modifier = Modifier.weight(1f), onDateSelected = onEndDateChange)
                 }
+
+                OutlinedTextField(
+                    value = studentRollNo,
+                    onValueChange = onRollNoChange,
+                    label = { Text("Student Roll No (Optional)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    leadingIcon = { Icon(Icons.Default.PersonSearch, null) },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = colorScheme.primary,
+                        unfocusedBorderColor = colorScheme.outline.copy(alpha = 0.3f)
+                    )
+                )
             }
         }
 

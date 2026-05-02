@@ -1,6 +1,8 @@
 package com.example.dbms_shubham_application.screens
 
 import android.util.Log
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -48,6 +50,9 @@ fun AlertsScreen(navController: NavController) {
     var notifications by remember { mutableStateOf<List<NotificationRecord>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var isClearing by remember { mutableStateOf(false) }
+
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { visible = true }
 
     val colorScheme = MaterialTheme.colorScheme
 
@@ -107,9 +112,14 @@ fun AlertsScreen(navController: NavController) {
         topBar = {
             TopAppBar(
                 title = { 
-                    Column {
-                        Text("Alerts & Notifications", color = colorScheme.onBackground, fontWeight = FontWeight.Bold, fontSize = 20.sp)
-                        Text("Important updates and reminders", color = colorScheme.onBackground.copy(alpha = 0.6f), fontSize = 12.sp, fontWeight = FontWeight.Normal)
+                    AnimatedVisibility(
+                        visible = visible,
+                        enter = fadeIn(tween(600)) + slideInVertically(initialOffsetY = { -20 }, animationSpec = tween(600))
+                    ) {
+                        Column {
+                            Text("Alerts & Notifications", color = colorScheme.onBackground, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                            Text("Important updates and reminders", color = colorScheme.onBackground.copy(alpha = 0.6f), fontSize = 12.sp, fontWeight = FontWeight.Normal)
+                        }
                     }
                 },
                 navigationIcon = {
@@ -135,42 +145,56 @@ fun AlertsScreen(navController: NavController) {
             )
         }
     ) { padding ->
-        if (isLoading) {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                contentPadding = PaddingValues(top = 16.dp, bottom = 24.dp)
-            ) {
-                items(6) { AlertCardShimmer() }
-            }
-        } else if (notifications.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(Icons.Default.Notifications, contentDescription = null, tint = colorScheme.onBackground.copy(alpha = 0.4f), modifier = Modifier.size(64.dp))
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text("No notifications yet", color = colorScheme.onBackground.copy(alpha = 0.4f))
+        Box(modifier = Modifier.padding(padding)) {
+            if (isLoading) {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    contentPadding = PaddingValues(top = 16.dp, bottom = 24.dp)
+                ) {
+                    items(6) { AlertCardShimmer() }
                 }
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                contentPadding = PaddingValues(top = 16.dp, bottom = 24.dp)
-            ) {
-                items(notifications) { alert ->
-                    AlertCard(
-                        alert = alert,
-                        onClick = {
-                            // Optional: Mark as read when clicked
-                            scope.launch {
-                                RetrofitClient.apiService.markNotificationAsRead(alert.id)
-                                fetchNotifications() // Refresh
-                            }
-                        },
-                        onDelete = {
-                            deleteNotification(alert.id)
+            } else if (notifications.isEmpty()) {
+                AnimatedVisibility(
+                    visible = visible,
+                    enter = fadeIn(tween(800)) + scaleIn(initialScale = 0.9f)
+                ) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(Icons.Default.Notifications, contentDescription = null, tint = colorScheme.onBackground.copy(alpha = 0.4f), modifier = Modifier.size(64.dp))
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text("No notifications yet", color = colorScheme.onBackground.copy(alpha = 0.4f))
                         }
-                    )
+                    }
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    contentPadding = PaddingValues(top = 16.dp, bottom = 24.dp)
+                ) {
+                    items(notifications, key = { it.id }) { alert ->
+                        val index = notifications.indexOf(alert)
+                        AnimatedVisibility(
+                            visible = visible,
+                            enter = fadeIn(tween(600, delayMillis = 100 + (index * 50))) + 
+                                    slideInVertically(initialOffsetY = { 50 }, animationSpec = tween(600, delayMillis = 100 + (index * 50)))
+                        ) {
+                            AlertCard(
+                                alert = alert,
+                                onClick = {
+                                    // Optional: Mark as read when clicked
+                                    scope.launch {
+                                        RetrofitClient.apiService.markNotificationAsRead(alert.id)
+                                        fetchNotifications() // Refresh
+                                    }
+                                },
+                                onDelete = {
+                                    deleteNotification(alert.id)
+                                }
+                            )
+                        }
+                    }
                 }
             }
         }

@@ -23,7 +23,7 @@ import uvicorn
 import uuid
 import time
 from datetime import datetime, timedelta
-from sqlalchemy import create_engine, Column, String, Integer, DateTime, ForeignKey, Boolean, Float, Text, Date, func, Numeric, LargeBinary, text
+from sqlalchemy import create_engine, Column, String, Integer, DateTime, ForeignKey, Boolean, Float, Text, Date, func, Numeric, LargeBinary, text, or_
 from sqlalchemy.orm import sessionmaker, Session, declarative_base
 from sqlalchemy.dialects.postgresql import UUID, BYTEA
 import numpy as np
@@ -73,18 +73,25 @@ def create_db_engine(url):
         url,
         pool_pre_ping=True,
         pool_recycle=300,
-        connect_args={"connect_timeout": 5}
+        connect_args={
+            "connect_timeout": 15,
+            "application_name": "AttendX_Backend"
+        }
     )
 
 # Establish Connection: Attempt Primary Cloud DB (Supabase), Fallback to Local SQLite
 try:
     print(f"--- DATABASE CHECK: Attempting Supabase Connection ---")
+    if not DATABASE_URL:
+        raise ValueError("DATABASE_URL not found in environment variables")
+
     engine = create_db_engine(DATABASE_URL)
     with engine.connect() as conn:
         conn.execute(text("SELECT 1"))
         print("--- SUCCESS: Connected to Supabase PostgreSQL ---")
 except Exception as e:
-    print(f"--- ERROR: Supabase Connection Failed. Details: {str(e)[:100]}... ---")
+    print(f"--- ERROR: Supabase Connection Failed. ---")
+    print(f"Details: {str(e)}")
     print("--- FALLBACK: Using local SQLite (Dev Only) ---")
     engine = create_db_engine("sqlite:///./attendance.db")
 
@@ -632,6 +639,45 @@ async def verify_face(student_id: str = Form(...), session_id: str = Form(...), 
     except Exception as e:
         db.rollback(); raise HTTPException(500, f"AI Error: {str(e)}")
 
+@app.post("/attendance/manual")
+async def manual_attendance(req: dict = Body(...), db: Session = Depends(get_db)):
+    """LAYER 4: Manual Override (Faculty Authorized)"""
+    try:
+        sid = clean_id(req.get("session_id", ""))
+        student_query = req.get("student_id", "").strip()
+
+        # Resolve student by ID or Reg No
+        student = db.query(Student).filter((Student.id == student_query) | (Student.registration_number == student_query)).first()
+        if not student:
+            raise HTTPException(404, f"Student '{student_query}' not found")
+
+        session = db.query(AttendanceSession).filter(AttendanceSession.id == sid).first()
+        if not session:
+            raise HTTPException(404, "Session not found")
+
+        # Check for duplicate
+        existing = db.query(AttendanceRecord).filter(AttendanceRecord.session_id == sid, AttendanceRecord.student_id == student.id).first()
+        if existing:
+            return {"success": True, "message": "Attendance already marked"}
+
+        # Record Manual Attendance
+        db.add(AttendanceRecord(
+            id=str(uuid.uuid4()),
+            session_id=sid,
+            student_id=student.id,
+            status="present",
+            face_verified=False
+        ))
+        db.commit()
+
+        create_notification(db, student.id, "Manual Attendance", f"Marked present manually by Faculty.")
+        return {"success": True, "message": f"Attendance marked for {student.full_name}"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(500, f"Error marking manual attendance: {str(e)}")
+
 # --- REPORTING & UTILITIES ---
 
 @app.get("/sessions/{session_id}/attendance")
@@ -652,12 +698,48 @@ async def get_attendance(session_id: str, db: Session = Depends(get_db)):
 
 @app.get("/student/attendance/{student_id}")
 async def get_student_history(student_id: str, db: Session = Depends(get_db)):
-    sid = clean_id(student_id); student = db.query(Student).filter(Student.id == sid).first()
-    if not student: return []
-    all_subs = [s[0] for s in db.query(Subject.id).filter(Subject.branch == student.branch, Subject.year == student.year).all()]
-    sessions = db.query(AttendanceSession, Subject).join(Subject).filter(AttendanceSession.subject_id.in_(all_subs)).order_by(AttendanceSession.start_time.desc()).all()
-    records = {r.session_id: r for r in db.query(AttendanceRecord).filter(AttendanceRecord.student_id == sid).all()}
-    return [{"subject_id": sub.name, "session_id": str(s.id), "timestamp": (records[s.id].marked_at if s.id in records else s.start_time).isoformat(), "status": "present" if s.id in records else "absent"} for s, sub in sessions]
+    sid = clean_id(student_id)
+    print(f"DEBUG: Fetching history for student_id={sid}")
+    student = db.query(Student).filter(Student.id == sid).first()
+    if not student:
+        print(f"DEBUG: Student {sid} not found")
+        return []
+
+    # 1. Get subjects from branch/year
+    branch_subs = [s[0] for s in db.query(Subject.id).filter(
+        Subject.branch == student.branch,
+        Subject.year == student.year
+    ).all()]
+
+    # 2. Get subjects from enrollments (Electives)
+    enrolled_subs = [e[0] for e in db.query(Enrollment.subject_id).filter(
+        Enrollment.student_id == sid
+    ).all()]
+
+    all_sub_ids = list(set(branch_subs + enrolled_subs))
+    print(f"DEBUG: Found {len(all_sub_ids)} relevant subjects for student {sid}")
+
+    # Fetch sessions for these subjects
+    sessions = db.query(AttendanceSession, Subject).join(Subject).filter(
+        AttendanceSession.subject_id.in_(all_sub_ids)
+    ).order_by(AttendanceSession.start_time.desc()).all()
+
+    # Get attendance records for this student
+    records = {r.session_id: r for r in db.query(AttendanceRecord).filter(
+        AttendanceRecord.student_id == sid
+    ).all()}
+
+    print(f"DEBUG: Found {len(sessions)} sessions and {len(records)} attendance records")
+
+    return [
+        {
+            "subject_id": str(sub.id),
+            "subject_name": str(sub.name or "Unknown Subject"),
+            "session_id": str(s.id),
+            "timestamp": (records[s.id].marked_at if s.id in records else s.start_time).isoformat(),
+            "status": "present" if s.id in records else "absent"
+        } for s, sub in sessions
+    ]
 
 @app.post("/auth/update-fcm")
 async def update_fcm_token(data: dict = Body(...), db: Session = Depends(get_db)):
@@ -786,22 +868,22 @@ async def export_session_pdf(session_id: str, db: Session = Depends(get_db)):
     pdf.ln(10)
 
     pdf.chapter_title('Attendance Register')
-    pdf.set_font('Arial', 'B', 10); pdf.set_fill_color(33, 150, 243); pdf.set_text_color(255,255,255)
+    pdf.set_font('helvetica', 'B', 10); pdf.set_fill_color(33, 150, 243); pdf.set_text_color(255,255,255)
     pdf.cell(60, 10, 'Reg No', 1, 0, 'C', 1)
     pdf.cell(100, 10, 'Student Name', 1, 0, 'C', 1)
     pdf.cell(30, 10, 'Status', 1, 1, 'C', 1)
 
-    pdf.set_font('Arial', '', 10); pdf.set_text_color(0,0,0)
+    pdf.set_font('helvetica', '', 10); pdf.set_text_color(0,0,0)
     for rec, stu in records:
         pdf.cell(60, 10, str(stu.registration_number), 1)
         pdf.cell(100, 10, str(stu.full_name), 1)
         pdf.cell(30, 10, 'PRESENT', 1, 1, 'C')
 
-    pdf_output = pdf.output(dest='S')
+    pdf_output = pdf.output()
     if isinstance(pdf_output, (bytearray, bytes)):
         return Response(content=bytes(pdf_output), media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename=Session_Report_{sid[:8]}.pdf"})
     else:
-        return Response(content=pdf_output.encode('latin-1'), media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename=Session_Report_{sid[:8]}.pdf"})
+        return Response(content=str(pdf_output).encode('utf-8'), media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename=Session_Report_{sid[:8]}.pdf"})
 
 @app.get("/reports/bulk-pdf")
 async def export_bulk_pdf(
@@ -820,7 +902,7 @@ async def export_bulk_pdf(
 
     # Defensive filtering for "All", "null", "None"
     def is_valid(val):
-        return val and val not in ["All", "null", "None", "undefined"]
+        return val and val not in ["All", "null", "None", "undefined", ""]
 
     if is_valid(branch):
         query = query.filter(Subject.branch.ilike(f"%{branch}%"))
@@ -830,51 +912,49 @@ async def export_bulk_pdf(
         query = query.filter(AttendanceSession.subject_id == clean_id(subject_id))
 
     if start_date:
-        try:
-            sd = datetime.strptime(start_date, '%Y-%m-%d')
-            query = query.filter(AttendanceSession.start_time >= sd)
-        except ValueError: pass
+        try: query = query.filter(AttendanceSession.start_time >= datetime.fromisoformat(start_date.replace('Z', '+00:00')))
+        except: pass
     if end_date:
-        try:
-            ed = datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1)
-            query = query.filter(AttendanceSession.start_time < ed)
-        except ValueError: pass
+        try: query = query.filter(AttendanceSession.start_time <= datetime.fromisoformat(end_date.replace('Z', '+00:00')))
+        except: pass
 
     sessions = query.all()
     if not sessions:
+        print(f"DEBUG: No sessions found for faculty_id={fid}, branch={branch}, year={year}, subject_id={subject_id}")
         raise HTTPException(status_code=404, detail="No attendance sessions found for the selected filters.")
 
     session_ids = [s.id for s in sessions]
     total_sess = len(sessions)
 
-    # REFINED STUDENT SCOPING:
-    # Target students who are:
-    # 1. Belonging to the Branch/Year of the subjects in these sessions (Main Audience)
-    # 2. Or have attended at least one of these sessions (Actual Audience)
-    # 3. Or are explicitly enrolled (Elective Audience)
+    print(f"DEBUG: Found {total_sess} sessions for bulk report")
 
-    subject_info = db.query(Subject.branch, Subject.year).filter(Subject.id.in_(subject_ids)).distinct().all()
+    # REFINED STUDENT SCOPING (Optimized for Large Data):
+    # Use subqueries to avoid parameter limits (1000+) in SQL 'IN' clauses
+    session_id_sub = query.with_entities(AttendanceSession.id)
+    subject_id_sub = query.with_entities(AttendanceSession.subject_id).distinct()
 
-    # Get all students in the relevant branches/years
-    audience_student_ids = []
-    for br, yr in subject_info:
-        ids = [s[0] for s in db.query(Student.id).filter(Student.branch == br, Student.year == yr).all()]
-        audience_student_ids.extend(ids)
+    # Find relevant student population
+    # 1. Students who attended at least one filtered session
+    attended_q = db.query(AttendanceRecord.student_id).filter(AttendanceRecord.session_id.in_(session_id_sub))
+    # 2. Students enrolled in any of the filtered subjects (Electives)
+    enrolled_q = db.query(Enrollment.student_id).filter(Enrollment.subject_id.in_(subject_id_sub))
 
-    attended_student_ids = [r[0] for r in db.query(AttendanceRecord.student_id).filter(AttendanceRecord.session_id.in_(session_ids)).distinct().all()]
-    enrolled_student_ids = [e[0] for e in db.query(Enrollment.student_id).filter(Enrollment.subject_id.in_(subject_ids)).all()]
+    # 3. Main Audience (Students in same branch/year as subjects)
+    subject_info = db.query(Subject.branch, Subject.year).filter(Subject.id.in_(subject_id_sub)).distinct().all()
 
-    target_student_ids = list(set(audience_student_ids + attended_student_ids + enrolled_student_ids))
+    target_q = attended_q.union(enrolled_q)
+    if subject_info:
+        audience_conds = [((Student.branch == br) & (Student.year == yr)) for br, yr in subject_info]
+        audience_q = db.query(Student.id).filter(or_(*audience_conds))
+        target_q = target_q.union(audience_q)
 
-    if not target_student_ids:
-         raise HTTPException(status_code=404, detail="No students found for this scope.")
-
+    # FINAL AGGREGATED QUERY
     results = db.query(
         Student.registration_number,
         Student.full_name,
         func.count(AttendanceRecord.id)
-    ).outerjoin(AttendanceRecord, (Student.id == AttendanceRecord.student_id) & (AttendanceRecord.session_id.in_(session_ids)))\
-     .filter(Student.id.in_(target_student_ids))\
+    ).outerjoin(AttendanceRecord, (Student.id == AttendanceRecord.student_id) & (AttendanceRecord.session_id.in_(session_id_sub)))\
+     .filter(Student.id.in_(target_q))\
      .group_by(Student.registration_number, Student.full_name)\
      .order_by(Student.registration_number).all()
 
@@ -962,11 +1042,11 @@ async def export_bulk_pdf(
         pdf.cell(35, 10, f"{perc:.1f}% ({status_text})", 1, 1, 'C', 1)
         pdf.set_font('helvetica', '', 10)
 
-    pdf_output = pdf.output(dest='S')
+    pdf_output = pdf.output()
     if isinstance(pdf_output, (bytearray, bytes)):
         return Response(content=bytes(pdf_output), media_type="application/pdf", headers={"Content-Disposition": "attachment; filename=Faculty_Bulk_Report.pdf"})
     else:
-        return Response(content=pdf_output.encode('latin-1'), media_type="application/pdf", headers={"Content-Disposition": "attachment; filename=Faculty_Bulk_Report.pdf"})
+        return Response(content=str(pdf_output).encode('utf-8'), media_type="application/pdf", headers={"Content-Disposition": "attachment; filename=Faculty_Bulk_Report.pdf"})
 
 @app.get("/analytics/department/{dept_id}")
 async def get_department_analytics(dept_id: str, db: Session = Depends(get_db)):

@@ -1,5 +1,7 @@
 package com.example.dbms_shubham_application.screens
 
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
 import android.widget.Toast
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
@@ -45,6 +47,9 @@ fun LoginScreen(navController: NavController, role: String) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { visible = true }
+    
     // Get colors from theme
     val primaryColor = MaterialTheme.colorScheme.primary
     val secondaryColor = MaterialTheme.colorScheme.secondary
@@ -61,12 +66,17 @@ fun LoginScreen(navController: NavController, role: String) {
             .systemBarsPadding()
     ) {
         // Decorative background elements
-        Box(
-            modifier = Modifier
-                .size(350.dp)
-                .offset(x = (-120).dp, y = (-120).dp)
-                .background(primaryColor.copy(alpha = 0.12f), CircleShape)
-        )
+        AnimatedVisibility(
+            visible = visible,
+            enter = fadeIn(tween(1000))
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(350.dp)
+                    .offset(x = (-120).dp, y = (-120).dp)
+                    .background(primaryColor.copy(alpha = 0.12f), CircleShape)
+            )
+        }
 
         Column(
             modifier = Modifier
@@ -76,178 +86,207 @@ fun LoginScreen(navController: NavController, role: String) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // Logo/Icon with Gradient
-            Box(
-                modifier = Modifier
-                    .size(90.dp)
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(Brush.linearGradient(listOf(primaryColor, secondaryColor)))
-                    .border(1.dp, onBackground.copy(alpha = 0.2f), RoundedCornerShape(24.dp)),
-                contentAlignment = Alignment.Center
+            AnimatedVisibility(
+                visible = visible,
+                enter = fadeIn(tween(600)) + slideInVertically(initialOffsetY = { -40 }, animationSpec = tween(600))
             ) {
-                Icon(
-                    imageVector = when(role.lowercase()) {
-                        "student" -> Icons.Default.Person
-                        "faculty" -> Icons.Default.School
-                        else -> Icons.Default.AdminPanelSettings
-                    },
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimary,
-                    modifier = Modifier.size(44.dp)
-                )
-            }
-            
-            Spacer(modifier = Modifier.height(32.dp))
-            
-            Text(
-                text = "${role.replaceFirstChar { it.uppercase() }} Portal",
-                fontSize = 32.sp,
-                fontWeight = FontWeight.Black,
-                color = onBackground,
-                letterSpacing = (-1).sp
-            )
-            
-            Text(
-                text = "Secure access to your dashboard",
-                fontSize = 15.sp,
-                color = onBackground.copy(alpha = 0.6f),
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier.padding(top = 8.dp, bottom = 48.dp)
-            )
-            
-            // Input Fields
-            ModernTextField(
-                value = username,
-                onValueChange = { username = it },
-                label = "Username / ID",
-                placeholder = "e.g. 2021001 or name@college.edu",
-                icon = Icons.Default.AlternateEmail,
-                keyboardType = KeyboardType.Text,
-                colors = primaryColor to outlineColor,
-                textColor = onBackground,
-                surfaceColor = surfaceColor
-            )
-            
-            Spacer(modifier = Modifier.height(20.dp))
-            
-            ModernTextField(
-                value = password,
-                onValueChange = { password = it },
-                label = "Password",
-                icon = Icons.Default.LockOpen,
-                keyboardType = KeyboardType.Password,
-                isPassword = true,
-                passwordVisible = passwordVisible,
-                onPasswordToggle = { passwordVisible = !passwordVisible },
-                colors = primaryColor to outlineColor,
-                textColor = onBackground,
-                surfaceColor = surfaceColor
-            )
-            
-            Text(
-                text = "Forgot Password?",
-                color = primaryColor,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier
-                    .align(Alignment.End)
-                    .padding(top = 16.dp)
-                    .clickable { navController.navigate("forgot_password") }
-            )
-            
-            Spacer(modifier = Modifier.height(48.dp))
-            
-            // Sign In Button
-            Button(
-                onClick = {
-                    isLoading = true
-                    scope.launch {
-                        try {
-                            val credentials = mapOf(
-                                "username" to username.trim(),
-                                "password" to password.trim()
-                            )
-                            val response = RetrofitClient.apiService.login(credentials)
-                            if (response.isSuccessful && response.body() != null) {
-                                val body = response.body()!!
-                                val sessionManager = SessionManager(context)
-                                
-                                val userId = body.user_id ?: ""
-                                val userRole = body.role ?: role.lowercase()
-                                val userName = body.name ?: ""
-                                
-                                sessionManager.saveSession(userId, userRole, userName)
-
-                                if (userRole == "student") {
-                                    scope.launch {
-                                        try {
-                                            val profileRes = RetrofitClient.apiService.getUserProfile(userId)
-                                            if (profileRes.isSuccessful) {
-                                                val imageUrl = profileRes.body()?.image_url
-                                                if (!imageUrl.isNullOrBlank()) {
-                                                    downloadAndSaveFace(context, userId, imageUrl)
-                                                }
-                                            }
-                                        } catch (e: Exception) {
-                                            android.util.Log.e("Login", "Failed to cache master face: ${e.message}")
-                                        }
-                                    }
-                                }
-
-                                navController.navigate("dashboard/$userRole") {
-                                    popUpTo("role_selection") { inclusive = false }
-                                }
-                            } else {
-                                val errorMsg = when (response.code()) {
-                                    503, 504 -> "Server is starting up, please wait a moment."
-                                    404 -> "User not found. Please check your credentials."
-                                    401 -> "Invalid password. Try again."
-                                    else -> "Authentication Failed (${response.code()}): ${response.message()}"
-                                }
-                                Toast.makeText(context, errorMsg, Toast.LENGTH_LONG).show()
-                            }
-                        } catch (e: Exception) {
-                            val errorMsg = when (e) {
-                                is java.net.SocketTimeoutException -> "Connection Timeout: Check your Wi-Fi signal."
-                                is java.net.ConnectException -> "Cannot reach Server: Ensure PC and Mobile are on same Wi-Fi."
-                                is java.io.IOException -> "Network Error: ${e.localizedMessage}"
-                                else -> "Error: ${e.message}"
-                            }
-                            Toast.makeText(context, errorMsg, Toast.LENGTH_LONG).show()
-                        } finally {
-                            isLoading = false
-                        }
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(60.dp)
-                    .clip(RoundedCornerShape(20.dp)),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = primaryColor,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                ),
-                shape = RoundedCornerShape(20.dp),
-                enabled = !isLoading && username.isNotBlank() && password.isNotBlank()
-            ) {
-                if (isLoading) {
-                    CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(24.dp), strokeWidth = 3.dp)
-                } else {
-                    Text("Secure Login", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
+                // Logo/Icon with Gradient
+                Box(
+                    modifier = Modifier
+                        .size(90.dp)
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(Brush.linearGradient(listOf(primaryColor, secondaryColor)))
+                        .border(1.dp, onBackground.copy(alpha = 0.2f), RoundedCornerShape(24.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = when(role.lowercase()) {
+                            "student" -> Icons.Default.Person
+                            "faculty" -> Icons.Default.School
+                            else -> Icons.Default.AdminPanelSettings
+                        },
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(44.dp)
+                    )
                 }
             }
             
             Spacer(modifier = Modifier.height(32.dp))
             
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Not registered yet?", color = onBackground.copy(alpha = 0.6f), fontSize = 14.sp)
-                Text(
-                    text = " Create Account",
-                    color = primaryColor,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    modifier = Modifier.clickable { navController.navigate("signup/$role") }
-                )
+            AnimatedVisibility(
+                visible = visible,
+                enter = fadeIn(tween(600, 100)) + slideInVertically(initialOffsetY = { 20 }, animationSpec = tween(600, 100))
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "${role.replaceFirstChar { it.uppercase() }} Portal",
+                        fontSize = 32.sp,
+                        fontWeight = FontWeight.Black,
+                        color = onBackground,
+                        letterSpacing = (-1).sp
+                    )
+                    
+                    Text(
+                        text = "Secure access to your dashboard",
+                        fontSize = 15.sp,
+                        color = onBackground.copy(alpha = 0.6f),
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.padding(top = 8.dp, bottom = 48.dp)
+                    )
+                }
+            }
+            
+            AnimatedVisibility(
+                visible = visible,
+                enter = fadeIn(tween(600, 200)) + slideInVertically(initialOffsetY = { 40 }, animationSpec = tween(600, 200))
+            ) {
+                Column {
+                    // Input Fields
+                    ModernTextField(
+                        value = username,
+                        onValueChange = { username = it },
+                        label = "Username / ID",
+                        placeholder = "e.g. 2021001 or name@college.edu",
+                        icon = Icons.Default.AlternateEmail,
+                        keyboardType = KeyboardType.Text,
+                        colors = primaryColor to outlineColor,
+                        textColor = onBackground,
+                        surfaceColor = surfaceColor
+                    )
+                    
+                    Spacer(modifier = Modifier.height(20.dp))
+                    
+                    ModernTextField(
+                        value = password,
+                        onValueChange = { password = it },
+                        label = "Password",
+                        icon = Icons.Default.LockOpen,
+                        keyboardType = KeyboardType.Password,
+                        isPassword = true,
+                        passwordVisible = passwordVisible,
+                        onPasswordToggle = { passwordVisible = !passwordVisible },
+                        colors = primaryColor to outlineColor,
+                        textColor = onBackground,
+                        surfaceColor = surfaceColor
+                    )
+                    
+                    Text(
+                        text = "Forgot Password?",
+                        color = primaryColor,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .align(Alignment.End)
+                            .padding(top = 16.dp)
+                            .clickable { navController.navigate("forgot_password") }
+                    )
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(48.dp))
+            
+            AnimatedVisibility(
+                visible = visible,
+                enter = fadeIn(tween(600, 300)) + slideInVertically(initialOffsetY = { 60 }, animationSpec = tween(600, 300))
+            ) {
+                // Sign In Button
+                Button(
+                    onClick = {
+                        isLoading = true
+                        scope.launch {
+                            try {
+                                val credentials = mapOf(
+                                    "username" to username.trim(),
+                                    "password" to password.trim()
+                                )
+                                val response = RetrofitClient.apiService.login(credentials)
+                                if (response.isSuccessful && response.body() != null) {
+                                    val body = response.body()!!
+                                    val sessionManager = SessionManager(context)
+                                    
+                                    val userId = body.user_id ?: ""
+                                    val userRole = body.role ?: role.lowercase()
+                                    val userName = body.name ?: ""
+                                    
+                                    sessionManager.saveSession(userId, userRole, userName)
+
+                                    if (userRole == "student") {
+                                        scope.launch {
+                                            try {
+                                                val profileRes = RetrofitClient.apiService.getUserProfile(userId)
+                                                if (profileRes.isSuccessful) {
+                                                    val imageUrl = profileRes.body()?.image_url
+                                                    if (!imageUrl.isNullOrBlank()) {
+                                                        downloadAndSaveFace(context, userId, imageUrl)
+                                                    }
+                                                }
+                                            } catch (e: Exception) {
+                                                android.util.Log.e("Login", "Failed to cache master face: ${e.message}")
+                                            }
+                                        }
+                                    }
+
+                                    navController.navigate("dashboard/$userRole") {
+                                        popUpTo("role_selection") { inclusive = false }
+                                    }
+                                } else {
+                                    val errorMsg = when (response.code()) {
+                                        503, 504 -> "Server is starting up, please wait a moment."
+                                        404 -> "User not found. Please check your credentials."
+                                        401 -> "Invalid password. Try again."
+                                        else -> "Authentication Failed (${response.code()}): ${response.message()}"
+                                    }
+                                    Toast.makeText(context, errorMsg, Toast.LENGTH_LONG).show()
+                                }
+                            } catch (e: Exception) {
+                                val errorMsg = when (e) {
+                                    is java.net.SocketTimeoutException -> "Connection Timeout: Check your Wi-Fi signal."
+                                    is java.net.ConnectException -> "Cannot reach Server: Ensure PC and Mobile are on same Wi-Fi."
+                                    is java.io.IOException -> "Network Error: ${e.localizedMessage}"
+                                    else -> "Error: ${e.message}"
+                                }
+                                Toast.makeText(context, errorMsg, Toast.LENGTH_LONG).show()
+                            } finally {
+                                isLoading = false
+                            }
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(60.dp)
+                        .clip(RoundedCornerShape(20.dp)),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = primaryColor,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    ),
+                    shape = RoundedCornerShape(20.dp),
+                    enabled = !isLoading && username.isNotBlank() && password.isNotBlank()
+                ) {
+                    if (isLoading) {
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(24.dp), strokeWidth = 3.dp)
+                    } else {
+                        Text("Secure Login", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
+                    }
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(32.dp))
+            
+            AnimatedVisibility(
+                visible = visible,
+                enter = fadeIn(tween(600, 400))
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Not registered yet?", color = onBackground.copy(alpha = 0.6f), fontSize = 14.sp)
+                    Text(
+                        text = " Create Account",
+                        color = primaryColor,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        modifier = Modifier.clickable { navController.navigate("signup/$role") }
+                    )
+                }
             }
         }
     }

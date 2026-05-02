@@ -2,6 +2,8 @@ package com.example.dbms_shubham_application.screens
 
 import android.app.DatePickerDialog
 import android.widget.Toast
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -54,6 +56,14 @@ fun FacultyHistoryScreen(navController: NavController) {
 
     val colorScheme = MaterialTheme.colorScheme
     val lifecycleOwner = LocalLifecycleOwner.current
+
+    var visible by remember { mutableStateOf(false) }
+    var itemsVisible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { 
+        visible = true
+        kotlinx.coroutines.delay(400)
+        itemsVisible = true
+    }
 
     var sessions by remember { mutableStateOf<List<FacultySessionRecord>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
@@ -206,9 +216,14 @@ fun FacultyHistoryScreen(navController: NavController) {
         topBar = {
             TopAppBar(
                 title = { 
-                    Column {
-                        Text("Session Intelligence", color = colorScheme.onBackground, fontWeight = FontWeight.Black, fontSize = 22.sp)
-                        Text("${sessions.size} academic sessions recorded", color = colorScheme.primary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    androidx.compose.animation.AnimatedVisibility(
+                        visible = visible,
+                        enter = fadeIn(tween(600)) + slideInVertically(initialOffsetY = { -20 }, animationSpec = tween(600))
+                    ) {
+                        Column {
+                            Text("Session Intelligence", color = colorScheme.onBackground, fontWeight = FontWeight.Black, fontSize = 22.sp)
+                            Text("${sessions.size} academic sessions recorded", color = colorScheme.primary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
                     }
                 },
                 navigationIcon = {
@@ -245,50 +260,60 @@ fun FacultyHistoryScreen(navController: NavController) {
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
             // Search Bar
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp, vertical = 8.dp),
-                placeholder = { Text("Search by subject or room...", fontSize = 14.sp) },
-                leadingIcon = { Icon(Icons.Default.Search, null, modifier = Modifier.size(20.dp)) },
-                trailingIcon = {
-                    if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { searchQuery = "" }) {
-                            Icon(Icons.Default.Close, null, modifier = Modifier.size(20.dp))
+            androidx.compose.animation.AnimatedVisibility(
+                visible = visible,
+                enter = fadeIn(tween(600, 100)) + slideInVertically(initialOffsetY = { 20 }, animationSpec = tween(600, 100))
+            ) {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 8.dp),
+                    placeholder = { Text("Search by subject or room...", fontSize = 14.sp) },
+                    leadingIcon = { Icon(Icons.Default.Search, null, modifier = Modifier.size(20.dp)) },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(Icons.Default.Close, null, modifier = Modifier.size(20.dp))
+                            }
                         }
-                    }
-                },
-                shape = RoundedCornerShape(16.dp),
-                singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = colorScheme.primary,
-                    unfocusedBorderColor = colorScheme.outline.copy(alpha = 0.3f),
-                    focusedContainerColor = colorScheme.surface,
-                    unfocusedContainerColor = colorScheme.surface
+                    },
+                    shape = RoundedCornerShape(16.dp),
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = colorScheme.primary,
+                        unfocusedBorderColor = colorScheme.outline.copy(alpha = 0.3f),
+                        focusedContainerColor = colorScheme.surface,
+                        unfocusedContainerColor = colorScheme.surface
+                    )
                 )
-            )
+            }
 
             // Filter Bar
-            FilterSection(
-                subjects = subjects,
-                classrooms = classrooms,
-                selectedSubjectId = selectedSubjectId,
-                selectedClassroomId = selectedClassroomId,
-                selectedDate = selectedDate,
-                onSubjectChange = { selectedSubjectId = it; loadSessions() },
-                onClassroomChange = { selectedClassroomId = it; loadSessions() },
-                onDateClick = {
-                    val calendar = Calendar.getInstance()
-                    DatePickerDialog(context, { _, year, month, day ->
-                        selectedDate = java.util.Locale.getDefault().let { locale ->
-                            String.format(locale, "%04d-%02d-%02d", year, month + 1, day)
-                        }
-                        loadSessions()
-                    }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH)).show()
-                }
-            )
+            androidx.compose.animation.AnimatedVisibility(
+                visible = visible,
+                enter = fadeIn(tween(600, 200)) + slideInVertically(initialOffsetY = { 20 }, animationSpec = tween(600, 200))
+            ) {
+                FilterSection(
+                    subjects = subjects,
+                    classrooms = classrooms,
+                    selectedSubjectId = selectedSubjectId,
+                    selectedClassroomId = selectedClassroomId,
+                    selectedDate = selectedDate,
+                    onSubjectChange = { selectedSubjectId = it; loadSessions() },
+                    onClassroomChange = { selectedClassroomId = it; loadSessions() },
+                    onDateClick = {
+                        val calendar = Calendar.getInstance()
+                        DatePickerDialog(context, { _, year, month, day ->
+                            selectedDate = java.util.Locale.getDefault().let { locale ->
+                                String.format(locale, "%04d-%02d-%02d", year, month + 1, day)
+                            }
+                            loadSessions()
+                        }, calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH)).show()
+                    }
+                )
+            }
 
             PullToRefreshBox(
                 isRefreshing = isRefreshing,
@@ -301,10 +326,15 @@ fun FacultyHistoryScreen(navController: NavController) {
                     }
                 } else if (sessions.isEmpty()) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(Icons.Default.History, null, tint = colorScheme.primary.copy(alpha = 0.1f), modifier = Modifier.size(120.dp))
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Text("No sessions matched filters", color = colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold)
+                        androidx.compose.animation.AnimatedVisibility(
+                            visible = itemsVisible,
+                            enter = fadeIn(tween(800)) + scaleIn(tween(800))
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(Icons.Default.History, null, tint = colorScheme.primary.copy(alpha = 0.1f), modifier = Modifier.size(120.dp))
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text("No sessions matched filters", color = colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
                 } else {
@@ -326,25 +356,30 @@ fun FacultyHistoryScreen(navController: NavController) {
                         ) {
                             items(filteredSessions.size) { index ->
                                 val session = filteredSessions[index]
-                                ModernReportCard(
-                                    session = session,
-                                    isDownloading = isDownloading == session.session_id || isDownloadingExcel == session.session_id,
-                                    isNew = index == 0 && searchQuery.isEmpty(),
-                                    onDownload = { 
-                                        downloadPdf(
-                                            session.session_id, 
-                                            "Attendance_${session.subject_name.replace(" ", "_")}_${DateTimeUtils.formatDateOnly(session.start_time)}.pdf"
-                                        ) 
-                                    },
-                                    onDownloadExcel = {
-                                        downloadExcel(
-                                            session.session_id,
-                                            "Attendance_${session.subject_name.replace(" ", "_")}_${DateTimeUtils.formatDateOnly(session.start_time)}.xlsx"
-                                        )
-                                    },
-                                    onClick = { loadSessionDetails(session.session_id) },
-                                    onDelete = { deleteSession(session.session_id) }
-                                )
+                                androidx.compose.animation.AnimatedVisibility(
+                                    visible = itemsVisible,
+                                    enter = fadeIn(tween(600, index * 100)) + slideInVertically(initialOffsetY = { 50 }, animationSpec = tween(600, index * 100))
+                                ) {
+                                    ModernReportCard(
+                                        session = session,
+                                        isDownloading = isDownloading == session.session_id || isDownloadingExcel == session.session_id,
+                                        isNew = index == 0 && searchQuery.isEmpty(),
+                                        onDownload = { 
+                                            downloadPdf(
+                                                session.session_id, 
+                                                "Attendance_${session.subject_name.replace(" ", "_")}_${DateTimeUtils.formatDateOnly(session.start_time)}.pdf"
+                                            ) 
+                                        },
+                                        onDownloadExcel = {
+                                            downloadExcel(
+                                                session.session_id,
+                                                "Attendance_${session.subject_name.replace(" ", "_")}_${DateTimeUtils.formatDateOnly(session.start_time)}.xlsx"
+                                            )
+                                        },
+                                        onClick = { loadSessionDetails(session.session_id) },
+                                        onDelete = { deleteSession(session.session_id) }
+                                    )
+                                }
                             }
                             item { Spacer(Modifier.height(24.dp)) }
                         }
@@ -362,42 +397,113 @@ fun FacultyHistoryScreen(navController: NavController) {
             details = sessionDetails,
             isLoading = isLoadingDetails,
             onDismiss = { showDetailsDialog = false; sessionDetails = null },
-            onAddManual = { showManualEntry = true }
+            onAddManual = { sid -> 
+                showManualEntry = true
+                // In case the callback passes sid, we use it if needed, 
+                // but sessionDetails?.session_id is already available.
+            }
         )
 
         if (showManualEntry) {
+            var isSubmitting by remember { mutableStateOf(false) }
+            var localErrorMessage by remember { mutableStateOf<String?>(null) }
+            val shakeOffset = remember { androidx.compose.animation.core.Animatable(0f) }
+
             AlertDialog(
-                onDismissRequest = { showManualEntry = false },
-                title = { Text("Manual Attendance") },
+                onDismissRequest = { if (!isSubmitting) showManualEntry = false },
+                title = { 
+                    Column {
+                        Text("Manual Attendance", fontWeight = FontWeight.Black)
+                        Text("Add student by roll number", fontSize = 12.sp, color = colorScheme.primary)
+                    }
+                },
                 text = {
-                    OutlinedTextField(
-                        value = manualStudentId,
-                        onValueChange = { manualStudentId = it },
-                        label = { Text("Enter Student ID") },
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        modifier = Modifier.offset(x = shakeOffset.value.dp)
+                    ) {
+                        Text("Enter the student's roll number to manually mark them as present for this session.", fontSize = 14.sp)
+                        OutlinedTextField(
+                            value = manualStudentId,
+                            onValueChange = { 
+                                manualStudentId = it
+                                localErrorMessage = null 
+                            },
+                            placeholder = { Text("e.g. 210101") },
+                            label = { Text("Student Roll Number") },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            singleLine = true,
+                            isError = localErrorMessage != null,
+                            leadingIcon = { Icon(Icons.Default.Badge, null) },
+                            enabled = !isSubmitting
+                        )
+                        
+                        androidx.compose.animation.AnimatedVisibility(
+                            visible = localErrorMessage != null,
+                            enter = fadeIn() + expandVertically(),
+                            exit = fadeOut() + shrinkVertically()
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Error, null, tint = colorScheme.error, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(8.dp))
+                                Text(localErrorMessage ?: "", color = colorScheme.error, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                    }
                 },
                 confirmButton = {
-                    TextButton(onClick = {
-                        scope.launch {
-                            try {
-                                val response = RetrofitClient.apiService.addManualAttendance(mapOf(
-                                    "session_id" to (sessionDetails?.session_id ?: ""),
-                                    "student_id" to manualStudentId
-                                ))
-                                if (response.isSuccessful) {
-                                    Toast.makeText(context, "Attendance added", Toast.LENGTH_SHORT).show()
-                                    sessionDetails?.session_id?.let { loadSessionDetails(it) }
-                                    showManualEntry = false
-                                    manualStudentId = ""
+                    Button(
+                        onClick = {
+                            if (manualStudentId.isBlank()) {
+                                localErrorMessage = "Roll number cannot be empty"
+                                return@Button
+                            }
+                            isSubmitting = true
+                            scope.launch {
+                                try {
+                                    val response = RetrofitClient.apiService.addManualAttendance(mapOf(
+                                        "session_id" to (sessionDetails?.session_id ?: ""),
+                                        "student_id" to manualStudentId.trim()
+                                    ))
+                                    if (response.isSuccessful) {
+                                        Toast.makeText(context, "Attendance marked for $manualStudentId", Toast.LENGTH_SHORT).show()
+                                        sessionDetails?.session_id?.let { loadSessionDetails(it) }
+                                        showManualEntry = false
+                                        manualStudentId = ""
+                                    } else {
+                                        val errorMsg = response.errorBody()?.string() ?: "Failed to add"
+                                        localErrorMessage = if (errorMsg.contains("already marked")) "Student already present" else "Student not found"
+                                        
+                                        // Trigger Shake Animation
+                                        repeat(3) {
+                                            shakeOffset.animateTo(10f, spring(stiffness = Spring.StiffnessHigh))
+                                            shakeOffset.animateTo(-10f, spring(stiffness = Spring.StiffnessHigh))
+                                        }
+                                        shakeOffset.animateTo(0f)
+                                    }
+                                } catch (e: Exception) {
+                                    localErrorMessage = "Network connection failed"
+                                } finally {
+                                    isSubmitting = false
                                 }
-                            } catch (e: Exception) {}
+                            }
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        enabled = !isSubmitting
+                    ) {
+                        if (isSubmitting) {
+                            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = colorScheme.onPrimary)
+                        } else {
+                            Text("Confirm")
                         }
-                    }) { Text("Add") }
+                    }
                 },
                 dismissButton = {
-                    TextButton(onClick = { showManualEntry = false }) { Text("Cancel") }
-                }
+                    TextButton(onClick = { showManualEntry = false }, enabled = !isSubmitting) { Text("Cancel") }
+                },
+                shape = RoundedCornerShape(24.dp),
+                containerColor = colorScheme.surface
             )
         }
     }
