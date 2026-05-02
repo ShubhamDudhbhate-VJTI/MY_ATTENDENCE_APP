@@ -135,7 +135,10 @@ interface ApiService {
 
     @GET("reports/pdf/{sessionId}")
     @Streaming
-    suspend fun downloadReportPdf(@Path("sessionId") sessionId: String): Response<okhttp3.ResponseBody>
+    suspend fun downloadReportPdf(
+        @Path("sessionId") sessionId: String,
+        @Query("student_id") studentId: String? = null
+    ): Response<okhttp3.ResponseBody>
 
     @GET("reports/bulk-pdf")
     @Streaming
@@ -174,6 +177,18 @@ interface ApiService {
         @Query("end_date") endDate: String? = null,
         @Query("student_id") studentId: String? = null
     ): Response<okhttp3.ResponseBody>
+
+    @GET("reports/summary")
+    suspend fun getReportsSummary(
+        @Query("faculty_id") facultyId: String? = null,
+        @Query("department_id") departmentId: String? = null,
+        @Query("branch") branch: String? = "All",
+        @Query("year") year: String? = "All",
+        @Query("subject_id") subjectId: String? = "All",
+        @Query("student_id") studentId: String? = null,
+        @Query("start_date") startDate: String? = null,
+        @Query("end_date") endDate: String? = null
+    ): Response<Map<String, Int>>
 
     @GET("faculty/all")
     suspend fun getAllFaculty(): Response<List<UserProfile>>

@@ -81,6 +81,37 @@ fun ReportsScreen(navController: NavController) {
     var startDate by remember { mutableStateOf("") }
     var endDate by remember { mutableStateOf("") }
 
+    // Summary State
+    var summaryCount by remember { mutableStateOf<Pair<Int, Int>?>(null) }
+    var isLoadingSummary by remember { mutableStateOf(false) }
+
+    fun fetchSummary() {
+        scope.launch {
+            isLoadingSummary = true
+            try {
+                val response = RetrofitClient.apiService.getReportsSummary(
+                    facultyId = userId,
+                    branch = selectedBranch,
+                    year = selectedYear,
+                    subjectId = selectedSubjectId,
+                    studentId = studentRollNo.takeIf { it.isNotEmpty() },
+                    startDate = startDate.takeIf { it.isNotEmpty() },
+                    endDate = endDate.takeIf { it.isNotEmpty() }
+                )
+                if (response.isSuccessful) {
+                    val body = response.body()
+                    summaryCount = (body?.get("total_sessions") ?: 0) to (body?.get("total_students") ?: 0)
+                }
+            } catch (e: Exception) { e.printStackTrace() }
+            finally { isLoadingSummary = false }
+        }
+    }
+
+    // Update summary when filters change
+    LaunchedEffect(selectedBranch, selectedYear, selectedSubjectId, studentRollNo, startDate, endDate) {
+        if (selectedTab == 1) fetchSummary()
+    }
+
     val colorScheme = MaterialTheme.colorScheme
     val lifecycleOwner = LocalLifecycleOwner.current
 
@@ -361,7 +392,9 @@ fun ReportsScreen(navController: NavController) {
                         onRollNoChange = { studentRollNo = it },
                         onStartDateChange = { startDate = it },
                         onEndDateChange = { endDate = it },
-                        onGenerate = { downloadPdf("", "Consolidated_Audit_${System.currentTimeMillis()}.pdf", true) }
+                        onGenerate = { downloadPdf("", "Consolidated_Audit_${System.currentTimeMillis()}.pdf", true) },
+                        summaryCount = summaryCount,
+                        isLoadingSummary = isLoadingSummary
                     )
                 }
             }
@@ -659,7 +692,9 @@ fun AuditCenterView(
     onRollNoChange: (String) -> Unit,
     onStartDateChange: (String) -> Unit,
     onEndDateChange: (String) -> Unit,
-    onGenerate: () -> Unit
+    onGenerate: () -> Unit,
+    summaryCount: Pair<Int, Int>?,
+    isLoadingSummary: Boolean
 ) {
     val colorScheme = MaterialTheme.colorScheme
     Column(
@@ -708,6 +743,19 @@ fun AuditCenterView(
                         unfocusedBorderColor = colorScheme.outline.copy(alpha = 0.3f)
                     )
                 )
+
+                HorizontalDivider(color = colorScheme.outline.copy(alpha = 0.05f))
+
+                // Summary Preview in Card
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceAround,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    AuditSummaryItem("Sessions", summaryCount?.first?.toString() ?: "0", Icons.Default.Event, isLoadingSummary)
+                    VerticalDivider(modifier = Modifier.height(24.dp), color = colorScheme.outline.copy(alpha = 0.1f))
+                    AuditSummaryItem("Students", summaryCount?.second?.toString() ?: "0", Icons.Default.Groups, isLoadingSummary)
+                }
             }
         }
 
@@ -728,6 +776,23 @@ fun AuditCenterView(
         }
         
         Spacer(Modifier.height(40.dp))
+    }
+}
+
+@Composable
+fun AuditSummaryItem(label: String, value: String, icon: androidx.compose.ui.graphics.vector.ImageVector, isLoading: Boolean) {
+    val colorScheme = MaterialTheme.colorScheme
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, null, modifier = Modifier.size(12.dp), tint = colorScheme.primary)
+            Spacer(Modifier.width(4.dp))
+            Text(label, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = colorScheme.primary)
+        }
+        if (isLoading) {
+            CircularProgressIndicator(modifier = Modifier.size(12.dp).padding(top = 2.dp), strokeWidth = 2.dp)
+        } else {
+            Text(value, fontSize = 18.sp, fontWeight = FontWeight.Black)
+        }
     }
 }
 

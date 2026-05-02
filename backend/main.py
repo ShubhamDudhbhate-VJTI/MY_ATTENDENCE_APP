@@ -275,6 +275,10 @@ def get_db():
     finally:
         db.close()
 
+def is_valid(val):
+    """Global helper to handle 'All', 'null', and 'undefined' strings from mobile clients consistently."""
+    return val and val not in ["All", "null", "None", "undefined", "", "null\n"]
+
 def clean_id(val: str) -> str:
     """Sanitize IDs from common formatting errors"""
     if not val: return val
@@ -840,7 +844,7 @@ class PDFReport(FPDF):
         self.ln(5)
 
 @app.get("/reports/pdf/{session_id}")
-async def export_session_pdf(session_id: str, db: Session = Depends(get_db)):
+async def export_session_pdf(session_id: str, student_id: Optional[str] = None, db: Session = Depends(get_db)):
     """Generates a professional PDF for a single attendance session using Live Supabase Data"""
     sid = clean_id(session_id)
     # Use Outer Join for Classroom and User to handle NULL values in Supabase
@@ -854,7 +858,12 @@ async def export_session_pdf(session_id: str, db: Session = Depends(get_db)):
         raise HTTPException(404, "Session data not found in Supabase. Check if subject or session exists.")
 
     sess, sub, room, user_obj = session_data
-    records = db.query(AttendanceRecord, Student).join(Student).filter(AttendanceRecord.session_id == sid).all()
+
+    records_query = db.query(AttendanceRecord, Student).join(Student).filter(AttendanceRecord.session_id == sid)
+    if student_id and student_id != "All":
+        records_query = records_query.filter(or_(Student.id == student_id, Student.registration_number == student_id))
+
+    records = records_query.all()
 
     pdf = PDFReport()
     pdf.add_page()
@@ -891,6 +900,7 @@ async def export_bulk_pdf(
     branch: Optional[str] = "All",
     year: Optional[str] = "All",
     subject_id: Optional[str] = "All",
+    student_id: Optional[str] = "All",
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     db: Session = Depends(get_db)
@@ -899,10 +909,6 @@ async def export_bulk_pdf(
     fid = clean_id(faculty_id)
     # Start with a subquery or join to ensure we have Subject info for filtering
     query = db.query(AttendanceSession).join(Subject, AttendanceSession.subject_id == Subject.id).filter(AttendanceSession.faculty_id == fid)
-
-    # Defensive filtering for "All", "null", "None"
-    def is_valid(val):
-        return val and val not in ["All", "null", "None", "undefined", ""]
 
     if is_valid(branch):
         query = query.filter(Subject.branch.ilike(f"%{branch}%"))
@@ -918,21 +924,21 @@ async def export_bulk_pdf(
         try: query = query.filter(AttendanceSession.start_time <= datetime.fromisoformat(end_date.replace('Z', '+00:00')))
         except: pass
 
-    sessions = query.all()
-    if not sessions:
+    # Subqueries to avoid parameter limits (1000+) in SQL 'IN' clauses
+    session_id_sub = query.with_entities(AttendanceSession.id)
+    subject_id_sub = query.with_entities(AttendanceSession.subject_id).distinct()
+
+    # We need to check if any sessions exist before proceeding
+    # Using a count query is more efficient than fetching all
+    total_sess = db.query(func.count(AttendanceSession.id)).filter(AttendanceSession.id.in_(session_id_sub)).scalar()
+
+    if total_sess == 0:
         print(f"DEBUG: No sessions found for faculty_id={fid}, branch={branch}, year={year}, subject_id={subject_id}")
         raise HTTPException(status_code=404, detail="No attendance sessions found for the selected filters.")
-
-    session_ids = [s.id for s in sessions]
-    total_sess = len(sessions)
 
     print(f"DEBUG: Found {total_sess} sessions for bulk report")
 
     # REFINED STUDENT SCOPING (Optimized for Large Data):
-    # Use subqueries to avoid parameter limits (1000+) in SQL 'IN' clauses
-    session_id_sub = query.with_entities(AttendanceSession.id)
-    subject_id_sub = query.with_entities(AttendanceSession.subject_id).distinct()
-
     # Find relevant student population
     # 1. Students who attended at least one filtered session
     attended_q = db.query(AttendanceRecord.student_id).filter(AttendanceRecord.session_id.in_(session_id_sub))
@@ -949,13 +955,17 @@ async def export_bulk_pdf(
         target_q = target_q.union(audience_q)
 
     # FINAL AGGREGATED QUERY
-    results = db.query(
+    results_query = db.query(
         Student.registration_number,
         Student.full_name,
         func.count(AttendanceRecord.id)
     ).outerjoin(AttendanceRecord, (Student.id == AttendanceRecord.student_id) & (AttendanceRecord.session_id.in_(session_id_sub)))\
-     .filter(Student.id.in_(target_q))\
-     .group_by(Student.registration_number, Student.full_name)\
+     .filter(Student.id.in_(target_q))
+
+    if is_valid(student_id):
+        results_query = results_query.filter(or_(Student.id == student_id, Student.registration_number == student_id))
+
+    results = results_query.group_by(Student.registration_number, Student.full_name)\
      .order_by(Student.registration_number).all()
 
     pdf = PDFReport()
@@ -1048,11 +1058,69 @@ async def export_bulk_pdf(
     else:
         return Response(content=str(pdf_output).encode('utf-8'), media_type="application/pdf", headers={"Content-Disposition": "attachment; filename=Faculty_Bulk_Report.pdf"})
 
+@app.get("/reports/summary")
+async def get_reports_summary(
+    faculty_id: Optional[str] = None,
+    department_id: Optional[str] = None,
+    branch: Optional[str] = "All",
+    year: Optional[str] = "All",
+    subject_id: Optional[str] = "All",
+    student_id: Optional[str] = "All",
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """Returns a quick summary (counts) of sessions and students matching filters."""
+    query = db.query(AttendanceSession).join(Subject, AttendanceSession.subject_id == Subject.id)
+
+    if is_valid(faculty_id):
+        fid = clean_id(faculty_id)
+        query = query.filter(AttendanceSession.faculty_id == fid)
+
+    if is_valid(department_id):
+        did = clean_id(department_id)
+        teacher_lookup = db.query(Teacher).filter(Teacher.id == did).first()
+        actual_dept = teacher_lookup.department_id or teacher_lookup.branch if teacher_lookup else did
+        query = query.filter((Subject.department_id.ilike(f"%{actual_dept}%")) | (Subject.branch.ilike(f"%{actual_dept}%")))
+
+    if is_valid(branch):
+        query = query.filter(Subject.branch.ilike(f"%{branch}%"))
+    if is_valid(year):
+        query = query.filter(Subject.year.ilike(f"%{year}%"))
+    if is_valid(subject_id):
+        query = query.filter(AttendanceSession.subject_id == clean_id(subject_id))
+
+    if start_date:
+        try: query = query.filter(AttendanceSession.start_time >= datetime.fromisoformat(start_date.replace('Z', '+00:00')))
+        except: pass
+    if end_date:
+        try: query = query.filter(AttendanceSession.start_time <= datetime.fromisoformat(end_date.replace('Z', '+00:00')))
+        except: pass
+
+    session_ids = [s.id for s in query.with_entities(AttendanceSession.id).all()]
+    total_sessions = len(session_ids)
+
+    if total_sessions == 0:
+        return {"total_sessions": 0, "total_students": 0}
+
+    # Count unique students who attended these sessions
+    student_count = db.query(AttendanceRecord.student_id).filter(AttendanceRecord.session_id.in_(session_ids)).distinct().count()
+
+    # If student_id is provided, check if that specific student exists in these sessions
+    if is_valid(student_id):
+        is_present = db.query(AttendanceRecord).filter(
+            AttendanceRecord.session_id.in_(session_ids),
+            or_(AttendanceRecord.student_id == student_id)
+        ).first() is not None
+        student_count = 1 if is_present else 0
+
+    return {
+        "total_sessions": total_sessions,
+        "total_students": student_count
+    }
+
 @app.get("/analytics/department/{dept_id}")
 async def get_department_analytics(dept_id: str, db: Session = Depends(get_db)):
-    def is_valid(val):
-        return val and val not in ["All", "null", "None", "undefined"]
-
     # 1. Resolve Department from HOD/Teacher ID
     uid = clean_id(dept_id)
     teacher = db.query(Teacher).filter(Teacher.id == uid).first()
@@ -1206,6 +1274,7 @@ async def export_hod_master_pdf(
     branch: Optional[str] = "All",
     year: Optional[str] = "All",
     subject_id: Optional[str] = "All",
+    student_id: Optional[str] = "All",
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     db: Session = Depends(get_db)
@@ -1213,23 +1282,19 @@ async def export_hod_master_pdf(
     """HOD Level: High-Standard Departmental Audit with Advanced Filtering & Null Handling"""
     did = clean_id(department_id)
 
-    def is_valid(val): return val and val not in ["All", "null", "None", "undefined"]
-
     # 1. Resolve Department
     teacher_lookup = db.query(Teacher).filter(Teacher.id == did).first()
     actual_dept = teacher_lookup.department_id or teacher_lookup.branch if teacher_lookup else did
 
     # 2. Gather Sessions
-    # Use outerjoin with User to ensure we don't skip sessions if profile is missing
-    query = db.query(AttendanceSession, Subject, User).join(Subject).outerjoin(User, AttendanceSession.faculty_id == User.id)
+    query = db.query(AttendanceSession).join(Subject, AttendanceSession.subject_id == Subject.id).outerjoin(User, AttendanceSession.faculty_id == User.id)
 
     # Base filter: Must match department or branch
     query = query.filter((Subject.department_id.ilike(f"%{actual_dept}%")) | (Subject.branch.ilike(f"%{actual_dept}%")))
 
-    # Apply valid filters cumulatively with lenient matching
+    # Apply valid filters
     if is_valid(faculty_id):
         fid = clean_id(faculty_id)
-        # Match by ID, Username or Full Name to be extremely defensive
         query = query.filter((AttendanceSession.faculty_id == fid) | (User.username.ilike(f"%{fid}%")) | (User.full_name.ilike(f"%{fid}%")))
 
     if is_valid(subject_id):
@@ -1239,50 +1304,47 @@ async def export_hod_master_pdf(
         query = query.filter(Subject.branch.ilike(f"%{branch}%"))
 
     if is_valid(year):
-        # Handle common year abbreviations
         y_val = year.lower()
         if "second" in y_val or "se" in y_val: y_patterns = ["%Second%", "%SE%", "%2nd%"]
         elif "first" in y_val or "fe" in y_val: y_patterns = ["%First%", "%FE%", "%1st%"]
         elif "third" in y_val or "te" in y_val: y_patterns = ["%Third%", "%TE%", "%3rd%"]
         elif "final" in y_val or "be" in y_val or "fourth" in y_val: y_patterns = ["%Final%", "%BE%", "%4th%", "%Fourth%"]
         else: y_patterns = [f"%{year}%"]
-
-        from sqlalchemy import or_
         query = query.filter(or_(*[Subject.year.ilike(p) for p in y_patterns]))
 
     if start_date:
-        try:
-            sd = datetime.strptime(start_date, '%Y-%m-%d')
-            query = query.filter(AttendanceSession.start_time >= sd)
-        except Exception: pass
+        try: query = query.filter(AttendanceSession.start_time >= datetime.fromisoformat(start_date.replace('Z', '+00:00')))
+        except: pass
     if end_date:
-        try:
-            ed = datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1)
-            query = query.filter(AttendanceSession.start_time < ed)
-        except Exception: pass
+        try: query = query.filter(AttendanceSession.start_time <= datetime.fromisoformat(end_date.replace('Z', '+00:00')))
+        except: pass
 
-    sessions = query.all()
-    if not sessions:
+    # Subqueries for optimized child queries
+    session_id_sub = query.with_entities(AttendanceSession.id)
+    subject_id_sub = query.with_entities(AttendanceSession.subject_id).distinct()
+
+    # We need session data for report headers/faculty matrix
+    # Using a subquery in IN is safe
+    sessions_full = db.query(AttendanceSession, Subject, User).join(Subject).outerjoin(User, AttendanceSession.faculty_id == User.id).filter(AttendanceSession.id.in_(session_id_sub)).all()
+
+    if not sessions_full:
         msg = f"No sessions found for {actual_dept}"
         if is_valid(branch): msg += f", Branch: {branch}"
         if is_valid(year): msg += f", Year: {year}"
         if is_valid(faculty_id): msg += f", Faculty: {faculty_id}"
         raise HTTPException(status_code=404, detail=msg)
 
-    session_ids = [s[0].id for s in sessions]
-    total_sess = len(sessions)
+    total_sess = len(sessions_full)
 
-    # 3. Define the Student Audit Scope (Include department students + actual attendees)
+    # 3. Define the Student Audit Scope
     student_query = db.query(Student).filter(
         or_(
             Student.department_id.ilike(f"%{actual_dept}%"),
-            Student.branch.ilike(f"%{actual_dept}%"),
-            Student.department_id.ilike("%Information Technology%"),
-            Student.branch.ilike("%Information Technology%")
+            Student.branch.ilike(f"%{actual_dept}%")
         )
     )
     if is_valid(branch):
-        student_query = student_query.filter(or_(Student.branch.ilike(f"%{branch}%"), Student.branch.ilike("%Information Technology%")))
+        student_query = student_query.filter(Student.branch.ilike(f"%{branch}%"))
     if is_valid(year):
         y_val = year.lower()
         if "second" in y_val or "se" in y_val: y_patterns = ["%Second%", "%SE%", "%2nd%"]
@@ -1290,39 +1352,37 @@ async def export_hod_master_pdf(
         elif "third" in y_val or "te" in y_val: y_patterns = ["%Third%", "%TE%", "%3rd%"]
         elif "final" in y_val or "be" in y_val or "fourth" in y_val: y_patterns = ["%Final%", "%BE%", "%4th%", "%Fourth%"]
         else: y_patterns = [f"%{year}%"]
-        from sqlalchemy import or_
         student_query = student_query.filter(or_(*[Student.year.ilike(p) for p in y_patterns]))
 
-    dept_student_ids = [s.id for s in student_query.all()]
-    attended_student_ids = [r[0] for r in db.query(AttendanceRecord.student_id).filter(AttendanceRecord.session_id.in_(session_ids)).distinct().all()]
-
-    target_student_ids = list(set(dept_student_ids + attended_student_ids))
-
-    if not target_student_ids:
-        # Instead of 404, we'll try to at least find students in the broader department
-        target_student_ids = dept_student_ids or attended_student_ids
-
-    if not target_student_ids:
-        raise HTTPException(status_code=404, detail="No students found matching these criteria.")
+    dept_student_ids_q = student_query.with_entities(Student.id)
+    attended_student_ids_q = db.query(AttendanceRecord.student_id).filter(AttendanceRecord.session_id.in_(session_id_sub)).distinct()
+    target_student_id_sub = dept_student_ids_q.union(attended_student_ids_q)
 
     # 4. Aggregate Performance
-    student_stats = db.query(
+    results_query = db.query(
         Student.registration_number,
         Student.full_name,
         Student.branch,
         func.count(AttendanceRecord.id).label('attended_count')
-    ).outerjoin(AttendanceRecord, (Student.id == AttendanceRecord.student_id) & (AttendanceRecord.session_id.in_(session_ids)))\
-     .filter(Student.id.in_(target_student_ids))\
-     .group_by(Student.registration_number, Student.full_name, Student.branch)\
+    ).outerjoin(AttendanceRecord, (Student.id == AttendanceRecord.student_id) & (AttendanceRecord.session_id.in_(session_id_sub)))\
+     .filter(Student.id.in_(target_student_id_sub))
+
+    if is_valid(student_id):
+        results_query = results_query.filter(or_(Student.id == student_id, Student.registration_number == student_id))
+
+    student_stats = results_query.group_by(Student.registration_number, Student.full_name, Student.branch)\
      .order_by(Student.registration_number).all()
+
+    if not student_stats:
+        raise HTTPException(status_code=404, detail="No students found matching these criteria.")
 
     # AI Stats
     ai_verified = db.query(func.count(AttendanceRecord.id)).filter(
-        AttendanceRecord.session_id.in_(session_ids),
+        AttendanceRecord.session_id.in_(session_id_sub),
         AttendanceRecord.face_verified == True
     ).scalar() or 0
     total_recs = db.query(func.count(AttendanceRecord.id)).filter(
-        AttendanceRecord.session_id.in_(session_ids)
+        AttendanceRecord.session_id.in_(session_id_sub)
     ).scalar() or 0
     ai_accuracy = (ai_verified / total_recs * 100) if total_recs > 0 else 0
 
@@ -1351,7 +1411,7 @@ async def export_hod_master_pdf(
 
     pdf.set_font('helvetica', '', 9)
     fac_data = {}
-    for s, sub, user in sessions:
+    for s, sub, user in sessions_full:
         name = user.full_name if user else "Unknown Faculty"
         key = (name, sub.name)
         fac_data[key] = fac_data.get(key, 0) + 1
@@ -1405,6 +1465,7 @@ async def export_hod_master_excel(
     branch: Optional[str] = "All",
     year: Optional[str] = "All",
     subject_id: Optional[str] = "All",
+    student_id: Optional[str] = "All",
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     db: Session = Depends(get_db)
@@ -1414,23 +1475,21 @@ async def export_hod_master_excel(
     did = clean_id(department_id)
 
     def is_valid(val):
-        return val and val not in ["All", "null", "None", "undefined"]
+        return val and val not in ["All", "null", "None", "undefined", ""]
 
     # 1. Resolve Department
     teacher_lookup = db.query(Teacher).filter(Teacher.id == did).first()
     actual_dept = teacher_lookup.department_id or teacher_lookup.branch if teacher_lookup else did
 
     # 2. Gather Sessions
-    # Use outerjoin with User to ensure we don't skip sessions if profile is missing
-    query = db.query(AttendanceSession, Subject, User).join(Subject).outerjoin(User, AttendanceSession.faculty_id == User.id)
+    query = db.query(AttendanceSession).join(Subject, AttendanceSession.subject_id == Subject.id).outerjoin(User, AttendanceSession.faculty_id == User.id)
 
     # Base filter: Must match department or branch
     query = query.filter((Subject.department_id.ilike(f"%{actual_dept}%")) | (Subject.branch.ilike(f"%{actual_dept}%")))
 
-    # Apply valid filters cumulatively with lenient matching
+    # Apply valid filters
     if is_valid(faculty_id):
         fid = clean_id(faculty_id)
-        # Match by ID, Username or Full Name to be extremely defensive
         query = query.filter((AttendanceSession.faculty_id == fid) | (User.username.ilike(f"%{fid}%")) | (User.full_name.ilike(f"%{fid}%")))
 
     if is_valid(subject_id):
@@ -1440,34 +1499,29 @@ async def export_hod_master_excel(
         query = query.filter(Subject.branch.ilike(f"%{branch}%"))
 
     if is_valid(year):
-        # Handle common year abbreviations
         y_val = year.lower()
         if "second" in y_val or "se" in y_val: y_patterns = ["%Second%", "%SE%", "%2nd%"]
         elif "first" in y_val or "fe" in y_val: y_patterns = ["%First%", "%FE%", "%1st%"]
         elif "third" in y_val or "te" in y_val: y_patterns = ["%Third%", "%TE%", "%3rd%"]
         elif "final" in y_val or "be" in y_val or "fourth" in y_val: y_patterns = ["%Final%", "%BE%", "%4th%", "%Fourth%"]
         else: y_patterns = [f"%{year}%"]
-
-        from sqlalchemy import or_
         query = query.filter(or_(*[Subject.year.ilike(p) for p in y_patterns]))
 
     if start_date:
-        try:
-            sd = datetime.strptime(start_date, '%Y-%m-%d')
-            query = query.filter(AttendanceSession.start_time >= sd)
-        except Exception: pass
+        try: query = query.filter(AttendanceSession.start_time >= datetime.fromisoformat(start_date.replace('Z', '+00:00')))
+        except: pass
     if end_date:
-        try:
-            ed = datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1)
-            query = query.filter(AttendanceSession.start_time < ed)
-        except Exception: pass
+        try: query = query.filter(AttendanceSession.start_time <= datetime.fromisoformat(end_date.replace('Z', '+00:00')))
+        except: pass
 
-    sessions = query.all()
-    if not sessions:
+    # Subqueries for optimized child queries
+    session_id_sub = query.with_entities(AttendanceSession.id)
+
+    # Count sessions
+    total_sess = db.query(func.count(AttendanceSession.id)).filter(AttendanceSession.id.in_(session_id_sub)).scalar()
+
+    if total_sess == 0:
         raise HTTPException(status_code=404, detail="No data found matching these filters.")
-
-    session_ids = [s[0].id for s in sessions]
-    total_sess = len(sessions)
 
     # 3. Define the Student Audit Scope
     student_query = db.query(Student).filter((Student.department_id.ilike(f"%{actual_dept}%")) | (Student.branch.ilike(f"%{actual_dept}%")))
@@ -1480,25 +1534,25 @@ async def export_hod_master_excel(
         elif "third" in y_val or "te" in y_val: y_patterns = ["%Third%", "%TE%", "%3rd%"]
         elif "final" in y_val or "be" in y_val or "fourth" in y_val: y_patterns = ["%Final%", "%BE%", "%4th%", "%Fourth%"]
         else: y_patterns = [f"%{year}%"]
-        from sqlalchemy import or_
         student_query = student_query.filter(or_(*[Student.year.ilike(p) for p in y_patterns]))
 
-    dept_student_ids = [s.id for s in student_query.all()]
-    attended_student_ids = [r[0] for r in db.query(AttendanceRecord.student_id).filter(AttendanceRecord.session_id.in_(session_ids)).distinct().all()]
-    target_student_ids = list(set(dept_student_ids + attended_student_ids))
-
-    if not target_student_ids:
-        raise HTTPException(status_code=404, detail="No students found matching these filters.")
+    dept_student_ids_q = student_query.with_entities(Student.id)
+    attended_student_ids_q = db.query(AttendanceRecord.student_id).filter(AttendanceRecord.session_id.in_(session_id_sub)).distinct()
+    target_student_id_sub = dept_student_ids_q.union(attended_student_ids_q)
 
     # 4. Aggregate Performance
-    stats = db.query(
+    results_query = db.query(
         Student.registration_number,
         Student.full_name,
         Student.branch,
         func.count(AttendanceRecord.id)
-    ).outerjoin(AttendanceRecord, (Student.id == AttendanceRecord.student_id) & (AttendanceRecord.session_id.in_(session_ids)))\
-     .filter(Student.id.in_(target_student_ids))\
-     .group_by(Student.registration_number, Student.full_name, Student.branch)\
+    ).outerjoin(AttendanceRecord, (Student.id == AttendanceRecord.student_id) & (AttendanceRecord.session_id.in_(session_id_sub)))\
+     .filter(Student.id.in_(target_student_id_sub))
+
+    if is_valid(student_id):
+        results_query = results_query.filter(or_(Student.id == student_id, Student.registration_number == student_id))
+
+    stats = results_query.group_by(Student.registration_number, Student.full_name, Student.branch)\
      .order_by(Student.registration_number).all()
 
     # Create CSV with BOM for Excel compatibility

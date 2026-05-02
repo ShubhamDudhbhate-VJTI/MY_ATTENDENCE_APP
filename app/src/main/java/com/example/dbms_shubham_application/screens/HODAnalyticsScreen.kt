@@ -79,8 +79,41 @@ fun HODAnalyticsScreen(navController: NavController) {
     var selectedYear by remember { mutableStateOf("All") }
     var selectedFacultyId by remember { mutableStateOf("All") }
     var selectedSubjectId by remember { mutableStateOf("All") }
+    var studentRollNo by remember { mutableStateOf("") }
     var startDate by remember { mutableStateOf("") }
     var endDate by remember { mutableStateOf("") }
+
+    // Summary State
+    var summaryCount by remember { mutableStateOf<Pair<Int, Int>?>(null) }
+    var isLoadingSummary by remember { mutableStateOf(false) }
+
+    val fetchSummary = {
+        scope.launch {
+            isLoadingSummary = true
+            try {
+                val response = RetrofitClient.apiService.getReportsSummary(
+                    departmentId = departmentId,
+                    facultyId = selectedFacultyId.takeIf { it != "All" },
+                    branch = selectedBranch.takeIf { it != "All" },
+                    year = selectedYear.takeIf { it != "All" },
+                    subjectId = selectedSubjectId.takeIf { it != "All" },
+                    studentId = studentRollNo.takeIf { it.isNotEmpty() },
+                    startDate = startDate.takeIf { it.isNotEmpty() },
+                    endDate = endDate.takeIf { it.isNotEmpty() }
+                )
+                if (response.isSuccessful) {
+                    val body = response.body()
+                    summaryCount = (body?.get("total_sessions") ?: 0) to (body?.get("total_students") ?: 0)
+                }
+            } catch (e: Exception) { e.printStackTrace() }
+            finally { isLoadingSummary = false }
+        }
+    }
+
+    // Update summary when filters change
+    LaunchedEffect(selectedBranch, selectedYear, selectedFacultyId, selectedSubjectId, studentRollNo, startDate, endDate) {
+        if (selectedTab == 1) fetchSummary()
+    }
 
     // Data Fetching Function
     val fetchAnalytics = {
@@ -131,7 +164,8 @@ fun HODAnalyticsScreen(navController: NavController) {
                         year = selectedYear.takeIf { it != "All" },
                         subjectId = selectedSubjectId.takeIf { it != "All" },
                         startDate = startDate.takeIf { it.isNotEmpty() },
-                        endDate = endDate.takeIf { it.isNotEmpty() }
+                        endDate = endDate.takeIf { it.isNotEmpty() },
+                        studentId = studentRollNo.takeIf { it.isNotEmpty() }
                     )
                 } else {
                     RetrofitClient.apiService.downloadHodMasterPdf(
@@ -141,7 +175,8 @@ fun HODAnalyticsScreen(navController: NavController) {
                         year = selectedYear.takeIf { it != "All" },
                         subjectId = selectedSubjectId.takeIf { it != "All" },
                         startDate = startDate.takeIf { it.isNotEmpty() },
-                        endDate = endDate.takeIf { it.isNotEmpty() }
+                        endDate = endDate.takeIf { it.isNotEmpty() },
+                        studentId = studentRollNo.takeIf { it.isNotEmpty() }
                     )
                 }
                 
@@ -407,6 +442,25 @@ fun HODAnalyticsScreen(navController: NavController) {
                             }
                         }
 
+                        // Student Roll No Filter
+                        AnimatedVisibility(
+                            visible = visible,
+                            enter = fadeIn(tween(600, filterDelay + 350)) + slideInVertically(initialOffsetY = { 20 }, animationSpec = tween(600, filterDelay + 350))
+                        ) {
+                            OutlinedTextField(
+                                value = studentRollNo,
+                                onValueChange = { studentRollNo = it },
+                                label = { Text("Student Roll No (Optional)") },
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(16.dp),
+                                leadingIcon = { Icon(Icons.Default.PersonSearch, null) },
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = colorScheme.primary,
+                                    unfocusedBorderColor = colorScheme.outline.copy(alpha = 0.3f)
+                                )
+                            )
+                        }
+
                         AnimatedVisibility(
                             visible = visible,
                             enter = fadeIn(tween(600, 600)) + slideInVertically(initialOffsetY = { 20 }, animationSpec = tween(600, 600))
@@ -419,6 +473,31 @@ fun HODAnalyticsScreen(navController: NavController) {
                     }
 
                     Spacer(modifier = Modifier.height(32.dp))
+
+                    // Summary Preview Card
+                    AnimatedVisibility(
+                        visible = visible,
+                        enter = fadeIn(tween(600, 650)) + slideInVertically(initialOffsetY = { 20 }, animationSpec = tween(600, 650))
+                    ) {
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            color = colorScheme.primary.copy(alpha = 0.05f),
+                            shape = RoundedCornerShape(20.dp),
+                            border = BorderStroke(1.dp, colorScheme.primary.copy(alpha = 0.1f))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(16.dp),
+                                horizontalArrangement = Arrangement.SpaceAround,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                SummaryItem("Sessions", summaryCount?.first?.toString() ?: "0", Icons.Default.Event, isLoadingSummary)
+                                VerticalDivider(modifier = Modifier.height(30.dp), color = colorScheme.primary.copy(alpha = 0.2f))
+                                SummaryItem("Students", summaryCount?.second?.toString() ?: "0", Icons.Default.Groups, isLoadingSummary)
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
 
                     AnimatedVisibility(
                         visible = visible,
@@ -568,6 +647,23 @@ fun AnalyticsStatCard(stat: StatItem, modifier: Modifier = Modifier) {
                 Text(stat.title, fontSize = 11.sp, color = colorScheme.onSurface.copy(alpha = 0.6f))
                 Text(stat.value, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = colorScheme.onSurface)
             }
+        }
+    }
+}
+
+@Composable
+fun SummaryItem(label: String, value: String, icon: ImageVector, isLoading: Boolean) {
+    val colorScheme = MaterialTheme.colorScheme
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(icon, null, modifier = Modifier.size(14.dp), tint = colorScheme.primary)
+            Spacer(Modifier.width(6.dp))
+            Text(label, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = colorScheme.primary.copy(alpha = 0.7f))
+        }
+        if (isLoading) {
+            CircularProgressIndicator(modifier = Modifier.size(14.dp).padding(top = 4.dp), strokeWidth = 2.dp)
+        } else {
+            Text(value, fontSize = 20.sp, fontWeight = FontWeight.Black, color = colorScheme.onSurface)
         }
     }
 }
