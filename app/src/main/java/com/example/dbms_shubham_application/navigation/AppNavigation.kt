@@ -96,6 +96,31 @@ fun AppNavigation(
             LeaveManagementScreen(navController = navController)
         }
         composable(
+            route = "subject_details/{subjectId}/{subjectName}/{percentage}/{attended}/{total}",
+            arguments = listOf(
+                androidx.navigation.navArgument("subjectId") { type = androidx.navigation.NavType.StringType },
+                androidx.navigation.navArgument("subjectName") { type = androidx.navigation.NavType.StringType },
+                androidx.navigation.navArgument("percentage") { type = androidx.navigation.NavType.FloatType },
+                androidx.navigation.navArgument("attended") { type = androidx.navigation.NavType.IntType },
+                androidx.navigation.navArgument("total") { type = androidx.navigation.NavType.IntType }
+            )
+        ) { backStackEntry ->
+            val subjectId = backStackEntry.arguments?.getString("subjectId") ?: ""
+            val subjectName = backStackEntry.arguments?.getString("subjectName") ?: ""
+            val percentage = backStackEntry.arguments?.getFloat("percentage")?.toDouble() ?: 0.0
+            val attended = backStackEntry.arguments?.getInt("attended") ?: 0
+            val total = backStackEntry.arguments?.getInt("total") ?: 0
+            
+            SubjectDetailsScreen(
+                navController = navController,
+                subjectId = subjectId,
+                subjectName = subjectName,
+                percentage = percentage,
+                attended = attended,
+                total = total
+            )
+        }
+        composable(
             route = "start_session?subject_id={subject_id}&classroom_id={classroom_id}&subject_name={subject_name}&room_name={room_name}",
             arguments = listOf(
                 androidx.navigation.navArgument("subject_id") { type = androidx.navigation.NavType.StringType; nullable = true; defaultValue = null },

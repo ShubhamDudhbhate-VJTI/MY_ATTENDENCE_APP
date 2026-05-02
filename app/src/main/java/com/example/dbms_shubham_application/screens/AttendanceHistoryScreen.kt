@@ -71,9 +71,11 @@ fun AttendanceHistoryScreen(navController: NavController) {
                 Log.d("AttendanceHistory", "Fetching history for userId: $userId")
                 val response = RetrofitClient.apiService.getAttendanceHistory(userId)
                 if (response.isSuccessful) {
-                    val body = response.body()
-                    Log.d("AttendanceHistory", "Received ${body?.size} records")
-                    attendanceRecords = (body ?: emptyList()).sortedByDescending { it.timestamp }
+                    val body = response.body() ?: emptyList()
+                    Log.d("AttendanceHistory", "Received ${body.size} records")
+                    // Filter out test/fake sessions (cloud___)
+                    attendanceRecords = body.filter { !it.session_id.startsWith("cloud___") }
+                        .sortedByDescending { it.timestamp }
                 } else {
                     Log.e("AttendanceHistory", "Response Error: ${response.code()} ${response.message()}")
                 }

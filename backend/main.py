@@ -285,6 +285,39 @@ def clean_id(val: str) -> str:
     # Handle newlines and quotes that occasionally slip through from mobile/storage
     return str(val).replace('"', '').replace("'", "").replace('\n', '').strip()
 
+def resolve_dept(dept_id: str, db: Session):
+    """Resolves department name from ID or alias"""
+    uid = clean_id(dept_id)
+    teacher = db.query(Teacher).filter(Teacher.id == uid).first()
+    if teacher:
+        return teacher.department_id or teacher.branch
+
+    # Standardize common department short-codes to ensure robust matching
+    aliases = {
+        "IT": "Information Technology",
+        "CS": "Computer",
+        "COMP": "Computer",
+        "MECH": "Mechanical",
+        "CIVIL": "Civil",
+        "EXTC": "Electronics"
+    }
+    return aliases.get(dept_id.upper(), dept_id)
+
+def apply_academic_filters(query, model, branch=None, year=None):
+    """Unified filtering for Branch and Year across all reports"""
+    if is_valid(branch):
+        query = query.filter(model.branch.ilike(f"%{branch}%"))
+
+    if is_valid(year):
+        y_val = year.lower()
+        if "second" in y_val or "se" in y_val: y_patterns = ["%Second%", "%SE%", "%2nd%"]
+        elif "first" in y_val or "fe" in y_val: y_patterns = ["%First%", "%FE%", "%1st%"]
+        elif "third" in y_val or "te" in y_val: y_patterns = ["%Third%", "%TE%", "%3rd%"]
+        elif "final" in y_val or "be" in y_val or "fourth" in y_val: y_patterns = ["%Final%", "%BE%", "%4th%", "%Fourth%"]
+        else: y_patterns = [f"%{year}%"]
+        query = query.filter(or_(*[model.year.ilike(p) for p in y_patterns]))
+    return query
+
 # --- SERVER LIFESPAN & INITIAL SEEDING ---
 
 @asynccontextmanager
@@ -361,10 +394,10 @@ async def get_user_profile(user_id: str, db: Session = Depends(get_db)):
     profile = {"id": str(user.id), "username": user.username, "email": user.email, "full_name": user.full_name, "role": user.role, "academic": {}}
     if user.role == "student":
         s = db.query(Student).filter(Student.id == user.id).first()
-        if s: profile["academic"] = {"branch": s.branch, "year": s.year, "reg_no": s.registration_number}
+        if s: profile["academic"] = {"branch": s.branch, "department": s.branch, "year": s.year, "reg_no": s.registration_number}
     else:
         t = db.query(Teacher).filter(Teacher.id == user.id).first()
-        if t: profile["academic"] = {"branch": t.branch, "designation": t.designation, "employee_id": t.employee_id}
+        if t: profile["academic"] = {"branch": t.branch, "department": t.branch, "designation": t.designation, "employee_id": t.employee_id}
     return profile
 
 # --- ACADEMIC DATA FETCHING ---
@@ -745,6 +778,93 @@ async def get_student_history(student_id: str, db: Session = Depends(get_db)):
         } for s, sub in sessions
     ]
 
+@app.get("/student/attendance/{student_id}/subjects")
+async def get_subject_attendance(student_id: str, db: Session = Depends(get_db)):
+    sid = clean_id(student_id)
+    student = db.query(Student).filter(Student.id == sid).first()
+    if not student: return []
+
+    # 1. Get relevant subjects
+    branch_subs = [s[0] for s in db.query(Subject.id).filter(Subject.branch == student.branch, Subject.year == student.year).all()]
+    enrolled_subs = [e[0] for e in db.query(Enrollment.subject_id).filter(Enrollment.student_id == sid).all()]
+    all_sub_ids = list(set(branch_subs + enrolled_subs))
+
+    # 2. Get all sessions for these subjects
+    sessions = db.query(AttendanceSession).filter(AttendanceSession.subject_id.in_(all_sub_ids)).all()
+
+    # 3. Get student attendance records
+    records = db.query(AttendanceRecord).filter(AttendanceRecord.student_id == sid).all()
+    attended_session_ids = {r.session_id for r in records}
+
+    # 4. Aggregate by subject
+    subject_map = {}
+    subjects = db.query(Subject).filter(Subject.id.in_(all_sub_ids)).all()
+    for s in subjects:
+        subject_map[s.id] = {
+            "subject_id": str(s.id),
+            "subject_name": str(s.name),
+            "total_classes": 0,
+            "attended_classes": 0
+        }
+
+    for sess in sessions:
+        if sess.subject_id in subject_map:
+            subject_map[sess.subject_id]["total_classes"] += 1
+            if sess.id in attended_session_ids:
+                subject_map[sess.subject_id]["attended_classes"] += 1
+
+    # 5. Calculate percentage and format response
+    results = []
+    for sub_data in subject_map.values():
+        total = sub_data["total_classes"]
+        attended = sub_data["attended_classes"]
+        percentage = (attended / total) if total > 0 else 0.0
+        sub_data["percentage"] = round(percentage, 4) # Return as decimal (0.0 to 1.0)
+        results.append(sub_data)
+
+    return results
+
+@app.post("/notifications/send")
+async def send_manual_notification(data: dict = Body(...), db: Session = Depends(get_db)):
+    """Broadcasts a notification to a specific user, branch/year group, or class"""
+    target_type = data.get("target_type") # 'individual', 'group', or 'class'
+    target_id = data.get("target_id")
+    title = data.get("title", "System Notification")
+    message = data.get("message", "")
+    sender_id = data.get("sender_id")
+
+    if not message or not target_id:
+        raise HTTPException(400, "Missing message or target identifier")
+
+    target_users = []
+    if target_type == "individual":
+        # target_id is the user_id or registration number
+        user = db.query(User).filter((User.id == target_id) | (User.username == target_id)).first()
+        if user: target_users.append(user.id)
+
+    elif target_type == "group":
+        # target_id is likely "Branch|Year" e.g., "Information Technology|Third Year"
+        try:
+            branch, year = target_id.split("|")
+            students = db.query(Student).filter(Student.branch.ilike(f"%{branch}%"), Student.year.ilike(f"%{year}%")).all()
+            target_users = [s.id for s in students]
+        except:
+            raise HTTPException(400, "Invalid group format. Use 'Branch|Year'")
+
+    elif target_type == "class":
+        # target_id is the subject_id
+        # Send to all students in that subject (branch/year match)
+        subject = db.query(Subject).filter(Subject.id == target_id).first()
+        if subject:
+            students = db.query(Student).filter(Student.branch == subject.branch, Student.year == subject.year).all()
+            target_users = [s.id for s in students]
+
+    # Create notifications in DB
+    for uid in target_users:
+        create_notification(db, uid, title, message)
+
+    return {"success": True, "recipients": len(target_users)}
+
 @app.post("/auth/update-fcm")
 async def update_fcm_token(data: dict = Body(...), db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == clean_id(data.get("user_id"))).first()
@@ -910,10 +1030,8 @@ async def export_bulk_pdf(
     # Start with a subquery or join to ensure we have Subject info for filtering
     query = db.query(AttendanceSession).join(Subject, AttendanceSession.subject_id == Subject.id).filter(AttendanceSession.faculty_id == fid)
 
-    if is_valid(branch):
-        query = query.filter(Subject.branch.ilike(f"%{branch}%"))
-    if is_valid(year):
-        query = query.filter(Subject.year.ilike(f"%{year}%"))
+    query = apply_academic_filters(query, Subject, branch, year)
+
     if is_valid(subject_id):
         query = query.filter(AttendanceSession.subject_id == clean_id(subject_id))
 
@@ -1071,22 +1189,24 @@ async def get_reports_summary(
     db: Session = Depends(get_db)
 ):
     """Returns a quick summary (counts) of sessions and students matching filters."""
-    query = db.query(AttendanceSession).join(Subject, AttendanceSession.subject_id == Subject.id)
+    query = db.query(AttendanceSession).join(Subject, AttendanceSession.subject_id == Subject.id).outerjoin(Teacher, AttendanceSession.faculty_id == Teacher.id)
 
     if is_valid(faculty_id):
         fid = clean_id(faculty_id)
         query = query.filter(AttendanceSession.faculty_id == fid)
 
     if is_valid(department_id):
-        did = clean_id(department_id)
-        teacher_lookup = db.query(Teacher).filter(Teacher.id == did).first()
-        actual_dept = teacher_lookup.department_id or teacher_lookup.branch if teacher_lookup else did
-        query = query.filter((Subject.department_id.ilike(f"%{actual_dept}%")) | (Subject.branch.ilike(f"%{actual_dept}%")))
+        actual_dept = resolve_dept(department_id, db)
+        # HOD sees subjects in their dept OR sessions taken by their teachers
+        query = query.filter(
+            (Subject.department_id.ilike(f"%{actual_dept}%")) |
+            (Subject.branch.ilike(f"%{actual_dept}%")) |
+            (Teacher.department_id.ilike(f"%{actual_dept}%")) |
+            (Teacher.branch.ilike(f"%{actual_dept}%"))
+        )
 
-    if is_valid(branch):
-        query = query.filter(Subject.branch.ilike(f"%{branch}%"))
-    if is_valid(year):
-        query = query.filter(Subject.year.ilike(f"%{year}%"))
+    query = apply_academic_filters(query, Subject, branch, year)
+
     if is_valid(subject_id):
         query = query.filter(AttendanceSession.subject_id == clean_id(subject_id))
 
@@ -1108,9 +1228,12 @@ async def get_reports_summary(
 
     # If student_id is provided, check if that specific student exists in these sessions
     if is_valid(student_id):
-        is_present = db.query(AttendanceRecord).filter(
+        is_present = db.query(AttendanceRecord).join(Student, AttendanceRecord.student_id == Student.id).filter(
             AttendanceRecord.session_id.in_(session_ids),
-            or_(AttendanceRecord.student_id == student_id)
+            or_(
+                AttendanceRecord.student_id == student_id,
+                Student.registration_number == student_id
+            )
         ).first() is not None
         student_count = 1 if is_present else 0
 
@@ -1121,14 +1244,15 @@ async def get_reports_summary(
 
 @app.get("/analytics/department/{dept_id}")
 async def get_department_analytics(dept_id: str, db: Session = Depends(get_db)):
-    # 1. Resolve Department from HOD/Teacher ID
-    uid = clean_id(dept_id)
-    teacher = db.query(Teacher).filter(Teacher.id == uid).first()
-    actual_dept = teacher.department_id or teacher.branch if teacher else uid
+    # 1. Resolve Department
+    actual_dept = resolve_dept(dept_id, db)
 
     # 2. Base Stats with Lenient Matching
-    sessions = db.query(AttendanceSession).join(Subject).filter(
-        (Subject.department_id.ilike(f"%{actual_dept}%")) | (Subject.branch.ilike(f"%{actual_dept}%"))
+    sessions = db.query(AttendanceSession).join(Subject).outerjoin(Teacher, AttendanceSession.faculty_id == Teacher.id).filter(
+        (Subject.department_id.ilike(f"%{actual_dept}%")) |
+        (Subject.branch.ilike(f"%{actual_dept}%")) |
+        (Teacher.department_id.ilike(f"%{actual_dept}%")) |
+        (Teacher.branch.ilike(f"%{actual_dept}%"))
     ).all()
     session_ids = [s.id for s in sessions]
 
@@ -1152,7 +1276,7 @@ async def get_department_analytics(dept_id: str, db: Session = Depends(get_db)):
         student_counts = db.query(
             Student.id, func.count(AttendanceRecord.id)
         ).outerjoin(AttendanceRecord, (Student.id == AttendanceRecord.student_id) & (AttendanceRecord.session_id.in_(session_ids)))\
-         .filter((Student.department_id == actual_dept) | (Student.branch == actual_dept))\
+         .filter((Student.department_id.ilike(f"%{actual_dept}%")) | (Student.branch.ilike(f"%{actual_dept}%")))\
          .group_by(Student.id).all()
 
         defaulter_count = 0
@@ -1283,14 +1407,18 @@ async def export_hod_master_pdf(
     did = clean_id(department_id)
 
     # 1. Resolve Department
-    teacher_lookup = db.query(Teacher).filter(Teacher.id == did).first()
-    actual_dept = teacher_lookup.department_id or teacher_lookup.branch if teacher_lookup else did
+    actual_dept = resolve_dept(department_id, db)
 
     # 2. Gather Sessions
-    query = db.query(AttendanceSession).join(Subject, AttendanceSession.subject_id == Subject.id).outerjoin(User, AttendanceSession.faculty_id == User.id)
+    query = db.query(AttendanceSession).join(Subject, AttendanceSession.subject_id == Subject.id).outerjoin(User, AttendanceSession.faculty_id == User.id).outerjoin(Teacher, AttendanceSession.faculty_id == Teacher.id)
 
-    # Base filter: Must match department or branch
-    query = query.filter((Subject.department_id.ilike(f"%{actual_dept}%")) | (Subject.branch.ilike(f"%{actual_dept}%")))
+    # Base filter: HOD sees subjects in their dept OR sessions taken by their teachers
+    query = query.filter(
+        (Subject.department_id.ilike(f"%{actual_dept}%")) |
+        (Subject.branch.ilike(f"%{actual_dept}%")) |
+        (Teacher.department_id.ilike(f"%{actual_dept}%")) |
+        (Teacher.branch.ilike(f"%{actual_dept}%"))
+    )
 
     # Apply valid filters
     if is_valid(faculty_id):
@@ -1300,17 +1428,7 @@ async def export_hod_master_pdf(
     if is_valid(subject_id):
         query = query.filter(AttendanceSession.subject_id == clean_id(subject_id))
 
-    if is_valid(branch):
-        query = query.filter(Subject.branch.ilike(f"%{branch}%"))
-
-    if is_valid(year):
-        y_val = year.lower()
-        if "second" in y_val or "se" in y_val: y_patterns = ["%Second%", "%SE%", "%2nd%"]
-        elif "first" in y_val or "fe" in y_val: y_patterns = ["%First%", "%FE%", "%1st%"]
-        elif "third" in y_val or "te" in y_val: y_patterns = ["%Third%", "%TE%", "%3rd%"]
-        elif "final" in y_val or "be" in y_val or "fourth" in y_val: y_patterns = ["%Final%", "%BE%", "%4th%", "%Fourth%"]
-        else: y_patterns = [f"%{year}%"]
-        query = query.filter(or_(*[Subject.year.ilike(p) for p in y_patterns]))
+    query = apply_academic_filters(query, Subject, branch, year)
 
     if start_date:
         try: query = query.filter(AttendanceSession.start_time >= datetime.fromisoformat(start_date.replace('Z', '+00:00')))
@@ -1343,16 +1461,7 @@ async def export_hod_master_pdf(
             Student.branch.ilike(f"%{actual_dept}%")
         )
     )
-    if is_valid(branch):
-        student_query = student_query.filter(Student.branch.ilike(f"%{branch}%"))
-    if is_valid(year):
-        y_val = year.lower()
-        if "second" in y_val or "se" in y_val: y_patterns = ["%Second%", "%SE%", "%2nd%"]
-        elif "first" in y_val or "fe" in y_val: y_patterns = ["%First%", "%FE%", "%1st%"]
-        elif "third" in y_val or "te" in y_val: y_patterns = ["%Third%", "%TE%", "%3rd%"]
-        elif "final" in y_val or "be" in y_val or "fourth" in y_val: y_patterns = ["%Final%", "%BE%", "%4th%", "%Fourth%"]
-        else: y_patterns = [f"%{year}%"]
-        student_query = student_query.filter(or_(*[Student.year.ilike(p) for p in y_patterns]))
+    student_query = apply_academic_filters(student_query, Student, branch, year)
 
     dept_student_ids_q = student_query.with_entities(Student.id)
     attended_student_ids_q = db.query(AttendanceRecord.student_id).filter(AttendanceRecord.session_id.in_(session_id_sub)).distinct()
@@ -1472,20 +1581,19 @@ async def export_hod_master_excel(
 ):
     """Exports HOD Master Audit data as CSV (Excel compatible) with BOM and Full Filtering"""
     import io, csv
-    did = clean_id(department_id)
-
-    def is_valid(val):
-        return val and val not in ["All", "null", "None", "undefined", ""]
-
     # 1. Resolve Department
-    teacher_lookup = db.query(Teacher).filter(Teacher.id == did).first()
-    actual_dept = teacher_lookup.department_id or teacher_lookup.branch if teacher_lookup else did
+    actual_dept = resolve_dept(department_id, db)
 
     # 2. Gather Sessions
-    query = db.query(AttendanceSession).join(Subject, AttendanceSession.subject_id == Subject.id).outerjoin(User, AttendanceSession.faculty_id == User.id)
+    query = db.query(AttendanceSession).join(Subject, AttendanceSession.subject_id == Subject.id).outerjoin(User, AttendanceSession.faculty_id == User.id).outerjoin(Teacher, AttendanceSession.faculty_id == Teacher.id)
 
-    # Base filter: Must match department or branch
-    query = query.filter((Subject.department_id.ilike(f"%{actual_dept}%")) | (Subject.branch.ilike(f"%{actual_dept}%")))
+    # Base filter: HOD sees subjects in their dept OR sessions taken by their teachers
+    query = query.filter(
+        (Subject.department_id.ilike(f"%{actual_dept}%")) |
+        (Subject.branch.ilike(f"%{actual_dept}%")) |
+        (Teacher.department_id.ilike(f"%{actual_dept}%")) |
+        (Teacher.branch.ilike(f"%{actual_dept}%"))
+    )
 
     # Apply valid filters
     if is_valid(faculty_id):
@@ -1495,17 +1603,7 @@ async def export_hod_master_excel(
     if is_valid(subject_id):
         query = query.filter(AttendanceSession.subject_id == clean_id(subject_id))
 
-    if is_valid(branch):
-        query = query.filter(Subject.branch.ilike(f"%{branch}%"))
-
-    if is_valid(year):
-        y_val = year.lower()
-        if "second" in y_val or "se" in y_val: y_patterns = ["%Second%", "%SE%", "%2nd%"]
-        elif "first" in y_val or "fe" in y_val: y_patterns = ["%First%", "%FE%", "%1st%"]
-        elif "third" in y_val or "te" in y_val: y_patterns = ["%Third%", "%TE%", "%3rd%"]
-        elif "final" in y_val or "be" in y_val or "fourth" in y_val: y_patterns = ["%Final%", "%BE%", "%4th%", "%Fourth%"]
-        else: y_patterns = [f"%{year}%"]
-        query = query.filter(or_(*[Subject.year.ilike(p) for p in y_patterns]))
+    query = apply_academic_filters(query, Subject, branch, year)
 
     if start_date:
         try: query = query.filter(AttendanceSession.start_time >= datetime.fromisoformat(start_date.replace('Z', '+00:00')))
@@ -1525,16 +1623,7 @@ async def export_hod_master_excel(
 
     # 3. Define the Student Audit Scope
     student_query = db.query(Student).filter((Student.department_id.ilike(f"%{actual_dept}%")) | (Student.branch.ilike(f"%{actual_dept}%")))
-    if is_valid(branch):
-        student_query = student_query.filter(Student.branch.ilike(f"%{branch}%"))
-    if is_valid(year):
-        y_val = year.lower()
-        if "second" in y_val or "se" in y_val: y_patterns = ["%Second%", "%SE%", "%2nd%"]
-        elif "first" in y_val or "fe" in y_val: y_patterns = ["%First%", "%FE%", "%1st%"]
-        elif "third" in y_val or "te" in y_val: y_patterns = ["%Third%", "%TE%", "%3rd%"]
-        elif "final" in y_val or "be" in y_val or "fourth" in y_val: y_patterns = ["%Final%", "%BE%", "%4th%", "%Fourth%"]
-        else: y_patterns = [f"%{year}%"]
-        student_query = student_query.filter(or_(*[Student.year.ilike(p) for p in y_patterns]))
+    student_query = apply_academic_filters(student_query, Student, branch, year)
 
     dept_student_ids_q = student_query.with_entities(Student.id)
     attended_student_ids_q = db.query(AttendanceRecord.student_id).filter(AttendanceRecord.session_id.in_(session_id_sub)).distinct()
@@ -1580,9 +1669,7 @@ async def export_hod_master_excel(
 async def export_department_excel(dept_id: str, db: Session = Depends(get_db)):
     """Exports departmental raw data to CSV for Excel with Real Supabase Data"""
     import io, csv
-    uid = clean_id(dept_id)
-    teacher = db.query(Teacher).filter(Teacher.id == uid).first()
-    actual_dept = teacher.department_id or teacher.branch if teacher else uid
+    actual_dept = resolve_dept(dept_id, db)
 
     # Fetch real data
     sessions = db.query(AttendanceSession).join(Subject).filter(

@@ -4,9 +4,15 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 object DateTimeUtils {
-    private val isoFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
-    private val displayFormat = SimpleDateFormat("dd MMM yyyy • HH:mm", Locale.getDefault())
-    private val dateOnlyFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+    private val isoFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault()).apply {
+        timeZone = TimeZone.getTimeZone("UTC")
+    }
+    private val displayFormat = SimpleDateFormat("dd MMM yyyy • HH:mm", Locale.getDefault()).apply {
+        timeZone = TimeZone.getTimeZone("Asia/Kolkata")
+    }
+    private val dateOnlyFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).apply {
+        timeZone = TimeZone.getTimeZone("Asia/Kolkata")
+    }
 
     fun formatIsoToDisplay(isoString: String?): String {
         if (isoString.isNullOrEmpty()) return "---"
@@ -21,11 +27,18 @@ object DateTimeUtils {
     fun formatTimeOnly(isoString: String?): String {
         if (isoString.isNullOrEmpty()) return "--:--"
         return try {
-            if (isoString.contains("T")) {
-                isoString.substringAfter("T").take(5)
+            val date = if (isoString.contains("T")) {
+                isoFormat.parse(isoString.replace("Z", ""))
             } else {
-                isoString.take(5)
+                val simpleDate = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).apply {
+                    timeZone = TimeZone.getTimeZone("UTC")
+                }.parse(isoString)
+                simpleDate
             }
+            val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault()).apply {
+                timeZone = TimeZone.getTimeZone("Asia/Kolkata")
+            }
+            date?.let { timeFormat.format(it) } ?: "--:--"
         } catch (e: Exception) {
             "--:--"
         }
@@ -34,11 +47,18 @@ object DateTimeUtils {
     fun formatDateOnly(isoString: String?): String {
         if (isoString.isNullOrEmpty()) return "---"
         return try {
-            if (isoString.contains("T")) {
-                isoString.split("T")[0]
+            val date = if (isoString.contains("T")) {
+                isoFormat.parse(isoString.replace("Z", ""))
             } else {
-                isoString.take(10)
+                val simpleDate = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).apply {
+                    timeZone = TimeZone.getTimeZone("UTC")
+                }.parse(isoString)
+                simpleDate
             }
+            val dateFormat = SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).apply {
+                timeZone = TimeZone.getTimeZone("Asia/Kolkata")
+            }
+            date?.let { dateFormat.format(it) } ?: isoString.take(10)
         } catch (e: Exception) {
             isoString.take(10)
         }

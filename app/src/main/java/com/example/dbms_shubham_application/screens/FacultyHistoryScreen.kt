@@ -96,8 +96,10 @@ fun FacultyHistoryScreen(navController: NavController) {
                     selectedDate
                 )
                 if (response.isSuccessful) {
-                    // STRICT TEMPORAL SORTING: Absolute newest sessions appear first
-                    sessions = (response.body() ?: emptyList()).sortedByDescending { it.start_time }
+                    // Filter out fake data (cloud___ sessions) and sort
+                    val allSessions = response.body() ?: emptyList()
+                    sessions = allSessions.filter { !it.session_id.startsWith("cloud___") }
+                        .sortedByDescending { it.start_time }
                 }
             } catch (e: Exception) {
                 Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
@@ -127,7 +129,10 @@ fun FacultyHistoryScreen(navController: NavController) {
             try {
                 val response = RetrofitClient.apiService.getSessionDetails(sessionId)
                 if (response.isSuccessful) {
-                    sessionDetails = response.body()
+                    val body = response.body()
+                    // Filter out fake data (cloud___ students)
+                    val filteredStudents = body?.students?.filter { !it.student_id.startsWith("cloud___") } ?: emptyList()
+                    sessionDetails = body?.copy(students = filteredStudents)
                 }
             } catch (e: Exception) {
                 Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()

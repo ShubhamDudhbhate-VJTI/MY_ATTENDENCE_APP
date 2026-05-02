@@ -70,8 +70,8 @@ fun ReportsScreen(navController: NavController) {
     var isLoadingAnalytics by remember { mutableStateOf(false) }
 
     // Dropdown States
-    val branches = listOf("All", "IT", "Computer", "Mechanical", "Civil", "ENTC")
-    val years = listOf("All", "First Year", "Second Year", "Third Year", "Final Year")
+    val branches = listOf("All", "Information Technology", "Computer Engineering", "Mechanical Engineering", "Civil Engineering", "EXTC Engineering")
+    val years = listOf("All", "First Year", "Second Year", "Third Year", "Fourth Year")
     var subjects by remember { mutableStateOf(listOf<Subject>()) }
     
     var selectedBranch by remember { mutableStateOf("All") }
@@ -127,13 +127,17 @@ fun ReportsScreen(navController: NavController) {
                 val response = RetrofitClient.apiService.getFacultySessions(userId)
                 if (response.isSuccessful) {
                     val allSessions = response.body() ?: emptyList()
-                    val sorted = allSessions.sortedByDescending { it.start_time }
+                    // Filter out ALL fake data first
+                    val realSessions = allSessions.filter { !it.session_id.startsWith("cloud___") }
+                    val sorted = realSessions.sortedByDescending { it.start_time }
 
                     if (sorted.isNotEmpty()) {
                         // Keep the absolute latest session (so 'NEW' always works)
                         val latest = sorted.first()
                         // Filter others to only show sessions where students were actually present
-                        val othersWithAttendance = sorted.drop(1).filter { it.student_count > 0 }
+                        val othersWithAttendance = sorted.drop(1).filter { 
+                            it.student_count > 0
+                        }
 
                         // Take the latest session + top 4 sessions with attendance = Best 5
                         reports = (listOf(latest) + othersWithAttendance).take(5)
@@ -157,7 +161,10 @@ fun ReportsScreen(navController: NavController) {
             try {
                 val response = RetrofitClient.apiService.getSessionDetails(sessionId)
                 if (response.isSuccessful) {
-                    selectedSessionDetails = response.body()
+                    val body = response.body()
+                    // Filter out fake students (cloud___)
+                    val filteredStudents = body?.students?.filter { !it.student_id.startsWith("cloud___") } ?: emptyList()
+                    selectedSessionDetails = body?.copy(students = filteredStudents)
                 }
             } catch (e: Exception) {
                 Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
@@ -262,23 +269,35 @@ fun ReportsScreen(navController: NavController) {
     Box(modifier = Modifier.fillMaxSize().background(colorScheme.background)) {
         // Advanced Decorative Background
         Canvas(modifier = Modifier.fillMaxSize()) {
-            // Main Top Right Glow
+            val width = size.width
+            val height = size.height
+            
+            // Floating Blobs for Immersive feel
             drawCircle(
                 brush = Brush.radialGradient(
-                    0.0f to colorScheme.primary.copy(0.12f),
+                    0.0f to colorScheme.primary.copy(0.15f),
+                    1.0f to Color.Transparent
+                ),
+                radius = 600.dp.toPx(),
+                center = Offset(width * 0.85f, height * 0.05f)
+            )
+            
+            drawCircle(
+                brush = Brush.radialGradient(
+                    0.0f to colorScheme.secondary.copy(0.1f),
                     1.0f to Color.Transparent
                 ),
                 radius = 500.dp.toPx(),
-                center = Offset(size.width * 0.9f, 0f)
+                center = Offset(width * 0.15f, height * 0.4f)
             )
-            // Secondary Bottom Left Glow
+
             drawCircle(
                 brush = Brush.radialGradient(
-                    0.0f to colorScheme.secondary.copy(0.08f),
+                    0.0f to colorScheme.tertiary.copy(0.08f),
                     1.0f to Color.Transparent
                 ),
-                radius = 400.dp.toPx(),
-                center = Offset(size.width * 0.1f, size.height * 0.9f)
+                radius = 450.dp.toPx(),
+                center = Offset(width * 0.7f, height * 0.85f)
             )
         }
 
@@ -292,37 +311,43 @@ fun ReportsScreen(navController: NavController) {
                             listOf(colorScheme.surface.copy(0.95f), colorScheme.background.copy(0.9f))
                         )
                     )
-                    .padding(top = 54.dp, bottom = 24.dp, start = 24.dp, end = 24.dp)
+                    .padding(top = 54.dp, bottom = 20.dp, start = 24.dp, end = 24.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Surface(
                         onClick = { navController.navigateUp() },
-                        modifier = Modifier.size(46.dp),
-                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier.size(48.dp),
+                        shape = RoundedCornerShape(16.dp),
                         color = colorScheme.surface,
-                        border = BorderStroke(1.dp, colorScheme.outline.copy(0.1f)),
-                        shadowElevation = 2.dp
+                        border = BorderStroke(1.5.dp, colorScheme.outline.copy(0.08f)),
+                        shadowElevation = 8.dp
                     ) {
                         Box(contentAlignment = Alignment.Center) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, null, modifier = Modifier.size(20.dp))
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, null, modifier = Modifier.size(22.dp))
                         }
                     }
                     Spacer(Modifier.width(20.dp))
                     AnimatedVisibility(
                         visible = visible,
-                        enter = fadeIn(tween(600)) + slideInHorizontally(initialOffsetX = { -20 }, animationSpec = tween(600))
+                        enter = fadeIn(tween(700)) + slideInHorizontally(initialOffsetX = { -30 }, animationSpec = tween(700))
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("Audit Intelligence", fontWeight = FontWeight.Black, fontSize = 26.sp, letterSpacing = (-1).sp)
-                            Text("System Performance & Logs", color = colorScheme.primary, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 0.5.sp)
+                            Text(
+                                text = "Audit Engine", 
+                                style = LocalTextStyle.current.copy(
+                                    fontWeight = FontWeight.Black, 
+                                    fontSize = 28.sp, 
+                                    letterSpacing = (-1.5).sp,
+                                    brush = Brush.linearGradient(listOf(colorScheme.onBackground, colorScheme.primary))
+                                )
+                            )
+                            Text("Real-time Intelligence System", color = colorScheme.primary, fontSize = 11.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
                         }
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        HeaderAction(Icons.Default.Analytics, colorScheme.primary) { fetchFacultyAnalytics() }
+                        HeaderAction(Icons.Default.Insights, colorScheme.primary) { fetchFacultyAnalytics() }
                         Spacer(Modifier.width(12.dp))
-                        HeaderAction(Icons.Default.DeleteSweep, colorScheme.error) { clearAllSessions() }
-                        Spacer(Modifier.width(12.dp))
-                        HeaderAction(Icons.Default.Refresh, colorScheme.secondary) { fetchSessions() }
+                        HeaderAction(Icons.Default.AutoDelete, colorScheme.error) { clearAllSessions() }
                     }
                 }
             }
@@ -613,65 +638,84 @@ fun HistoryStatsHeader(reports: List<FacultySessionRecord>) {
     val colorScheme = MaterialTheme.colorScheme
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
-            "OVERVIEW PERFORMANCE",
+            "SESSION INTELLIGENCE",
             fontSize = 11.sp,
             fontWeight = FontWeight.Black,
             color = colorScheme.primary,
             letterSpacing = 1.5.sp,
             modifier = Modifier.padding(bottom = 12.dp, start = 4.dp)
         )
-        Row(
+        
+        Surface(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            color = colorScheme.surface.copy(alpha = 0.7f),
+            shape = RoundedCornerShape(28.dp),
+            border = BorderStroke(1.5.dp, colorScheme.outline.copy(alpha = 0.08f)),
+            shadowElevation = 2.dp
         ) {
-            StatCard(
-                modifier = Modifier.weight(1f),
-                label = "Total Logs",
-                value = "${reports.size}",
-                icon = Icons.Default.Description,
-                color = colorScheme.primary
-            )
-            StatCard(
-                modifier = Modifier.weight(1f),
-                label = "Attendance",
-                value = "${reports.sumOf { it.student_count }}",
-                icon = Icons.Default.Groups,
-                color = Color(0xFF00C853)
-            )
-            StatCard(
-                modifier = Modifier.weight(1f),
-                label = "Live",
-                value = "${reports.count { it.status.lowercase().contains("active") }}",
-                icon = Icons.Default.Stream,
-                color = Color(0xFFFFAB00)
-            )
+            Row(
+                modifier = Modifier.padding(vertical = 24.dp).fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Total Logs
+                StatStripItem(
+                    label = "Total Logs",
+                    value = "${reports.size}",
+                    icon = Icons.Default.Description,
+                    color = colorScheme.primary
+                )
+                
+                VerticalStripDivider()
+
+                // Total Attendance
+                StatStripItem(
+                    label = "Attendance",
+                    value = "${reports.sumOf { it.student_count }}",
+                    icon = Icons.Default.Groups,
+                    color = Color(0xFF00C853)
+                )
+
+                VerticalStripDivider()
+
+                // Active Sessions
+                StatStripItem(
+                    label = "Live",
+                    value = "${reports.count { it.status.lowercase().contains("active") }}",
+                    icon = Icons.Default.Stream,
+                    color = Color(0xFFFFAB00)
+                )
+            }
         }
     }
 }
 
 @Composable
-fun StatCard(modifier: Modifier, label: String, value: String, icon: androidx.compose.ui.graphics.vector.ImageVector, color: Color) {
-    Surface(
-        modifier = modifier,
-        color = MaterialTheme.colorScheme.surface,
-        shape = RoundedCornerShape(20.dp),
-        border = BorderStroke(1.dp, color.copy(0.1f)),
-        shadowElevation = 2.dp
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Box(
-                modifier = Modifier
-                    .size(32.dp)
-                    .background(color.copy(0.1f), RoundedCornerShape(8.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(icon, null, tint = color, modifier = Modifier.size(16.dp))
-            }
-            Spacer(Modifier.height(12.dp))
-            Text(value, fontWeight = FontWeight.Black, fontSize = 20.sp, letterSpacing = (-0.5).sp)
-            Text(label, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.6f))
+fun StatStripItem(label: String, value: String, icon: androidx.compose.ui.graphics.vector.ImageVector, color: Color) {
+    val colorScheme = MaterialTheme.colorScheme
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .background(color.copy(0.08f), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, null, tint = color, modifier = Modifier.size(18.dp))
         }
+        Spacer(Modifier.height(8.dp))
+        Text(value, fontWeight = FontWeight.Black, fontSize = 18.sp, letterSpacing = (-0.5).sp)
+        Text(label.uppercase(), fontSize = 8.sp, fontWeight = FontWeight.Black, color = colorScheme.onSurface.copy(0.4f), letterSpacing = 1.sp)
     }
+}
+
+@Composable
+fun VerticalStripDivider() {
+    Box(
+        modifier = Modifier
+            .width(1.dp)
+            .height(30.dp)
+            .background(MaterialTheme.colorScheme.outline.copy(0.1f))
+    )
 }
 
 @Composable

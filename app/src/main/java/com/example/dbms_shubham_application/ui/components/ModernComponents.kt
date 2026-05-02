@@ -2,7 +2,10 @@ package com.example.dbms_shubham_application.ui.components
 
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.composed
+import androidx.compose.animation.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -10,6 +13,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.Assignment
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -31,6 +35,28 @@ import com.example.dbms_shubham_application.data.model.FacultySessionRecord
 import com.example.dbms_shubham_application.data.model.SessionDetailsResponse
 import com.example.dbms_shubham_application.utils.DateTimeUtils
 
+fun Modifier.pulseEffect(targetScale: Float = 1.05f): Modifier = composed {
+    val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+    val scale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = targetScale,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulse_scale"
+    )
+    this.graphicsLayer(scaleX = scale, scaleY = scale)
+}
+
+fun Modifier.glassmorphicBackground(
+    color: Color = Color.White.copy(alpha = 0.1f),
+    shape: androidx.compose.ui.graphics.Shape = RoundedCornerShape(24.dp)
+): Modifier = this
+    .clip(shape)
+    .background(color)
+    .border(0.5.dp, Color.White.copy(alpha = 0.2f), shape)
+
 @Composable
 fun ModernAttendanceCard(
     record: AttendanceRecord,
@@ -42,67 +68,93 @@ fun ModernAttendanceCard(
     val time = record.timestamp?.let { DateTimeUtils.formatTimeOnly(it) } ?: "N/A"
     val statusColor = if (isPresent) Color(0xFF00C853) else Color(0xFFFF3D00)
 
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp)
-            .shadow(4.dp, RoundedCornerShape(24.dp), spotColor = statusColor.copy(alpha = 0.2f))
-            .clickable { onClick() },
-        colors = CardDefaults.cardColors(containerColor = colorScheme.surface),
-        shape = RoundedCornerShape(24.dp),
-        border = BorderStroke(0.5.dp, colorScheme.outline.copy(alpha = 0.1f))
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { visible = true }
+
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn() + slideInHorizontally()
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp)
+                .shadow(
+                    4.dp,
+                    RoundedCornerShape(24.dp),
+                    spotColor = statusColor.copy(alpha = 0.2f)
+                )
+                .clickable { onClick() },
+            colors = CardDefaults.cardColors(containerColor = colorScheme.surface),
+            shape = RoundedCornerShape(24.dp),
+            border = BorderStroke(0.5.dp, colorScheme.outline.copy(alpha = 0.1f))
         ) {
-            Box(
-                modifier = Modifier
-                    .size(52.dp)
-                    .background(
-                        Brush.linearGradient(listOf(statusColor.copy(alpha = 0.15f), statusColor.copy(alpha = 0.05f))),
-                        RoundedCornerShape(16.dp)
-                    ),
-                contentAlignment = Alignment.Center
+            Row(
+                modifier = Modifier.padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = if (isPresent) Icons.Default.CheckCircle else Icons.Default.Cancel,
-                    contentDescription = null,
-                    tint = statusColor,
-                    modifier = Modifier.size(28.dp)
-                )
-            }
-            
-            Spacer(modifier = Modifier.width(16.dp))
-            
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = record.subject_name.ifEmpty { record.subject_id },
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = colorScheme.onSurface,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Schedule, null, tint = colorScheme.onSurfaceVariant.copy(alpha = 0.5f), modifier = Modifier.size(13.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("$date • $time", fontSize = 12.sp, color = colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
+                Box(
+                    modifier = Modifier
+                        .size(52.dp)
+                        .background(
+                            Brush.linearGradient(
+                                listOf(
+                                    statusColor.copy(alpha = 0.15f),
+                                    statusColor.copy(alpha = 0.05f)
+                                )
+                            ),
+                            RoundedCornerShape(16.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = if (isPresent) Icons.Default.CheckCircle else Icons.Default.Cancel,
+                        contentDescription = null,
+                        tint = statusColor,
+                        modifier = Modifier.size(28.dp)
+                    )
                 }
-            }
-            
-            Surface(
-                color = statusColor,
-                shape = RoundedCornerShape(12.dp),
-                shadowElevation = 4.dp
-            ) {
-                Text(
-                    text = record.status.uppercase(),
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Black,
-                    color = Color.White,
-                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                )
+
+                Spacer(modifier = Modifier.width(16.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = record.subject_name.ifEmpty { record.subject_id },
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = colorScheme.onSurface,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.Schedule,
+                            null,
+                            tint = colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                            modifier = Modifier.size(13.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            "$date • $time",
+                            fontSize = 12.sp,
+                            color = colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        )
+                    }
+                }
+
+                Surface(
+                    color = statusColor,
+                    shape = RoundedCornerShape(12.dp),
+                    shadowElevation = 4.dp
+                ) {
+                    Text(
+                        text = record.status.uppercase(),
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Black,
+                        color = Color.White,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                    )
+                }
             }
         }
     }
@@ -308,6 +360,77 @@ fun ModernReportCard(
     }
 }
 
+@Composable
+fun ProfessionalStatStrip(
+    modifier: Modifier = Modifier,
+    content: @Composable RowScope.() -> Unit
+) {
+    val colorScheme = MaterialTheme.colorScheme
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        color = colorScheme.surface.copy(alpha = 0.7f),
+        shape = RoundedCornerShape(28.dp),
+        border = BorderStroke(1.dp, colorScheme.outline.copy(alpha = 0.1f)),
+        shadowElevation = 2.dp
+    ) {
+        Row(
+            modifier = Modifier.padding(vertical = 20.dp).fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically,
+            content = content
+        )
+    }
+}
+
+@Composable
+fun StatStripItem(
+    label: String,
+    value: String,
+    icon: ImageVector,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    val colorScheme = MaterialTheme.colorScheme
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .background(color.copy(0.1f), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, null, tint = color, modifier = Modifier.size(20.dp))
+        }
+        Spacer(Modifier.height(8.dp))
+        Text(
+            value,
+            fontWeight = FontWeight.Black,
+            fontSize = 18.sp,
+            letterSpacing = (-0.5).sp,
+            color = colorScheme.onSurface
+        )
+        Text(
+            label.uppercase(),
+            fontSize = 9.sp,
+            fontWeight = FontWeight.ExtraBold,
+            color = colorScheme.onSurface.copy(0.4f),
+            letterSpacing = 1.sp
+        )
+    }
+}
+
+@Composable
+fun VerticalStripDivider() {
+    Box(
+        modifier = Modifier
+            .width(1.dp)
+            .height(30.dp)
+            .background(MaterialTheme.colorScheme.outline.copy(0.1f))
+    )
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ModernDetailsDialog(
@@ -395,7 +518,7 @@ fun ModernDetailsDialog(
                                         modifier = Modifier.heightIn(max = 350.dp),
                                         verticalArrangement = Arrangement.spacedBy(10.dp)
                                     ) {
-                                        items(details.students) { student ->
+                                        items(details.students.filter { !it.student_id.startsWith("cloud___") }) { student ->
                                             Row(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
@@ -461,6 +584,57 @@ fun StatsBox(modifier: Modifier, label: String, value: String, icon: ImageVector
             Spacer(modifier = Modifier.height(8.dp))
             Text(label, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = colorScheme.onSurfaceVariant.copy(0.7f))
             Text(value, fontSize = 16.sp, fontWeight = FontWeight.Black, color = colorScheme.onSurface)
+        }
+    }
+}
+
+@Composable
+fun HODActionStripItem(
+    label: String,
+    icon: ImageVector,
+    color: Color,
+    onClick: () -> Unit
+) {
+    val colorScheme = MaterialTheme.colorScheme
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        color = Color.Transparent
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(horizontal = 24.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .background(color.copy(0.1f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, null, tint = color, modifier = Modifier.size(22.dp))
+            }
+            Spacer(Modifier.width(20.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    label,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp,
+                    color = colorScheme.onSurface
+                )
+                Text(
+                    "Action Required",
+                    fontSize = 12.sp,
+                    color = colorScheme.onSurfaceVariant.copy(0.6f)
+                )
+            }
+            Icon(
+                Icons.AutoMirrored.Filled.ArrowForward,
+                null,
+                tint = colorScheme.outline.copy(0.3f),
+                modifier = Modifier.size(18.dp)
+            )
         }
     }
 }

@@ -1,9 +1,8 @@
 package com.example.dbms_shubham_application.screens
 
 import android.util.Log
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.*
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -43,6 +42,10 @@ import com.example.dbms_shubham_application.data.model.ScheduleRecord
 import com.example.dbms_shubham_application.data.model.SubjectAttendance
 import com.example.dbms_shubham_application.network.RetrofitClient
 import com.example.dbms_shubham_application.ui.components.DashboardShimmer
+import com.example.dbms_shubham_application.ui.components.HODActionStripItem
+import com.example.dbms_shubham_application.ui.components.ProfessionalStatStrip
+import com.example.dbms_shubham_application.ui.components.StatStripItem
+import com.example.dbms_shubham_application.ui.components.VerticalStripDivider
 import com.example.dbms_shubham_application.ui.components.shimmerEffect
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -101,7 +104,7 @@ fun DashboardScreen(navController: NavController, role: String) {
                         val subjectAttendanceDeferred = async { RetrofitClient.apiService.getSubjectAttendance(userId) }
                         val scheduleDeferred = async { RetrofitClient.apiService.getStudentSchedule(userId, currentDay) }
                         
-                        historyDeferred.await().let { if (it.isSuccessful) studentHistory = it.body() ?: emptyList() }
+                        historyDeferred.await().let { if (it.isSuccessful) studentHistory = it.body()?.filter { !it.session_id.startsWith("cloud___") } ?: emptyList() }
                         subjectAttendanceDeferred.await().let { if (it.isSuccessful) subjectAttendance = it.body() ?: emptyList() }
                         scheduleDeferred.await().let { if (it.isSuccessful) todaySchedule = it.body() ?: emptyList() }
                     } else if (normalizedRole == "faculty") {
@@ -109,7 +112,7 @@ fun DashboardScreen(navController: NavController, role: String) {
                         val sessionsDeferred = async { RetrofitClient.apiService.getFacultySessions(userId) }
                         
                         scheduleDeferred.await().let { if (it.isSuccessful) todaySchedule = it.body() ?: emptyList() }
-                        sessionsDeferred.await().let { if (it.isSuccessful) facultySessions = it.body() ?: emptyList() }
+                        sessionsDeferred.await().let { if (it.isSuccessful) facultySessions = it.body()?.filter { !it.session_id.startsWith("cloud___") } ?: emptyList() }
                     }
 
                     profileDeferred.await().let { if (it.isSuccessful) userProfile = it.body() }
@@ -191,8 +194,10 @@ fun DashboardScreen(navController: NavController, role: String) {
                         if (normalizedRole == "student") {
                             Column(verticalArrangement = Arrangement.spacedBy(28.dp)) {
                                 StudentStatsRow(studentHistory, isLoading)
-                                SubjectAttendanceSection(subjectAttendance, isLoading)
+                                SubjectAttendanceSection(subjectAttendance, isLoading, navController)
                             }
+                        } else if (normalizedRole == "hod") {
+                            HODStatsSection(isLoading)
                         } else {
                             FacultyStatsRow(facultySessions, todaySchedule, isLoading)
                         }
@@ -662,19 +667,92 @@ fun FacultyManagementSection(navController: NavController, modifier: Modifier = 
 }
 
 @Composable
-fun HODActionsSection(navController: NavController, modifier: Modifier = Modifier) {
-    Column(modifier = modifier) {
-        Text("Management", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
-        Spacer(modifier = Modifier.height(16.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // Analytics and Manage are already in bottom bar
-            ModernActionItem("Notify", Icons.Default.Notifications, MaterialTheme.colorScheme.tertiary, Modifier.weight(1f)) {
-                navController.navigate("send_notification")
+fun HODStatsSection(isLoading: Boolean) {
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { visible = true }
+
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn(animationSpec = tween(600)) + expandVertically(animationSpec = tween(600))
+    ) {
+        Column(modifier = Modifier.padding(horizontal = 24.dp)) {
+            Text("Department Overview", style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold))
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            ProfessionalStatStrip {
+                StatStripItem(
+                    label = "Avg. Att.",
+                    value = "82%",
+                    icon = Icons.Default.ShowChart,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.weight(1f)
+                )
+                VerticalStripDivider()
+                StatStripItem(
+                    label = "Faculty",
+                    value = "24",
+                    icon = Icons.Default.People,
+                    color = MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier.weight(1f)
+                )
+                VerticalStripDivider()
+                StatStripItem(
+                    label = "Alerts",
+                    value = "03",
+                    icon = Icons.Default.Warning,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.weight(1f)
+                )
             }
-            Spacer(modifier = Modifier.weight(2f))
+        }
+    }
+}
+
+@Composable
+fun HODActionsSection(navController: NavController, modifier: Modifier = Modifier) {
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { visible = true }
+
+    Column(modifier = modifier) {
+        Text("Departmental Actions", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        AnimatedVisibility(
+            visible = visible,
+            enter = fadeIn(animationSpec = tween(800)) + slideInVertically(initialOffsetY = { 40 })
+        ) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(28.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
+            ) {
+                Column {
+                    HODActionStripItem(
+                        label = "Department Analytics",
+                        icon = Icons.Default.BarChart,
+                        color = MaterialTheme.colorScheme.primary
+                    ) {
+                        navController.navigate("hod_analytics")
+                    }
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 24.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outline.copy(0.1f))
+                    HODActionStripItem(
+                        label = "Manage Faculty",
+                        icon = Icons.Default.Domain,
+                        color = MaterialTheme.colorScheme.secondary
+                    ) {
+                        navController.navigate("hod_manage")
+                    }
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 24.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outline.copy(0.1f))
+                    HODActionStripItem(
+                        label = "Broadcasting Notify",
+                        icon = Icons.Default.Campaign,
+                        color = MaterialTheme.colorScheme.tertiary
+                    ) {
+                        navController.navigate("send_notification")
+                    }
+                }
+            }
         }
     }
 }
@@ -816,7 +894,7 @@ fun ModernScheduleCard(modifier: Modifier = Modifier, schedule: List<ScheduleRec
 }
 
 @Composable
-fun SubjectAttendanceSection(attendance: List<SubjectAttendance>, isLoading: Boolean) {
+fun SubjectAttendanceSection(attendance: List<SubjectAttendance>, isLoading: Boolean, navController: NavController) {
     Column(modifier = Modifier.padding(horizontal = 24.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -863,7 +941,7 @@ fun SubjectAttendanceSection(attendance: List<SubjectAttendance>, isLoading: Boo
             ) {
                 items(attendance.size) { index ->
                     val item = attendance[index]
-                    SubjectAttendanceCard(item)
+                    SubjectAttendanceCard(item, navController)
                 }
             }
         }
@@ -871,7 +949,7 @@ fun SubjectAttendanceSection(attendance: List<SubjectAttendance>, isLoading: Boo
 }
 
 @Composable
-fun SubjectAttendanceCard(item: SubjectAttendance) {
+fun SubjectAttendanceCard(item: SubjectAttendance, navController: NavController?) {
     val color = when {
         item.percentage >= 0.75 -> MaterialTheme.colorScheme.primary
         item.percentage >= 0.65 -> Color(0xFFFFA000)
@@ -881,7 +959,11 @@ fun SubjectAttendanceCard(item: SubjectAttendance) {
     Card(
         modifier = Modifier
             .width(160.dp)
-            .height(180.dp),
+            .height(180.dp)
+            .clickable { 
+                val route = "subject_details/${item.subject_id}/${item.subject_name}/${item.percentage.toFloat()}/${item.attended_classes}/${item.total_classes}"
+                navController?.navigate(route)
+            },
         shape = RoundedCornerShape(32.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))

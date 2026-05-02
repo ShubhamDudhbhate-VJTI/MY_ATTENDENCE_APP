@@ -124,13 +124,13 @@ fun SendNotificationScreen(navController: NavController) {
                     onValueChange = { targetId = it },
                     label = when(selectedTarget) {
                         NotificationTarget.INDIVIDUAL -> "Registration ID"
-                        NotificationTarget.GROUP -> "Subject Name"
-                        NotificationTarget.CLASS -> "Branch-Year"
+                        NotificationTarget.GROUP -> "Branch|Year"
+                        NotificationTarget.CLASS -> "Subject ID"
                     },
                     placeholder = when(selectedTarget) {
                         NotificationTarget.INDIVIDUAL -> "e.g. 241080017"
-                        NotificationTarget.GROUP -> "e.g. DBMS"
-                        NotificationTarget.CLASS -> "e.g. IT-Second Year"
+                        NotificationTarget.GROUP -> "e.g. Information Technology|Third Year"
+                        NotificationTarget.CLASS -> "e.g. (Select from dropdown)"
                     },
                     icon = when(selectedTarget) {
                         NotificationTarget.INDIVIDUAL -> Icons.Default.Fingerprint
