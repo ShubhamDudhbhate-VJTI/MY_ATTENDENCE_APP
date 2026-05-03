@@ -23,7 +23,7 @@ import uvicorn
 import uuid
 import time
 from datetime import datetime, timedelta
-from sqlalchemy import create_engine, Column, String, Integer, DateTime, ForeignKey, Boolean, Float, Text, Date, func, Numeric, LargeBinary, text, or_
+from sqlalchemy import create_engine, Column, String, Integer, DateTime, ForeignKey, Boolean, Float, Text, Date, func, Numeric, LargeBinary, text, or_, case
 from sqlalchemy.orm import sessionmaker, Session, declarative_base
 from sqlalchemy.dialects.postgresql import UUID, BYTEA
 import numpy as np
@@ -1044,6 +1044,66 @@ class PDFReport(FPDF):
 
         self.set_y(start_y + 35)
 
+    def draw_student_audit_card(self, student_obj, record_obj):
+        """Draws a detailed student profile card with their registered photo"""
+        start_y = self.get_y()
+        self.set_fill_color(252, 252, 252)
+        self.set_draw_color(220, 226, 230)
+        self.rect(10, start_y, 190, 60, 'FD')
+
+        # Sub-header: VJTI Audit Header
+        self.set_fill_color(*self.surface_variant)
+        self.rect(10, start_y, 190, 10, 'F')
+        self.set_xy(15, start_y + 2)
+        self.set_font('helvetica', 'B', 11)
+        self.set_text_color(*self.primary_color)
+        self.cell(0, 6, f"SESSION FORENSIC EVIDENCE: {student_obj.registration_number}", 0, 1)
+
+        # Student Photo (Left Side)
+        photo_path = f"static/faces/{student_obj.registration_number}.jpg"
+        photo_drawn = False
+        if os.path.exists(photo_path):
+            try:
+                self.image(photo_path, 15, start_y + 15, 35, 40)
+                photo_drawn = True
+            except: pass
+
+        if not photo_drawn:
+            # Placeholder if no photo
+            self.set_draw_color(200, 200, 200)
+            self.rect(15, start_y + 15, 35, 40, 'D')
+            self.set_xy(15, start_y + 30)
+            self.set_font('helvetica', 'I', 8)
+            self.cell(35, 10, "No Photo", 0, 0, 'C')
+
+        # Student Metadata (Right Side)
+        self.set_xy(55, start_y + 15)
+        self.set_text_color(50, 50, 50)
+
+        info = [
+            ("Full Name", student_obj.full_name),
+            ("Department", f"{student_obj.branch} - {student_obj.year}"),
+            ("Verification", "Biometric Face Recognition"),
+            ("Timestamp", record_obj.marked_at.strftime("%d %b %Y, %I:%M %p") if record_obj else "N/A"),
+            ("AI Status", "SUCCESSFULLY VERIFIED" if record_obj and record_obj.face_verified else "MANUAL / PENDING")
+        ]
+
+        for label, val in info:
+            self.set_x(55)
+            self.set_font('helvetica', 'B', 9)
+            self.cell(30, 7, f"{label}:", 0, 0)
+            self.set_font('helvetica', '', 9)
+            self.cell(0, 7, str(val), 0, 1)
+
+        # Audit Stamp
+        self.set_xy(145, start_y + 45)
+        self.set_font('helvetica', 'B', 10)
+        self.set_text_color(*self.success_color)
+        self.set_draw_color(*self.success_color)
+        self.cell(45, 10, "SECURE AUDIT", 1, 0, 'C')
+
+        self.set_y(start_y + 65)
+
 
     def draw_digital_watermark(self):
         """Adds a subtle 'OFFICIAL' watermark in the background"""
@@ -1115,11 +1175,14 @@ async def export_session_pdf(session_id: str, student_id: Optional[str] = None, 
     if student_id and student_id != "All":
         records_query = records_query.filter(or_(Student.id == student_id, Student.registration_number == student_id))
 
-    records = records_query.all()
+    # Ensure deterministic order for cryptographic hashing
+    records = records_query.order_by(Student.registration_number).all()
 
     pdf = PDFReport()
     # Generate a cryptographic fingerprint for this specific session report
-    session_str = f"{sid}{sess.start_time}{len(records)}"
+    # Using deterministic session metadata and student record digest for forensic integrity
+    record_digest = hashlib.sha256(str([(r.id, s.registration_number) for r, s in records]).encode()).hexdigest()
+    session_str = f"{sid}|{sess.start_time}|{record_digest}"
     pdf.session_hash = hashlib.sha256(session_str.encode()).hexdigest().upper()[:40]
     pdf.add_page()
     pdf.draw_digital_watermark()
@@ -1133,6 +1196,13 @@ async def export_session_pdf(session_id: str, student_id: Optional[str] = None, 
         ("Audit Result", "AUTHENTICATED", False)
     ]
     pdf.draw_summary_box(metrics)
+
+    # Detailed Student Showcase (ONLY if a specific student is selected)
+    if student_id and student_id != "All" and records:
+        pdf.chapter_title('Student Audit Profile')
+        # records[0] is the specific student result
+        rec, stu = records[0]
+        pdf.draw_student_audit_card(stu, rec)
 
     # Detailed Audit Info
     pdf.set_font('helvetica', 'B', 10)
@@ -1278,14 +1348,33 @@ async def export_bulk_pdf(
      .order_by(Student.registration_number).all()
 
     pdf = PDFReport()
+
+    # Check if we are auditing a specific student to include forensic evidence
+    audit_student_obj = None
+    latest_record = None
+    if is_valid(student_id):
+        audit_student_obj = db.query(Student).filter(or_(Student.id == student_id, Student.registration_number == student_id)).first()
+        if audit_student_obj:
+            latest_record = db.query(AttendanceRecord).filter(
+                AttendanceRecord.student_id == audit_student_obj.id,
+                AttendanceRecord.session_id.in_(session_id_sub)
+            ).order_by(AttendanceRecord.marked_at.desc()).first()
+
     # Generate a cryptographic fingerprint for this bulk report
-    report_str = f"{fid}{branch}{year}{len(results)}"
+    # Enhanced deterministic hash using data digest for forensic integrity
+    data_digest = hashlib.sha256(str(results).encode()).hexdigest()
+    report_str = f"{fid}|{branch}|{year}|{subject_id}|{total_sess}|{data_digest}"
     pdf.session_hash = hashlib.sha256(report_str.encode()).hexdigest().upper()[:40]
     pdf.add_page()
     pdf.draw_digital_watermark()
 
     # Advanced Summary Section
     pdf.chapter_title('Faculty Consolidation & Audit Report')
+
+    # Insert Forensic Evidence if a specific student is selected
+    if audit_student_obj:
+        pdf.draw_student_audit_card(audit_student_obj, latest_record)
+        pdf.ln(5)
 
     # Calculate High-Level Metrics
     total_students = len(results)
@@ -1704,14 +1793,33 @@ async def export_hod_master_pdf(
 
     # 5. Build Elite PDF
     pdf = PDFReport()
+
+    # Check if we are auditing a specific student to include forensic evidence
+    audit_student_obj = None
+    latest_record = None
+    if is_valid(student_id):
+        audit_student_obj = db.query(Student).filter(or_(Student.id == student_id, Student.registration_number == student_id)).first()
+        if audit_student_obj:
+            latest_record = db.query(AttendanceRecord).filter(
+                AttendanceRecord.student_id == audit_student_obj.id,
+                AttendanceRecord.session_id.in_(session_id_sub)
+            ).order_by(AttendanceRecord.marked_at.desc()).first()
+
     # Generate a cryptographic fingerprint for the HOD Master Audit
-    audit_str = f"{actual_dept}{faculty_id}{len(student_stats)}{datetime.now()}"
+    # We use a deterministic digest of the student statistics and filters to ensure forensic integrity
+    stats_digest = hashlib.sha256(str(student_stats).encode()).hexdigest()
+    audit_str = f"{actual_dept}|{faculty_id}|{branch}|{year}|{subject_id}|{total_sess}|{stats_digest}"
     pdf.session_hash = hashlib.sha256(audit_str.encode()).hexdigest().upper()[:40]
     pdf.add_page()
     pdf.draw_digital_watermark()
 
     # Departmental Executive Summary
     pdf.chapter_title(f'Departmental Executive Audit: {actual_dept.upper()}')
+
+    # Insert Forensic Evidence if a specific student is selected
+    if audit_student_obj:
+        pdf.draw_student_audit_card(audit_student_obj, latest_record)
+        pdf.ln(5)
 
     metrics = [
         ("Faculty Node", len(set([s[2].id for s in sessions_full if s[2]])), False),
@@ -1897,7 +2005,8 @@ async def export_hod_master_excel(
         Student.registration_number,
         Student.full_name,
         Student.branch,
-        func.count(AttendanceRecord.id)
+        func.count(AttendanceRecord.id),
+        func.sum(case([(AttendanceRecord.face_verified == True, 1)], else_=0))
     ).outerjoin(AttendanceRecord, (Student.id == AttendanceRecord.student_id) & (AttendanceRecord.session_id.in_(session_id_sub)))\
      .filter(Student.id.in_(target_student_id_sub))
 
@@ -1911,12 +2020,39 @@ async def export_hod_master_excel(
     output = io.StringIO()
     output.write('\ufeff') # UTF-8 BOM
     writer = csv.writer(output)
-    writer.writerow(["Registration No", "Full Name", "Branch", "Classes Attended", "Total Classes", "Percentage", "Status"])
+    writer.writerow([
+        "Registration No",
+        "Full Name",
+        "Branch",
+        "Classes Attended",
+        "AI Verified",
+        "Total Classes",
+        "Attendance %",
+        "AI Accuracy %",
+        "Audit Status",
+        "Digital Fingerprint"
+    ])
 
-    for reg, name, br, att in stats:
+    for reg, name, br, att, ai_v in stats:
         perc = (att/total_sess)*100 if total_sess > 0 else 0
+        ai_acc = (ai_v/att)*100 if att > 0 else 0
         status = "ELIGIBLE" if perc >= 75 else "DEFAULTER"
-        writer.writerow([reg, name, br, att, total_sess, f"{perc:.1f}%", status])
+
+        # Generate row-level fingerprint for audit integrity
+        row_hash = hashlib.sha256(f"{reg}{att}{ai_v}{status}".encode()).hexdigest().upper()[:12]
+
+        writer.writerow([
+            reg,
+            name,
+            br,
+            att,
+            int(ai_v or 0),
+            total_sess,
+            f"{perc:.1f}%",
+            f"{ai_acc:.1f}%",
+            status,
+            f"TX-{row_hash}"
+        ])
 
     filename = f"HOD_Master_Audit_{actual_dept}.csv"
     return Response(
@@ -1948,17 +2084,52 @@ async def export_department_excel(dept_id: str, db: Session = Depends(get_db)):
     output = io.StringIO()
     output.write('\ufeff') # BOM for Excel
     writer = csv.writer(output)
-    writer.writerow(["Registration No", "Student Name", "Branch", "Year", "Attendance %", "Status"])
+    writer.writerow([
+        "Registration No",
+        "Student Name",
+        "Branch",
+        "Year",
+        "Attended",
+        "AI Verified",
+        "Total Sessions",
+        "Attendance %",
+        "Status",
+        "Verification Hash"
+    ])
 
     if session_ids:
+        total_s = len(session_ids)
         for s in students:
-            count = db.query(AttendanceRecord).filter(
+            # Get attendance and AI verification count
+            stats = db.query(
+                func.count(AttendanceRecord.id),
+                func.sum(case([(AttendanceRecord.face_verified == True, 1)], else_=0))
+            ).filter(
                 AttendanceRecord.student_id == s.id,
                 AttendanceRecord.session_id.in_(session_ids)
-            ).count()
-            perc = (count / len(session_ids)) * 100
+            ).first()
+
+            att_count = stats[0] or 0
+            ai_count = int(stats[1] or 0)
+
+            perc = (att_count / total_s) * 100 if total_s > 0 else 0
             status = "Compliant" if perc >= 75 else "DEFAULTER"
-            writer.writerow([s.registration_number, s.full_name, s.branch, s.year, f"{perc:.1f}%", status])
+
+            # Row integrity hash
+            v_hash = hashlib.sha256(f"{s.registration_number}{att_count}{status}".encode()).hexdigest().upper()[:12]
+
+            writer.writerow([
+                s.registration_number,
+                s.full_name,
+                s.branch,
+                s.year,
+                att_count,
+                ai_count,
+                total_s,
+                f"{perc:.1f}%",
+                status,
+                f"VJTI-{v_hash}"
+            ])
 
     return Response(
         content=output.getvalue(),

@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.sp
 import com.example.dbms_shubham_application.data.model.AttendanceRecord
 import com.example.dbms_shubham_application.data.model.FacultySessionRecord
 import com.example.dbms_shubham_application.data.model.SessionDetailsResponse
+import com.example.dbms_shubham_application.data.model.TrendData
 import com.example.dbms_shubham_application.utils.DateTimeUtils
 
 fun Modifier.pulseEffect(targetScale: Float = 1.05f): Modifier = composed {
@@ -644,5 +645,57 @@ fun DetailRow(label: String, value: String) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
         Text(label, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), fontSize = 14.sp)
         Text(value, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+    }
+}
+
+@Composable
+fun DynamicTrendChart(trends: List<TrendData>) {
+    val colorScheme = MaterialTheme.colorScheme
+    Card(
+        modifier = Modifier.fillMaxWidth().height(260.dp),
+        colors = CardDefaults.cardColors(containerColor = colorScheme.surface),
+        shape = RoundedCornerShape(24.dp),
+        border = BorderStroke(1.dp, colorScheme.outline.copy(alpha = 0.1f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text("Attendance Trends", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+            Text("Monthly Average %", fontSize = 12.sp, color = Color.Gray)
+            
+            Spacer(modifier = Modifier.height(20.dp))
+            
+            if (trends.isEmpty()) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(modifier = Modifier.size(30.dp))
+                }
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxSize().padding(bottom = 10.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Bottom
+                ) {
+                    trends.forEach { data ->
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("${data.value}%", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = colorScheme.primary)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Box(
+                                modifier = Modifier
+                                    .width(34.dp)
+                                    .fillMaxHeight(data.value.toFloat() / 100f)
+                                    .clip(RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp))
+                                    .background(
+                                        Brush.verticalGradient(
+                                            if (data.value < 75) listOf(colorScheme.error, colorScheme.error.copy(alpha = 0.6f))
+                                            else listOf(colorScheme.primary, colorScheme.primary.copy(alpha = 0.6f))
+                                        )
+                                    )
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(data.month.take(3), fontSize = 10.sp, fontWeight = FontWeight.Medium)
+                        }
+                    }
+                }
+            }
+        }
     }
 }

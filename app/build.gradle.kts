@@ -72,6 +72,7 @@ dependencies {
     implementation("com.google.mlkit:face-detection:16.1.7")
     implementation(libs.retrofit)
     implementation(libs.retrofit.gson)
+    implementation(libs.coil.compose)
     implementation(libs.okhttp)
     implementation(libs.okhttp.logging)
     implementation(platform(libs.firebase.bom))

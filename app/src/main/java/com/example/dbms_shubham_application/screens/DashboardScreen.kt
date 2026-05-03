@@ -1,6 +1,7 @@
 package com.example.dbms_shubham_application.screens
 
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -44,8 +45,12 @@ import com.example.dbms_shubham_application.ui.components.ProfessionalStatStrip
 import com.example.dbms_shubham_application.ui.components.StatStripItem
 import com.example.dbms_shubham_application.ui.components.VerticalStripDivider
 import com.example.dbms_shubham_application.ui.components.shimmerEffect
+import com.example.dbms_shubham_application.utils.FileUtils
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.Calendar
 
 // --- MODERN GLASSMORPHIC PALETTE ---
@@ -235,7 +240,11 @@ fun DashboardScreen(navController: NavController, role: String) {
                         when (normalizedRole) {
                             "student" -> QuickActionsSection(navController, modifier = Modifier.padding(horizontal = 24.dp))
                             "faculty" -> FacultyManagementSection(navController, modifier = Modifier.padding(horizontal = 24.dp))
-                            "hod" -> HODActionsSection(navController, modifier = Modifier.padding(horizontal = 24.dp))
+                            "hod" -> HODActionsSection(
+                                navController = navController, 
+                                modifier = Modifier.padding(horizontal = 24.dp),
+                                branch = userProfile?.academic?.get("branch") ?: ""
+                            )
                         }
                     }
 
@@ -357,7 +366,6 @@ fun HeaderSection(navController: NavController, unreadCount: Int) {
         }
     }
 }
-
 }
 
 @Composable
@@ -748,7 +756,48 @@ fun HODStatsSection(isLoading: Boolean, analytics: com.example.dbms_shubham_appl
 }
 
 @Composable
-fun HODActionsSection(navController: NavController, modifier: Modifier = Modifier) {
+fun HODActionsSection(navController: NavController, modifier: Modifier = Modifier, branch: String = "") {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var isExporting by remember { mutableStateOf(false) }
+
+    fun downloadDepartmentAudit() {
+        if (branch.isEmpty()) {
+            Toast.makeText(context, "Department information missing", Toast.LENGTH_SHORT).show()
+            return
+        }
+        isExporting = true
+        scope.launch(Dispatchers.IO) {
+            try {
+                // Enterprise-grade master audit export
+                val response = RetrofitClient.apiService.downloadHodMasterExcel(departmentId = branch)
+                if (response.isSuccessful) {
+                    response.body()?.let { 
+                        FileUtils.saveFile(
+                            it.byteStream(), 
+                            "VJTI_${branch}_Master_Audit.xlsx", 
+                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", 
+                            context
+                        )
+                    }
+                    withContext(Dispatchers.Main) { 
+                        Toast.makeText(context, "Audit Exported Successfully", Toast.LENGTH_LONG).show() 
+                    }
+                } else {
+                    withContext(Dispatchers.Main) { 
+                        Toast.makeText(context, "Export failed: No data found", Toast.LENGTH_SHORT).show() 
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) { 
+                    Toast.makeText(context, "Network Error: ${e.message}", Toast.LENGTH_SHORT).show() 
+                }
+            } finally {
+                withContext(Dispatchers.Main) { isExporting = false }
+            }
+        }
+    }
+
     var visible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { visible = true }
 
@@ -775,10 +824,20 @@ fun HODActionsSection(navController: NavController, modifier: Modifier = Modifie
                         navController.navigate("hod_analytics")
                     }
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 24.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outline.copy(0.1f))
+                    
+                    HODActionStripItem(
+                        label = if (isExporting) "Generating Audit..." else "Export Master Audit",
+                        icon = if (isExporting) Icons.Default.HourglassEmpty else Icons.Default.FileDownload,
+                        color = MaterialTheme.colorScheme.secondary
+                    ) {
+                        if (!isExporting) downloadDepartmentAudit()
+                    }
+                    
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 24.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outline.copy(0.1f))
                     HODActionStripItem(
                         label = "Manage Faculty",
                         icon = Icons.Default.Domain,
-                        color = MaterialTheme.colorScheme.secondary
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
                     ) {
                         navController.navigate("hod_manage")
                     }

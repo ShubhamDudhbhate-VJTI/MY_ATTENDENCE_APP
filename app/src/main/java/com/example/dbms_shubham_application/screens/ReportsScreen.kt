@@ -535,39 +535,8 @@ fun FacultyAnalyticsDialog(
                                 }
                             }
 
-                            // Trend Chart (Simplified version of HOD chart)
-                            Card(
-                                modifier = Modifier.fillMaxWidth().height(200.dp),
-                                colors = CardDefaults.cardColors(containerColor = colorScheme.surfaceVariant.copy(0.3f)),
-                                shape = RoundedCornerShape(24.dp),
-                                border = BorderStroke(1.dp, colorScheme.outline.copy(alpha = 0.05f))
-                            ) {
-                                Column(modifier = Modifier.padding(16.dp)) {
-                                    Text("MONTHLY TRENDS", fontSize = 10.sp, fontWeight = FontWeight.Black, color = colorScheme.primary, letterSpacing = 1.5.sp)
-                                    Spacer(modifier = Modifier.height(16.dp))
-                                    Row(
-                                        modifier = Modifier.fillMaxSize(),
-                                        horizontalArrangement = Arrangement.SpaceEvenly,
-                                        verticalAlignment = Alignment.Bottom
-                                    ) {
-                                        analytics.trends.forEach { trend ->
-                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                                Text("${trend.value}%", fontSize = 8.sp, fontWeight = FontWeight.Bold)
-                                                Spacer(modifier = Modifier.height(4.dp))
-                                                Box(
-                                                    modifier = Modifier
-                                                        .width(30.dp)
-                                                        .fillMaxHeight(trend.value.toFloat() / 100f)
-                                                        .clip(RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp))
-                                                        .background(colorScheme.primary)
-                                                )
-                                                Spacer(modifier = Modifier.height(4.dp))
-                                                Text(trend.month, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+                            // Centralized Enterprise Trend Chart
+                            DynamicTrendChart(trends = analytics.trends)
                         }
                     }
                     
