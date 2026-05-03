@@ -51,8 +51,10 @@ fun FacultyListScreen(navController: NavController) {
     }
 
     val filteredList = facultyList.filter {
-        it.full_name.contains(searchQuery, ignoreCase = true) ||
-        it.email.contains(searchQuery, ignoreCase = true)
+        !it.id.startsWith("cloud___") && (
+            it.full_name.contains(searchQuery, ignoreCase = true) ||
+            it.email.contains(searchQuery, ignoreCase = true)
+        )
     }
 
     Scaffold(

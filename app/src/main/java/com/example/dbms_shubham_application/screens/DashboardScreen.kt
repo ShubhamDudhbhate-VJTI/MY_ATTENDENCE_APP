@@ -12,15 +12,11 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.automirrored.filled.Assignment
-import androidx.compose.material.icons.automirrored.filled.LibraryBooks
-import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
-import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,6 +31,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import androidx.navigation.compose.currentBackStackEntryAsState
 import com.example.dbms_shubham_application.data.local.SessionManager
 import com.example.dbms_shubham_application.data.model.AttendanceRecord
 import com.example.dbms_shubham_application.data.model.FacultySessionRecord
@@ -70,6 +67,7 @@ fun DashboardScreen(navController: NavController, role: String) {
     var todaySchedule by remember { mutableStateOf<List<ScheduleRecord>>(emptyList()) }
     var unreadNotificationsCount by remember { mutableIntStateOf(0) }
     var isLoading by remember { mutableStateOf(true) }
+    var deptAnalytics by remember { mutableStateOf<com.example.dbms_shubham_application.data.model.DepartmentAnalytics?>(null) }
 
     val currentDay = remember {
         val calendar = Calendar.getInstance()
@@ -92,40 +90,69 @@ fun DashboardScreen(navController: NavController, role: String) {
 
     // --- CONNECTION LOGIC (UPDATED) ---
     LaunchedEffect(userId, normalizedRole, refreshCount) {
-        if (userId.isNotEmpty()) {
-            try {
-                coroutineScope {
-                    // Start fetching data in parallel
-                    val profileDeferred = async { RetrofitClient.apiService.getUserProfile(userId) }
-                    val notifDeferred = async { RetrofitClient.apiService.getNotifications(userId) }
-                    
-                    if (normalizedRole == "student") {
-                        val historyDeferred = async { RetrofitClient.apiService.getAttendanceHistory(userId) }
-                        val subjectAttendanceDeferred = async { RetrofitClient.apiService.getSubjectAttendance(userId) }
-                        val scheduleDeferred = async { RetrofitClient.apiService.getStudentSchedule(userId, currentDay) }
-                        
-                        historyDeferred.await().let { if (it.isSuccessful) studentHistory = it.body()?.filter { !it.session_id.startsWith("cloud___") } ?: emptyList() }
-                        subjectAttendanceDeferred.await().let { if (it.isSuccessful) subjectAttendance = it.body() ?: emptyList() }
-                        scheduleDeferred.await().let { if (it.isSuccessful) todaySchedule = it.body() ?: emptyList() }
-                    } else if (normalizedRole == "faculty") {
-                        val scheduleDeferred = async { RetrofitClient.apiService.getFacultySchedule(userId, currentDay) }
-                        val sessionsDeferred = async { RetrofitClient.apiService.getFacultySessions(userId) }
-                        
-                        scheduleDeferred.await().let { if (it.isSuccessful) todaySchedule = it.body() ?: emptyList() }
-                        sessionsDeferred.await().let { if (it.isSuccessful) facultySessions = it.body()?.filter { !it.session_id.startsWith("cloud___") } ?: emptyList() }
-                    }
+        if (userId.isEmpty()) {
+            isLoading = false
+            return@LaunchedEffect
+        }
 
-                    profileDeferred.await().let { if (it.isSuccessful) userProfile = it.body() }
-                    notifDeferred.await().let { 
-                        if (it.isSuccessful) unreadNotificationsCount = it.body()?.count { n -> !n.is_read } ?: 0
+        try {
+            coroutineScope {
+                // Start fetching data in parallel
+                val profileDeferred = async { RetrofitClient.apiService.getUserProfile(userId) }
+                val notifDeferred = async { RetrofitClient.apiService.getNotifications(userId) }
+                
+                when (normalizedRole) {
+                    "student" -> {
+                        val historyDef = async { RetrofitClient.apiService.getAttendanceHistory(userId) }
+                        val subjectDef = async { RetrofitClient.apiService.getSubjectAttendance(userId) }
+                        val scheduleDef = async { RetrofitClient.apiService.getStudentSchedule(userId, currentDay) }
+                        
+                        historyDef.await().let { res ->
+                            if (res.isSuccessful) studentHistory = res.body()?.filter { !it.session_id.startsWith("cloud___") } ?: emptyList()
+                        }
+                        subjectDef.await().let { res ->
+                            if (res.isSuccessful) subjectAttendance = res.body() ?: emptyList()
+                        }
+                        scheduleDef.await().let { res ->
+                            if (res.isSuccessful) todaySchedule = res.body() ?: emptyList()
+                        }
+                    }
+                    "faculty" -> {
+                        val scheduleDef = async { RetrofitClient.apiService.getFacultySchedule(userId, currentDay) }
+                        val sessionsDef = async { RetrofitClient.apiService.getFacultySessions(userId) }
+                        
+                        scheduleDef.await().let { res ->
+                            if (res.isSuccessful) todaySchedule = res.body() ?: emptyList()
+                        }
+                        sessionsDef.await().let { res ->
+                            if (res.isSuccessful) facultySessions = res.body()?.filter { !it.session_id.startsWith("cloud___") } ?: emptyList()
+                        }
                     }
                 }
-            } catch (e: Exception) {
-                Log.e("DashboardScreen", "Error fetching dashboard data", e)
-            } finally {
-                isLoading = false
+
+                profileDeferred.await().let { res ->
+                    if (res.isSuccessful) {
+                        val profile = res.body()
+                        userProfile = profile
+                        // If HOD, fetch department analytics
+                        if (normalizedRole == "hod") {
+                            val branch = profile?.academic?.get("branch") ?: ""
+                            if (branch.isNotEmpty()) {
+                                val analyticsRes = RetrofitClient.apiService.getDepartmentAnalytics(branch)
+                                if (analyticsRes.isSuccessful) {
+                                    deptAnalytics = analyticsRes.body()
+                                }
+                            }
+                        }
+                    }
+                }
+                notifDeferred.await().let { res ->
+                    if (res.isSuccessful) unreadNotificationsCount = res.body()?.count { !it.is_read } ?: 0
+                }
             }
-        } else {
+        } catch (e: Exception) {
+            Log.e("DashboardScreen", "Error fetching dashboard data", e)
+        } finally {
             isLoading = false
         }
     }
@@ -197,7 +224,7 @@ fun DashboardScreen(navController: NavController, role: String) {
                                 SubjectAttendanceSection(subjectAttendance, isLoading, navController)
                             }
                         } else if (normalizedRole == "hod") {
-                            HODStatsSection(isLoading)
+                            HODStatsSection(isLoading, deptAnalytics)
                         } else {
                             FacultyStatsRow(facultySessions, todaySchedule, isLoading)
                         }
@@ -205,12 +232,10 @@ fun DashboardScreen(navController: NavController, role: String) {
 
                     // Actions Section
                     item {
-                        if (normalizedRole == "student") {
-                            QuickActionsSection(navController, modifier = Modifier.padding(horizontal = 24.dp))
-                        } else if (normalizedRole == "faculty") {
-                            FacultyManagementSection(navController, modifier = Modifier.padding(horizontal = 24.dp))
-                        } else if (normalizedRole == "hod") {
-                            HODActionsSection(navController, modifier = Modifier.padding(horizontal = 24.dp))
+                        when (normalizedRole) {
+                            "student" -> QuickActionsSection(navController, modifier = Modifier.padding(horizontal = 24.dp))
+                            "faculty" -> FacultyManagementSection(navController, modifier = Modifier.padding(horizontal = 24.dp))
+                            "hod" -> HODActionsSection(navController, modifier = Modifier.padding(horizontal = 24.dp))
                         }
                     }
 
@@ -271,24 +296,36 @@ fun HeaderSection(navController: NavController, unreadCount: Int) {
     val context = LocalContext.current
     val sessionManager = remember { SessionManager(context) }
     
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        IconButton(
-            onClick = { 
-                sessionManager.logout()
-                navController.navigate("role_selection") {
-                    popUpTo(0) { inclusive = true }
-                }
-            },
-            modifier = Modifier.size(44.dp).background(MaterialTheme.colorScheme.surface, CircleShape).border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
+    Column(modifier = Modifier.fillMaxWidth()) {
+        // Institutional Branding
+        Text(
+            "Veermata Jijabai Technological Institute",
+            style = MaterialTheme.typography.labelSmall.copy(
+                fontWeight = FontWeight.ExtraBold,
+                color = MaterialTheme.colorScheme.primary,
+                letterSpacing = 0.5.sp
+            ),
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+        
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Logout", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp))
-        }
+            IconButton(
+                onClick = { 
+                    sessionManager.logout()
+                    navController.navigate("role_selection") {
+                        popUpTo(0) { inclusive = true }
+                    }
+                },
+                modifier = Modifier.size(44.dp).background(MaterialTheme.colorScheme.surface, CircleShape).border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
+            ) {
+                Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = "Logout", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp))
+            }
 
-        Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = { navController.navigate("alerts") }) {
                 BadgedBox(
                     badge = {
@@ -319,6 +356,8 @@ fun HeaderSection(navController: NavController, unreadCount: Int) {
             }
         }
     }
+}
+
 }
 
 @Composable
@@ -590,7 +629,7 @@ fun QuickActionsSection(navController: NavController, modifier: Modifier = Modif
             ModernActionItem("History", Icons.Default.History, MaterialTheme.colorScheme.secondary, Modifier.weight(1f)) {
                 navController.navigate("attendance_history")
             }
-            ModernActionItem("Leaves", Icons.Default.EventNote, MaterialTheme.colorScheme.tertiary, Modifier.weight(1f)) {
+            ModernActionItem("Leaves", Icons.AutoMirrored.Filled.EventNote, MaterialTheme.colorScheme.tertiary, Modifier.weight(1f)) {
                 navController.navigate("leave_management")
             }
         }
@@ -667,7 +706,7 @@ fun FacultyManagementSection(navController: NavController, modifier: Modifier = 
 }
 
 @Composable
-fun HODStatsSection(isLoading: Boolean) {
+fun HODStatsSection(isLoading: Boolean, analytics: com.example.dbms_shubham_application.data.model.DepartmentAnalytics?) {
     var visible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { visible = true }
 
@@ -682,25 +721,25 @@ fun HODStatsSection(isLoading: Boolean) {
             ProfessionalStatStrip {
                 StatStripItem(
                     label = "Avg. Att.",
-                    value = "82%",
-                    icon = Icons.Default.ShowChart,
+                    value = analytics?.avg_attendance ?: "--%",
+                    icon = Icons.AutoMirrored.Filled.ShowChart,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.weight(1f)
                 )
                 VerticalStripDivider()
                 StatStripItem(
                     label = "Faculty",
-                    value = "24",
+                    value = (analytics?.total_faculty ?: 0).toString(),
                     icon = Icons.Default.People,
                     color = MaterialTheme.colorScheme.secondary,
                     modifier = Modifier.weight(1f)
                 )
                 VerticalStripDivider()
                 StatStripItem(
-                    label = "Alerts",
-                    value = "03",
-                    icon = Icons.Default.Warning,
-                    color = MaterialTheme.colorScheme.error,
+                    label = "Students",
+                    value = String.format("%02d", analytics?.total_students ?: 0),
+                    icon = Icons.Default.Group,
+                    color = MaterialTheme.colorScheme.tertiary,
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -852,7 +891,7 @@ fun ModernRecentSessionsCard(modifier: Modifier = Modifier, sessions: List<Facul
                 }
             } else {
                 val latest = sessions.first()
-                val displayName = if (latest.subject_name.isNotEmpty()) latest.subject_name else latest.subject_id
+                val displayName = latest.subject_name.ifEmpty { latest.subject_id }
                 Column {
                     Text(displayName, fontSize = 18.sp, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     Text("${latest.student_count} Present", fontSize = 14.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
@@ -1024,6 +1063,9 @@ fun SubjectAttendanceCard(item: SubjectAttendance, navController: NavController?
 
 @Composable
 fun BottomNavBar(navController: NavController, role: String) {
+    val navBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry?.destination?.route
+
     NavigationBar(
         containerColor = MaterialTheme.colorScheme.surface,
         tonalElevation = 0.dp,
@@ -1036,7 +1078,6 @@ fun BottomNavBar(navController: NavController, role: String) {
                 RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
             )
     ) {
-        val currentRoute = "dashboard/${role.lowercase()}"
         val items = when (role.lowercase()) {
             "student" -> {
                 listOf(

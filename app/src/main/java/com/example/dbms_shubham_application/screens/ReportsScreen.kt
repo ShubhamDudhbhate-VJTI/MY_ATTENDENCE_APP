@@ -302,52 +302,80 @@ fun ReportsScreen(navController: NavController) {
         }
 
         Column(modifier = Modifier.fillMaxSize()) {
-            // PREMIUM GLASSMORPHIC HEADER
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(
-                        Brush.verticalGradient(
-                            listOf(colorScheme.surface.copy(0.95f), colorScheme.background.copy(0.9f))
-                        )
-                    )
-                    .padding(top = 54.dp, bottom = 20.dp, start = 24.dp, end = 24.dp)
+            // REFINED PREMIUM HEADER
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = colorScheme.surface,
+                tonalElevation = 2.dp,
+                shadowElevation = 4.dp
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Surface(
-                        onClick = { navController.navigateUp() },
-                        modifier = Modifier.size(48.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        color = colorScheme.surface,
-                        border = BorderStroke(1.5.dp, colorScheme.outline.copy(0.08f)),
-                        shadowElevation = 8.dp
+                Column(
+                    modifier = Modifier
+                        .statusBarsPadding()
+                        .padding(horizontal = 24.dp, vertical = 20.dp)
+                ) {
+                    // Subtle Institutional Branding
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, null, modifier = Modifier.size(22.dp))
-                        }
-                    }
-                    Spacer(Modifier.width(20.dp))
-                    AnimatedVisibility(
-                        visible = visible,
-                        enter = fadeIn(tween(700)) + slideInHorizontally(initialOffsetX = { -30 }, animationSpec = tween(700))
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Audit Engine", 
-                                style = LocalTextStyle.current.copy(
-                                    fontWeight = FontWeight.Black, 
-                                    fontSize = 28.sp, 
-                                    letterSpacing = (-1.5).sp,
-                                    brush = Brush.linearGradient(listOf(colorScheme.onBackground, colorScheme.primary))
-                                )
+                        Box(modifier = Modifier.size(6.dp).background(colorScheme.primary, CircleShape))
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            "VEERMATA JIJABAI TECHNOLOGICAL INSTITUTE",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = colorScheme.onSurfaceVariant,
+                                letterSpacing = 1.5.sp
                             )
-                            Text("Real-time Intelligence System", color = colorScheme.primary, fontSize = 11.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
-                        }
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Box(modifier = Modifier.size(6.dp).background(colorScheme.primary, CircleShape))
                     }
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        HeaderAction(Icons.Default.Insights, colorScheme.primary) { fetchFacultyAnalytics() }
-                        Spacer(Modifier.width(12.dp))
-                        HeaderAction(Icons.Default.AutoDelete, colorScheme.error) { clearAllSessions() }
+                    
+                    Spacer(Modifier.height(20.dp))
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(
+                                onClick = { navController.navigateUp() },
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .background(colorScheme.surfaceVariant.copy(0.4f), CircleShape)
+                            ) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, null, modifier = Modifier.size(20.dp))
+                            }
+                            
+                            Spacer(Modifier.width(16.dp))
+                            
+                            Column {
+                                Text(
+                                    text = "Audit Engine",
+                                    style = MaterialTheme.typography.headlineSmall.copy(
+                                        fontWeight = FontWeight.ExtraBold,
+                                        letterSpacing = (-0.5).sp
+                                    )
+                                )
+                                Text(
+                                    "Institutional Quality Control",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        color = colorScheme.primary,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                )
+                            }
+                        }
+                        
+                        Row {
+                            HeaderAction(Icons.Default.Insights, colorScheme.primary) { fetchFacultyAnalytics() }
+                            Spacer(Modifier.width(12.dp))
+                            HeaderAction(Icons.Default.AutoDelete, colorScheme.error) { clearAllSessions() }
+                        }
                     }
                 }
             }
@@ -490,19 +518,19 @@ fun FacultyAnalyticsDialog(
                         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                             // Key Stats
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                StatsBox(Modifier.weight(1f), "Avg Attendance", analytics.avg_attendance, Icons.Default.TrendingUp)
-                                StatsBox(Modifier.weight(1f), "Sessions", "${analytics.total_classes}", Icons.Default.BarChart)
+                                StatsBox(Modifier.weight(1f), "Avg Attendance", analytics.avg_attendance, Icons.Default.AutoGraph)
+                                StatsBox(Modifier.weight(1f), "Sessions", "${analytics.total_classes}", Icons.Default.History)
                             }
                             
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                StatsBox(Modifier.weight(1f), "Defaulters", "${analytics.defaulter_count}", Icons.Default.TrendingDown)
+                                StatsBox(Modifier.weight(1f), "Defaulters", "${analytics.defaulter_count}", Icons.Default.ReportProblem)
                                 Surface(
                                     modifier = Modifier.weight(1f),
-                                    color = colorScheme.primary.copy(0.05f),
+                                    color = colorScheme.tertiaryContainer.copy(0.3f),
                                     shape = RoundedCornerShape(18.dp)
                                 ) {
                                     Box(Modifier.padding(12.dp), contentAlignment = Alignment.Center) {
-                                        Text("Impact Score: 8.5/10", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = colorScheme.primary)
+                                        Text("Impact Score: 8.5/10", fontWeight = FontWeight.Black, fontSize = 12.sp, color = colorScheme.tertiary)
                                     }
                                 }
                             }
@@ -673,7 +701,7 @@ fun HistoryStatsHeader(reports: List<FacultySessionRecord>) {
                     label = "Attendance",
                     value = "${reports.sumOf { it.student_count }}",
                     icon = Icons.Default.Groups,
-                    color = Color(0xFF00C853)
+                    color = colorScheme.secondary
                 )
 
                 VerticalStripDivider()
@@ -683,7 +711,7 @@ fun HistoryStatsHeader(reports: List<FacultySessionRecord>) {
                     label = "Live",
                     value = "${reports.count { it.status.lowercase().contains("active") }}",
                     icon = Icons.Default.Stream,
-                    color = Color(0xFFFFAB00)
+                    color = colorScheme.tertiary
                 )
             }
         }

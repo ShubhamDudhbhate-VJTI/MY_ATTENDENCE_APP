@@ -41,7 +41,19 @@ fun HODManageScreen(navController: NavController) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Department Management", fontWeight = FontWeight.Bold, color = colorScheme.onBackground) },
+                title = { 
+                    Column {
+                        Text(
+                            "Veermata Jijabai Technological Institute",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.ExtraBold,
+                                color = colorScheme.primary,
+                                letterSpacing = 0.5.sp
+                            )
+                        )
+                        Text("Department Management", fontWeight = FontWeight.Bold, color = colorScheme.onBackground)
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = colorScheme.onBackground)

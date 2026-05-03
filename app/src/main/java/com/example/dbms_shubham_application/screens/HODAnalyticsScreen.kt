@@ -249,9 +249,17 @@ fun HODAnalyticsScreen(navController: NavController) {
                             visible = visible,
                             enter = fadeIn(tween(600)) + slideInVertically(initialOffsetY = { -20 }, animationSpec = tween(600))
                         ) {
-                            Column {
-                                Text("Department Intelligence", color = colorScheme.onBackground, fontWeight = FontWeight.Black, fontSize = 22.sp, letterSpacing = (-0.5).sp)
-                                Text("Domain: $departmentId Engineering", color = colorScheme.primary, fontSize = 11.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
+                            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth().padding(end = 48.dp)) {
+                                Text(
+                                    "Veermata Jijabai Technological Institute",
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = colorScheme.primary,
+                                        letterSpacing = 0.5.sp
+                                    )
+                                )
+                                Text("Department Intelligence", color = colorScheme.onBackground, fontWeight = FontWeight.Black, fontSize = 20.sp, letterSpacing = (-0.5).sp)
+                                Text("Domain: $departmentId Engineering", color = colorScheme.primary, fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
                             }
                         }
                     },

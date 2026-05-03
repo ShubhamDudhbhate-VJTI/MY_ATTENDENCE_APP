@@ -53,7 +53,9 @@ fun SubjectDetailsScreen(
         try {
             val response = RetrofitClient.apiService.getAttendanceHistory(userId)
             if (response.isSuccessful) {
-                history = response.body()?.filter { it.subject_id == subjectId } ?: emptyList()
+                history = response.body()?.filter {
+                    it.subject_id == subjectId && !it.session_id.startsWith("cloud___")
+                } ?: emptyList()
             }
         } catch (e: Exception) {
             e.printStackTrace()
