@@ -159,6 +159,7 @@ data class UserProfile(
     val full_name: String,
     val role: String,
     val image_url: String? = null,
+    val profile_photo_url: String? = null,
     val academic: Map<String, String?>? = emptyMap()
 )
 
@@ -185,4 +186,13 @@ data class LeaveRequestRecord(
     val reason: String,
     val status: String, // Pending, Approved, Rejected
     val created_at: String
+)
+
+data class HeatmapPoint(
+    val name: String,
+    val reg_no: String,
+    val lat: Double,
+    val lng: Double,
+    val verified: Boolean,
+    val timestamp: String
 )

@@ -105,26 +105,47 @@ def run_migrations(engine):
     Ensures that columns added during development (like face_image or fcm_token)
     exist in the database without requiring manual SQL commands.
     """
-    if "sqlite" in str(engine.url):
-        with engine.begin() as conn:
-            # Check classrooms table
-            try: conn.execute(text("ALTER TABLE classrooms ADD COLUMN wifi_ssid TEXT"))
-            except Exception: pass
-            try: conn.execute(text("ALTER TABLE classrooms ADD COLUMN wifi_bssid TEXT"))
-            except Exception: pass
-            # Check schedules table
-            try: conn.execute(text("ALTER TABLE schedules ADD COLUMN is_official BOOLEAN DEFAULT 1"))
-            except Exception: pass
-            # Check students table
-            try: conn.execute(text("ALTER TABLE app_students ADD COLUMN face_image BLOB"))
-            except Exception: pass
-            try: conn.execute(text("ALTER TABLE app_students ADD COLUMN device_id TEXT"))
-            except Exception: pass
-            try: conn.execute(text("ALTER TABLE app_students ADD COLUMN department_id TEXT"))
-            except Exception: pass
+    is_sqlite = "sqlite" in str(engine.url)
 
     with engine.begin() as conn:
+        # Check classrooms table
+        try: conn.execute(text("ALTER TABLE classrooms ADD COLUMN wifi_ssid TEXT"))
+        except Exception: pass
+        try: conn.execute(text("ALTER TABLE classrooms ADD COLUMN wifi_bssid TEXT"))
+        except Exception: pass
+
+        # Check schedules table
+        try: conn.execute(text("ALTER TABLE schedules ADD COLUMN is_official BOOLEAN DEFAULT 1"))
+        except Exception: pass
+
+        # Check students table
+        try:
+            col_type = "BLOB" if is_sqlite else "BYTEA"
+            conn.execute(text(f"ALTER TABLE app_students ADD COLUMN face_image {col_type}"))
+        except Exception: pass
+        try: conn.execute(text("ALTER TABLE app_students ADD COLUMN device_id TEXT"))
+        except Exception: pass
+        try: conn.execute(text("ALTER TABLE app_students ADD COLUMN department_id TEXT"))
+        except Exception: pass
+
+        # Check attendance_records table
+        try: conn.execute(text("ALTER TABLE attendance_records ADD COLUMN record_hash TEXT"))
+        except Exception: pass
+        try: conn.execute(text("ALTER TABLE attendance_records ADD COLUMN latitude NUMERIC(9,6)"))
+        except Exception: pass
+        try: conn.execute(text("ALTER TABLE attendance_records ADD COLUMN longitude NUMERIC(9,6)"))
+        except Exception: pass
+        try: conn.execute(text("ALTER TABLE attendance_records ADD COLUMN face_verified BOOLEAN DEFAULT FALSE"))
+        except Exception: pass
+        try: conn.execute(text("ALTER TABLE attendance_records ADD COLUMN wifi_bssid_matched TEXT"))
+        except Exception: pass
+
+        # Check app_users table
         try: conn.execute(text("ALTER TABLE app_users ADD COLUMN fcm_token TEXT"))
+        except Exception: pass
+        try:
+            col_type = "BLOB" if is_sqlite else "BYTEA"
+            conn.execute(text(f"ALTER TABLE app_users ADD COLUMN profile_photo {col_type}"))
         except Exception: pass
 
 # Run migrations immediately on server start
@@ -142,6 +163,7 @@ class User(Base):
     full_name = Column(String)
     role = Column(String) # 'student' or 'faculty'
     fcm_token = Column(String, nullable=True)
+    profile_photo = Column(LargeBinary, nullable=True) # Public profile display photo
 
 class Student(Base):
     """Extends User with academic and biometric data"""
@@ -245,6 +267,7 @@ class AttendanceRecord(Base):
     longitude = Column(Numeric(9, 6), nullable=True)
     face_verified = Column(Boolean, default=False)
     wifi_bssid_matched = Column(String, nullable=True)
+    record_hash = Column(String, nullable=True) # Cryptographic fingerprint
 
 class Notification(Base):
     """Alerts for session starts and system messages"""
@@ -324,7 +347,8 @@ def apply_academic_filters(query, model, branch=None, year=None):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifecycle manager for the FastAPI application"""
-    # No initial seeding for production - strictly using Supabase data
+    # Ensure static directories exist for forensic photo storage
+    os.makedirs("static/faces", exist_ok=True)
     print("--- AttendX Backend Started: Connected to Supabase ---")
     yield
 
@@ -392,13 +416,24 @@ async def get_user_profile(user_id: str, db: Session = Depends(get_db)):
     user = db.query(User).filter((User.id == uid) | (User.username == uid)).first()
     if not user: raise HTTPException(404, "User not found")
 
-    profile = {"id": str(user.id), "username": user.username, "email": user.email, "full_name": user.full_name, "role": user.role, "academic": {}}
+    profile = {"id": str(user.id), "username": user.username, "email": user.email, "full_name": user.full_name, "role": user.role, "academic": {}, "image_url": None, "profile_photo_url": None}
+
+    if user.profile_photo:
+        profile["profile_photo_url"] = f"users/{user.id}/profile-photo"
+
+    # Standardize image URL for frontend Biometric ID Card
+    reg_no = user.username
     if user.role == "student":
         s = db.query(Student).filter(Student.id == user.id).first()
-        if s: profile["academic"] = {"branch": s.branch, "department": s.branch, "year": s.year, "reg_no": s.registration_number}
+        if s:
+            profile["academic"] = {"branch": s.branch, "department": s.branch, "year": s.year, "reg_no": s.registration_number}
+            reg_no = s.registration_number
+            if s.face_image:
+                profile["image_url"] = f"faces/{reg_no}.jpg"
     else:
         t = db.query(Teacher).filter(Teacher.id == user.id).first()
         if t: profile["academic"] = {"branch": t.branch, "department": t.branch, "designation": t.designation, "employee_id": t.employee_id}
+
     return profile
 
 # --- ACADEMIC DATA FETCHING ---
@@ -642,7 +677,14 @@ async def verify_qr(req: dict = Body(...), db: Session = Depends(get_db)):
     return {"success": False, "message": "Invalid or Expired QR Token"}
 
 @app.post("/attendance/verify-face")
-async def verify_face(student_id: str = Form(...), session_id: str = Form(...), image: Optional[UploadFile] = File(None), db: Session = Depends(get_db)):
+async def verify_face(
+    student_id: str = Form(...),
+    session_id: str = Form(...),
+    latitude: Optional[float] = Form(None),
+    longitude: Optional[float] = Form(None),
+    image: Optional[UploadFile] = File(None),
+    db: Session = Depends(get_db)
+):
     """LAYER 3: AI Biometric Authentication"""
     try:
         sid = clean_id(student_id); sess_id = clean_id(session_id)
@@ -658,7 +700,16 @@ async def verify_face(student_id: str = Form(...), session_id: str = Form(...), 
                                  headers={"Authorization": f"Bearer {HF_TOKEN}"}, timeout=60)
             if resp.status_code == 200:
                 student.face_embedding = json.dumps(resp.json()["embedding"]).encode('utf-8')
-                student.face_image = img_bytes; db.commit(); is_verified = True; msg = "Face Registered!"
+                student.face_image = img_bytes
+
+                # Physical storage for PDF reports and forensic audits
+                photo_path = f"static/faces/{student.registration_number}.jpg"
+                with open(photo_path, "wb") as f:
+                    f.write(img_bytes)
+
+                db.commit()
+                is_verified = True
+                msg = "Face Registered & Locally Stored!"
         else:
             # Subsequent Times: Verify Identity
             await image.seek(0)
@@ -670,7 +721,19 @@ async def verify_face(student_id: str = Form(...), session_id: str = Form(...), 
 
         # Log Record
         if not db.query(AttendanceRecord).filter(AttendanceRecord.session_id == sess_id, AttendanceRecord.student_id == student.id).first():
-            db.add(AttendanceRecord(id=str(uuid.uuid4()), session_id=sess_id, student_id=student.id, face_verified=is_verified))
+            # Generate Cryptographic Fingerprint for the Record
+            record_str = f"{sess_id}|{student.id}|{datetime.utcnow().isoformat()}|{is_verified}"
+            r_hash = hashlib.sha256(record_str.encode()).hexdigest().upper()
+
+            db.add(AttendanceRecord(
+                id=str(uuid.uuid4()),
+                session_id=sess_id,
+                student_id=student.id,
+                face_verified=is_verified,
+                record_hash=r_hash,
+                latitude=latitude,
+                longitude=longitude
+            ))
             db.commit()
             create_notification(db, student.id, "Attendance Marked", "Marked present via biometrics.")
         return {"success": True, "message": msg}
@@ -699,12 +762,19 @@ async def manual_attendance(req: dict = Body(...), db: Session = Depends(get_db)
             return {"success": True, "message": "Attendance already marked"}
 
         # Record Manual Attendance
+        # Generate Cryptographic Fingerprint for Manual Override
+        now = datetime.utcnow()
+        record_str = f"{sid}|{student.id}|{now.isoformat()}|MANUAL"
+        r_hash = hashlib.sha256(record_str.encode()).hexdigest().upper()
+
         db.add(AttendanceRecord(
             id=str(uuid.uuid4()),
             session_id=sid,
             student_id=student.id,
+            marked_at=now,
             status="present",
-            face_verified=False
+            face_verified=False,
+            record_hash=r_hash
         ))
         db.commit()
 
@@ -878,6 +948,42 @@ async def get_student_face(student_id: str, db: Session = Depends(get_db)):
     if student and student.face_image: return Response(content=student.face_image, media_type="image/jpeg")
     raise HTTPException(404, "Face not found")
 
+@app.post("/users/{user_id}/profile-photo")
+async def upload_profile_photo(user_id: str, file: UploadFile = File(...), db: Session = Depends(get_db)):
+    uid = clean_id(user_id)
+    user = db.query(User).filter(User.id == uid).first()
+    if not user: raise HTTPException(404, "User not found")
+
+    user.profile_photo = await file.read()
+    db.commit()
+    return {"success": True, "message": "Profile photo updated"}
+
+@app.get("/users/{user_id}/profile-photo")
+async def get_profile_photo(user_id: str, db: Session = Depends(get_db)):
+    uid = clean_id(user_id)
+    user = db.query(User).filter(User.id == uid).first()
+    if user and user.profile_photo:
+        return Response(content=user.profile_photo, media_type="image/jpeg")
+    raise HTTPException(404, "Profile photo not found")
+
+@app.put("/users/{user_id}")
+async def update_user(user_id: str, data: dict = Body(...), db: Session = Depends(get_db)):
+    uid = clean_id(user_id)
+    user = db.query(User).filter(User.id == uid).first()
+    if not user: raise HTTPException(404, "User not found")
+
+    if "full_name" in data:
+        user.full_name = data["full_name"]
+        if user.role == "student":
+            s = db.query(Student).filter(Student.id == uid).first()
+            if s: s.full_name = data["full_name"]
+        else:
+            t = db.query(Teacher).filter(Teacher.id == uid).first()
+            if t: t.full_name = data["full_name"]
+
+    db.commit()
+    return {"success": True}
+
 @app.get("/notifications/{user_id}")
 async def get_notifications(user_id: str, db: Session = Depends(get_db)):
     notifs = db.query(Notification).filter(Notification.user_id == user_id).order_by(Notification.created_at.desc()).all()
@@ -956,32 +1062,33 @@ class PDFReport(FPDF):
                 print(f"Logo error: {e}")
 
         # Typography: Grand Institutional Name
-        # Reduced font size slightly to 17pt to ensure it never overlaps with the logo on a single line
         self.set_text_color(255, 255, 255)
-        self.set_font('helvetica', 'B', 17)
-        self.set_xy(12, 12)
-        self.cell(160, 10, 'VEERMATA JIJABAI TECHNOLOGICAL INSTITUTE', 0, 1, 'L')
+        self.set_font('helvetica', 'B', 18)
+        self.set_xy(12, 10)
+        self.cell(155, 10, 'VEERMATA JIJABAI TECHNOLOGICAL INSTITUTE', 0, 1, 'L')
 
-        self.set_font('helvetica', 'B', 11)
-        self.set_x(12)
-        self.set_text_color(*self.surface_variant)
-        self.cell(160, 8, 'ATTENDX: ADVANCED ACADEMIC INTELLIGENCE SYSTEM', 0, 1, 'L')
-
+        # Institutional Sub-details
         self.set_font('helvetica', '', 8)
-        self.set_x(12)
         self.set_text_color(220, 230, 255)
-        self.cell(160, 5, 'ESTABLISHED 1887 | AN AUTONOMOUS INSTITUTE OF GOVT. OF MAHARASHTRA', 0, 1, 'L')
-        self.set_x(12)
-        self.cell(160, 5, 'MATUNGA, MUMBAI - 400019 | ISO 9001:2015 CERTIFIED', 0, 1, 'L')
+        self.set_xy(12, 19)
+        self.cell(155, 5, 'ESTABLISHED 1887 | AN AUTONOMOUS INSTITUTE OF GOVT. OF MAHARASHTRA', 0, 1, 'L')
+        self.set_xy(12, 23)
+        self.cell(155, 5, 'MATUNGA, MUMBAI - 400019 | ISO 9001:2015 CERTIFIED', 0, 1, 'L')
 
-        # Cryptographic Session Fingerprint (SHA-256)
+        # Cryptographic Session Fingerprint (SHA-256) - Positioned subtly
         if hasattr(self, 'session_hash'):
-            self.set_xy(12, 42)
+            self.set_xy(12, 34)
             self.set_font('helvetica', 'B', 7)
-            self.set_text_color(180, 200, 255)
-            self.cell(0, 5, f"DIGITAL FINGERPRINT: {self.session_hash}", 0, 0, 'L')
+            self.set_text_color(160, 180, 240)
+            self.cell(0, 5, f"SYSTEM AUTHENTICATION HASH: {self.session_hash}", 0, 0, 'L')
 
-        self.ln(18)
+        # Professional Branding Bar - Left aligned at the base of the header for a clean look
+        self.set_xy(12, 42)
+        self.set_font('helvetica', 'B', 11)
+        self.set_text_color(*self.surface_variant)
+        self.cell(160, 7, 'ATTENDX | SECURE INTELLIGENT SYSTEM', 0, 1, 'L')
+
+        self.ln(20)
 
     def footer(self):
         self.set_y(-25)
@@ -1044,12 +1151,12 @@ class PDFReport(FPDF):
 
         self.set_y(start_y + 35)
 
-    def draw_student_audit_card(self, student_obj, record_obj):
+    def draw_student_audit_card(self, student_obj, record_obj, db=None):
         """Draws a detailed student profile card with their registered photo"""
         start_y = self.get_y()
         self.set_fill_color(252, 252, 252)
         self.set_draw_color(220, 226, 230)
-        self.rect(10, start_y, 190, 60, 'FD')
+        self.rect(10, start_y, 190, 65, 'FD')
 
         # Sub-header: VJTI Audit Header
         self.set_fill_color(*self.surface_variant)
@@ -1059,8 +1166,14 @@ class PDFReport(FPDF):
         self.set_text_color(*self.primary_color)
         self.cell(0, 6, f"SESSION FORENSIC EVIDENCE: {student_obj.registration_number}", 0, 1)
 
-        # Student Photo (Left Side)
+        # Student Photo (Left Side) - Ensure it exists from DB if missing
         photo_path = f"static/faces/{student_obj.registration_number}.jpg"
+        if not os.path.exists(photo_path) and student_obj.face_image:
+            try:
+                with open(photo_path, "wb") as f:
+                    f.write(student_obj.face_image)
+            except: pass
+
         photo_drawn = False
         if os.path.exists(photo_path):
             try:
@@ -1074,7 +1187,7 @@ class PDFReport(FPDF):
             self.rect(15, start_y + 15, 35, 40, 'D')
             self.set_xy(15, start_y + 30)
             self.set_font('helvetica', 'I', 8)
-            self.cell(35, 10, "No Photo", 0, 0, 'C')
+            self.cell(35, 10, "No Biometric Data", 0, 0, 'C')
 
         # Student Metadata (Right Side)
         self.set_xy(55, start_y + 15)
@@ -1082,27 +1195,31 @@ class PDFReport(FPDF):
 
         info = [
             ("Full Name", student_obj.full_name),
-            ("Department", f"{student_obj.branch} - {student_obj.year}"),
-            ("Verification", "Biometric Face Recognition"),
-            ("Timestamp", record_obj.marked_at.strftime("%d %b %Y, %I:%M %p") if record_obj else "N/A"),
-            ("AI Status", "SUCCESSFULLY VERIFIED" if record_obj and record_obj.face_verified else "MANUAL / PENDING")
+            ("Academic Node", f"{student_obj.branch} - {student_obj.year}"),
+            ("Auth Method", "AI Biometric (DeepFace)"),
+            ("Log Timestamp", record_obj.marked_at.strftime("%d %b %Y, %I:%M %p") if record_obj else "N/A"),
+            ("Forensic Hash", record_obj.record_hash[:24] if record_obj and record_obj.record_hash else "UNSPECIFIED")
         ]
+
+        # Add Location Data if available
+        if record_obj and record_obj.latitude and record_obj.longitude:
+            info.append(("Coordinates", f"{record_obj.latitude}, {record_obj.longitude}"))
 
         for label, val in info:
             self.set_x(55)
-            self.set_font('helvetica', 'B', 9)
-            self.cell(30, 7, f"{label}:", 0, 0)
-            self.set_font('helvetica', '', 9)
-            self.cell(0, 7, str(val), 0, 1)
+            self.set_font('helvetica', 'B', 8)
+            self.cell(30, 6, f"{label}:", 0, 0)
+            self.set_font('helvetica', '', 8)
+            self.cell(0, 6, str(val), 0, 1)
 
         # Audit Stamp
-        self.set_xy(145, start_y + 45)
+        self.set_xy(145, start_y + 48)
         self.set_font('helvetica', 'B', 10)
         self.set_text_color(*self.success_color)
         self.set_draw_color(*self.success_color)
-        self.cell(45, 10, "SECURE AUDIT", 1, 0, 'C')
+        self.cell(45, 10, "SMART DETECTED", 1, 0, 'C')
 
-        self.set_y(start_y + 65)
+        self.set_y(start_y + 70)
 
 
     def draw_digital_watermark(self):
@@ -1199,10 +1316,10 @@ async def export_session_pdf(session_id: str, student_id: Optional[str] = None, 
 
     # Detailed Student Showcase (ONLY if a specific student is selected)
     if student_id and student_id != "All" and records:
-        pdf.chapter_title('Student Audit Profile')
+        pdf.chapter_title('Biometric Forensic Audit')
         # records[0] is the specific student result
         rec, stu = records[0]
-        pdf.draw_student_audit_card(stu, rec)
+        pdf.draw_student_audit_card(stu, rec, db=db)
 
     # Detailed Audit Info
     pdf.set_font('helvetica', 'B', 10)
@@ -1228,41 +1345,92 @@ async def export_session_pdf(session_id: str, student_id: Optional[str] = None, 
     pdf.cell(100, 7, f"SHA256:{uuid.uuid4().hex}{uuid.uuid4().hex}".upper()[:40], 0, 1)
     pdf.ln(5)
 
-    # Professional Table
-    pdf.chapter_title('Verified Attendance Register')
-    pdf.set_font('helvetica', 'B', 10)
+    # Professional Table with Forensic Photos
+    pdf.chapter_title('Verified Attendance Register (Forensic Data)')
+    pdf.set_font('helvetica', 'B', 9)
     pdf.set_fill_color(21, 101, 192) # Dark Blue
     pdf.set_text_color(255, 255, 255)
 
-    # Column widths
-    w = [50, 100, 40]
-    headers = ['Registration No', 'Student Full Name', 'Verification']
+    # Column widths: Adjusted for Forensic Photo column
+    w = [35, 75, 45, 35]
+    headers = ['Reg No', 'Student Identity', 'Biometric Record', 'Audit Status']
 
     for i in range(len(headers)):
         pdf.cell(w[i], 12, headers[i], 1, 0, 'C', 1)
     pdf.ln()
 
-    pdf.set_font('helvetica', '', 10)
+    pdf.set_font('helvetica', '', 8)
     pdf.set_text_color(0, 0, 0)
     fill = False
     for rec, stu in records:
-        if fill:
-            pdf.set_fill_color(242, 247, 251)
+        if fill: pdf.set_fill_color(242, 247, 251)
+        else: pdf.set_fill_color(255, 255, 255)
+
+        start_x = pdf.get_x()
+        start_y = pdf.get_y()
+
+        # Row height for photos
+        row_h = 22
+
+        # Cell 1: Reg No
+        pdf.cell(w[0], row_h, f" {str(stu.registration_number)}", 1, 0, 'C', 1)
+
+        # Cell 2: Student Name + Hash
+        name_x = pdf.get_x()
+        pdf.cell(w[1], row_h, "", 1, 0, 'L', 1)
+        pdf.set_xy(name_x + 2, start_y + 3)
+        pdf.set_font('helvetica', 'B', 9)
+        pdf.cell(w[1]-4, 5, f"{str(stu.full_name)[:35]}", 0, 1, 'L')
+
+        pdf.set_x(name_x + 2)
+        pdf.set_font('helvetica', 'I', 7)
+        pdf.set_text_color(120, 120, 120)
+        pdf.cell(w[1]-4, 4, f"Hash: {rec.record_hash[:20] if rec.record_hash else 'N/A'}", 0, 1, 'L')
+
+        pdf.set_x(name_x + 2)
+        pdf.set_font('helvetica', '', 7)
+        loc_str = f"GPS: {rec.latitude}, {rec.longitude}" if rec.latitude else "GPS: Signal Lost/Interior"
+        pdf.cell(w[1]-4, 4, loc_str, 0, 0, 'L')
+
+        pdf.set_text_color(0, 0, 0)
+        pdf.set_font('helvetica', '', 8)
+        pdf.set_xy(name_x + w[1], start_y)
+
+        # Biometric Photo Column
+        photo_x = pdf.get_x()
+        pdf.cell(w[2], row_h, "", 1, 0, 'C', 1) # Placeholder cell for photo border
+
+        photo_path = f"static/faces/{stu.registration_number}.jpg"
+        # Restore if missing
+        if not os.path.exists(photo_path) and stu.face_image:
+            try:
+                with open(photo_path, "wb") as f:
+                    f.write(stu.face_image)
+            except: pass
+
+        if os.path.exists(photo_path):
+            try:
+                # Center the photo in the cell
+                pdf.image(photo_path, photo_x + 12, start_y + 1, 20, 20)
+            except:
+                pdf.set_xy(photo_x, start_y)
+                pdf.cell(w[2], row_h, "Error", 0, 0, 'C')
         else:
-            pdf.set_fill_color(255, 255, 255)
+            pdf.set_xy(photo_x, start_y)
+            pdf.cell(w[2], row_h, "No Data", 0, 0, 'C')
 
-        pdf.cell(w[0], 10, f" {str(stu.registration_number)}", 1, 0, 'L', 1)
-        pdf.cell(w[1], 10, f" {str(stu.full_name)}", 1, 0, 'L', 1)
-
-        # Check if AI verified
+        # Status Column
+        pdf.set_xy(photo_x + w[2], start_y)
         if rec.face_verified:
-            pdf.set_text_color(46, 125, 50) # Dark Green
-            status = "AI VERIFIED"
+            pdf.set_text_color(46, 125, 50)
+            pdf.set_font('helvetica', 'B', 9)
+            status = "VERIFIED"
         else:
-            pdf.set_text_color(0, 0, 0)
+            pdf.set_text_color(100, 100, 100)
+            pdf.set_font('helvetica', '', 9)
             status = "MARKED"
 
-        pdf.cell(w[2], 10, status, 1, 1, 'C', 1)
+        pdf.cell(w[3], row_h, status, 1, 1, 'C', 1)
         pdf.set_text_color(0, 0, 0)
         fill = not fill
 

@@ -12,6 +12,7 @@ class SessionManager(context: Context) {
         private const val KEY_NAME = "name"
         private const val KEY_IS_LOGGED_IN = "is_logged_in"
         private const val KEY_DARK_MODE = "dark_mode"
+        private const val KEY_NOTIFICATIONS_ENABLED = "notifications_enabled"
     }
 
     fun setDarkMode(isDark: Boolean) {
@@ -20,6 +21,14 @@ class SessionManager(context: Context) {
 
     fun isDarkMode(systemDefault: Boolean): Boolean {
         return prefs.getBoolean(KEY_DARK_MODE, systemDefault)
+    }
+
+    fun setNotificationsEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_NOTIFICATIONS_ENABLED, enabled).apply()
+    }
+
+    fun isNotificationsEnabled(): Boolean {
+        return prefs.getBoolean(KEY_NOTIFICATIONS_ENABLED, true)
     }
 
     fun saveSession(userId: String, role: String, name: String) {

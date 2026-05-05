@@ -23,6 +23,10 @@ object RetrofitClient {
         return "${getBaseUrl()}faces/$studentId.jpg"
     }
 
+    fun getProfilePhotoUrl(userId: String): String {
+        return "${getBaseUrl()}users/$userId/profile-photo"
+    }
+
     private val logging = HttpLoggingInterceptor().apply {
         level = HttpLoggingInterceptor.Level.BODY
     }

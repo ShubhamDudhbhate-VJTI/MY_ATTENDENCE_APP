@@ -41,6 +41,7 @@ import com.example.dbms_shubham_application.data.model.SubjectAttendance
 import com.example.dbms_shubham_application.network.RetrofitClient
 import com.example.dbms_shubham_application.ui.components.DashboardShimmer
 import com.example.dbms_shubham_application.ui.components.HODActionStripItem
+import com.example.dbms_shubham_application.ui.components.LiveSessionPulse
 import com.example.dbms_shubham_application.ui.components.ProfessionalStatStrip
 import com.example.dbms_shubham_application.ui.components.StatStripItem
 import com.example.dbms_shubham_application.ui.components.VerticalStripDivider
@@ -218,6 +219,18 @@ fun DashboardScreen(navController: NavController, role: String) {
                             }
                             
                             GreetingSection(normalizedRole, userName, dynamicSubtext, modifier = Modifier.padding(horizontal = 24.dp))
+                        }
+                    }
+
+                    // Live Session Pulse for Faculty
+                    if (normalizedRole == "faculty") {
+                        val activeSession = facultySessions.find { it.status.lowercase() == "active" }
+                        if (activeSession != null) {
+                            item {
+                                LiveSessionPulse(activeSession) {
+                                    navController.navigate("start_session") // Or a specific session view
+                                }
+                            }
                         }
                     }
 

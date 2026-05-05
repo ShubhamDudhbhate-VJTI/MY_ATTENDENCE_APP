@@ -641,6 +641,92 @@ fun HODActionStripItem(
 }
 
 @Composable
+fun LiveSessionPulse(
+    activeSession: FacultySessionRecord?,
+    onClick: () -> Unit
+) {
+    if (activeSession == null) return
+
+    val colorScheme = MaterialTheme.colorScheme
+    val infiniteTransition = rememberInfiniteTransition(label = "pulse_live")
+    
+    val pulseAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.6f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulse_alpha"
+    )
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp)
+            .clickable { onClick() }
+            .graphicsLayer(scaleX = pulseAlpha * 0.05f + 0.95f, scaleY = pulseAlpha * 0.05f + 0.95f),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = colorScheme.primaryContainer.copy(alpha = 0.9f)
+        ),
+        border = BorderStroke(2.dp, colorScheme.primary.copy(alpha = pulseAlpha))
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(12.dp)
+                    .background(colorScheme.primary, CircleShape)
+                    .graphicsLayer(alpha = pulseAlpha)
+            )
+            
+            Spacer(modifier = Modifier.width(12.dp))
+            
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    "LIVE SESSION ACTIVE",
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Black,
+                    color = colorScheme.primary
+                )
+                Text(
+                    activeSession.subject_name.ifEmpty { activeSession.subject_id },
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    "${activeSession.student_count}",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Black,
+                    color = colorScheme.primary
+                )
+                Text(
+                    "Present",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = colorScheme.onPrimaryContainer.copy(alpha = 0.6f)
+                )
+            }
+            
+            Spacer(modifier = Modifier.width(12.dp))
+            
+            Icon(
+                Icons.Default.ChevronRight,
+                null,
+                tint = colorScheme.primary
+            )
+        }
+    }
+}
+
+@Composable
 fun DetailRow(label: String, value: String) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
         Text(label, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), fontSize = 14.sp)

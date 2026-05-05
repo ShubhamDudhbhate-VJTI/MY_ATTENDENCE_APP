@@ -1,15 +1,15 @@
 @file:OptIn(
     com.google.accompanist.permissions.ExperimentalPermissionsApi::class,
-    androidx.compose.material3.ExperimentalMaterial3Api::class,
-    androidx.camera.core.ExperimentalGetImage::class
+    ExperimentalMaterial3Api::class
 )
 
 package com.example.dbms_shubham_application.screens
 
+import androidx.annotation.OptIn as AndroidxOptIn
 import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.net.wifi.WifiManager
 import android.util.Log
@@ -39,7 +39,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -72,8 +71,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
-import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.asRequestBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.File
 import java.io.FileOutputStream
 import java.util.concurrent.Executors
@@ -163,6 +162,8 @@ fun MarkAttendanceScreen(navController: NavController) {
                         )
                         3 -> FaceVerificationStep(
                             sessionId = sessionId,
+                            latitude = detectedLat,
+                            longitude = detectedLon,
                             onSuccess = { currentStep = 4 },
                             onFailure = { msg ->
                                 if (msg.contains("Network") || msg.contains("Session")) {
@@ -205,10 +206,12 @@ fun EnvironmentDetectionStep(onDetected: (String, String, Double?, Double?) -> U
         var lat: Double? = null
         var lon: Double? = null
         try {
-            val locationResult = fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, CancellationTokenSource().token)
-            val location = com.google.android.gms.tasks.Tasks.await(locationResult)
-            lat = location?.latitude
-            lon = location?.longitude
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                val locationResult = fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, CancellationTokenSource().token)
+                val location = com.google.android.gms.tasks.Tasks.await(locationResult)
+                lat = location?.latitude
+                lon = location?.longitude
+            }
         } catch (e: Exception) {
             Log.e("Detection", "GPS failed", e)
         }
@@ -290,7 +293,6 @@ fun QrScanningStep(
     onSuccess: (String) -> Unit,
     onFailure: (String) -> Unit
 ) {
-    val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
     var isVerifying by remember { mutableStateOf(false) }
@@ -348,6 +350,7 @@ fun QrScanningStep(
                 Log.e("Attendance", "Scan error", e)
                 qrDetected = false
                 isVerifying = false
+                onFailure("Failed to process QR code: ${e.message}")
             }
         }
     }
@@ -438,6 +441,7 @@ fun QrScanningStep(
                                     .build()
 
                                 imageAnalysis.setAnalyzer(Executors.newSingleThreadExecutor()) { imageProxy ->
+                                    @AndroidxOptIn(androidx.camera.core.ExperimentalGetImage::class)
                                     val mediaImage = imageProxy.image
                                     if (mediaImage != null && !qrDetected) {
                                         val image = InputImage.fromMediaImage(
@@ -598,19 +602,68 @@ fun QrScanningStep(
 }
 
 @Composable
-fun FaceVerificationStep(sessionId: String, onSuccess: () -> Unit, onFailure: (String) -> Unit) {
+fun FaceVerificationStep(
+    sessionId: String,
+    latitude: Double?,
+    longitude: Double?,
+    onSuccess: () -> Unit,
+    onFailure: (String) -> Unit
+) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
     var statusMessage by remember { mutableStateOf("Position your face in the circle") }
-    var isCapturing by remember { mutableStateOf(false) }
     var faceDetected by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    var countdown by remember { mutableStateOf(0) } // For the 5-second wait
+    var countdown by remember { mutableIntStateOf(0) } // For the 5-second wait
     var pendingImageProxy by remember { mutableStateOf<ImageProxy?>(null) }
     var capturedBitmap by remember { mutableStateOf<Bitmap?>(null) }
     var isUploading by remember { mutableStateOf(false) }
     var visible by remember { mutableStateOf(false) }
+
+    // Auto-Brightness Boost for Face Detection Quality
+    DisposableEffect(Unit) {
+        val activity = context as? android.app.Activity
+        val originalBrightness = activity?.window?.attributes?.screenBrightness ?: -1f
+        
+        activity?.window?.let { window ->
+            val attrs = window.attributes
+            attrs.screenBrightness = 1.0f
+            window.attributes = attrs
+        }
+        
+        onDispose {
+            activity?.window?.let { window ->
+                val attrs = window.attributes
+                attrs.screenBrightness = originalBrightness
+                window.attributes = attrs
+            }
+        }
+    }
+
+    // Liveness Detection States
+    var livenessStep by remember { mutableIntStateOf(0) } // 0: Finding Face, 1: Blinking, 2: Verified
+    val livenessTargetBlink = 0.4f // Probability threshold for a closed eye
+
+    // Holographic Typewriter Effect
+    var typewriterText by remember { mutableStateOf("") }
+    val scanningText = if (livenessStep < 2) "LIVENESS_CHECK_ACTIVE..." else "BIOMETRICS_VERIFIED..."
+    val idleText = "AWAITING_FACE_INPUT..."
+    val blinkPrompt = "ACTION_REQUIRED: BLINK_EYES"
+
+    LaunchedEffect(faceDetected, livenessStep) {
+        val target = when {
+            !faceDetected -> idleText
+            livenessStep == 1 -> blinkPrompt
+            livenessStep == 2 -> scanningText
+            else -> "INITIALIZING_SCANNER..."
+        }
+        typewriterText = ""
+        target.forEach { char ->
+            typewriterText += char
+            delay(30)
+        }
+    }
 
     LaunchedEffect(Unit) {
         visible = true
@@ -688,15 +741,19 @@ fun FaceVerificationStep(sessionId: String, onSuccess: () -> Unit, onFailure: (S
                 val requestFile = file.asRequestBody("image/jpeg".toMediaTypeOrNull())
                 val imagePart = MultipartBody.Part.createFormData("image", file.name, requestFile)
                 
-                val studentPart = RequestBody.create("text/plain".toMediaTypeOrNull(), studentId)
-                val sessionPart = RequestBody.create("text/plain".toMediaTypeOrNull(), cleanSessionId)
+                val studentPart = studentId.toRequestBody("text/plain".toMediaTypeOrNull())
+                val sessionPart = cleanSessionId.toRequestBody("text/plain".toMediaTypeOrNull())
+                val latPart = latitude?.toString()?.toRequestBody("text/plain".toMediaTypeOrNull())
+                val lonPart = longitude?.toString()?.toRequestBody("text/plain".toMediaTypeOrNull())
 
                 statusMessage = "Uploading to Server..."
 
                 val res = RetrofitClient.apiService.verifyFace(
                     image = imagePart,
                     studentId = studentPart,
-                    sessionId = sessionPart
+                    sessionId = sessionPart,
+                    latitude = latPart,
+                    longitude = lonPart
                 )
 
                 if (res.isSuccessful) {
@@ -706,6 +763,11 @@ fun FaceVerificationStep(sessionId: String, onSuccess: () -> Unit, onFailure: (S
                 } else {
                     val error = res.errorBody()?.string() ?: "Unknown error"
                     Log.e("Attendance", "Verification failed: $error")
+
+                    if (error.contains("Network") || error.contains("Session")) {
+                        onFailure(error)
+                        return@launch
+                    }
                     
                     val displayError = if (error.contains("detail")) {
                          val detail = error.substringAfter("\"detail\":\"").substringBefore("\"")
@@ -812,6 +874,37 @@ fun FaceVerificationStep(sessionId: String, onSuccess: () -> Unit, onFailure: (S
                         ),
                     contentAlignment = Alignment.Center
                 ) {
+                    // Quality Meter Overlay
+                    if (capturedBitmap == null && faceDetected) {
+                        Column(
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .padding(top = 20.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                "FACE_INTEGRITY",
+                                color = Color(0xFF00E5FF).copy(alpha = 0.7f),
+                                fontSize = 8.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                                repeat(5) { i ->
+                                    Box(
+                                        modifier = Modifier
+                                            .size(width = 12.dp, height = 4.dp)
+                                            .background(
+                                                if (livenessStep > i) Color.Green else Color(0xFF00E5FF).copy(alpha = 0.2f),
+                                                RoundedCornerShape(1.dp)
+                                            )
+                                    )
+                                }
+                            }
+                        }
+                    }
+
                     if (capturedBitmap != null) {
                         androidx.compose.foundation.Image(
                             bitmap = capturedBitmap!!.asImageBitmap(),
@@ -834,6 +927,7 @@ fun FaceVerificationStep(sessionId: String, onSuccess: () -> Unit, onFailure: (S
                                         .build()
 
                                     imageAnalysis.setAnalyzer(Executors.newSingleThreadExecutor()) { imageProxy ->
+                                        @AndroidxOptIn(androidx.camera.core.ExperimentalGetImage::class)
                                         val mediaImage = imageProxy.image
                                         if (mediaImage != null && capturedBitmap == null && countdown == 0) {
                                             val image = InputImage.fromMediaImage(
@@ -843,13 +937,33 @@ fun FaceVerificationStep(sessionId: String, onSuccess: () -> Unit, onFailure: (S
                                             faceDetector.process(image)
                                                 .addOnSuccessListener { faces ->
                                                     if (faces.isNotEmpty()) {
+                                                        val face = faces[0]
                                                         faceDetected = true
-                                                        statusMessage =
-                                                            "Face Found! Tap capture when ready."
+                                                        
+                                                        // Liveness Logic
+                                                        if (livenessStep == 0) {
+                                                            livenessStep = 1
+                                                            statusMessage = "Blink your eyes to verify"
+                                                        } else if (livenessStep == 1) {
+                                                            val leftOpen = face.leftEyeOpenProbability ?: 1.0f
+                                                            val rightOpen = face.rightEyeOpenProbability ?: 1.0f
+                                                            
+                                                            if (leftOpen < livenessTargetBlink || rightOpen < livenessTargetBlink) {
+                                                                livenessStep = 2
+                                                                statusMessage = "Liveness Verified! Capturing..."
+                                                                // Trigger auto-capture after a short delay
+                                                                scope.launch {
+                                                                    delay(500)
+                                                                    pendingImageProxy?.let { processCapture(it) }
+                                                                }
+                                                            }
+                                                        }
+
                                                         pendingImageProxy?.close()
                                                         pendingImageProxy = imageProxy
                                                     } else {
                                                         faceDetected = false
+                                                        livenessStep = 0
                                                         if (errorMessage == null && countdown == 0) statusMessage =
                                                             "Looking for face..."
                                                         pendingImageProxy?.close()
@@ -882,6 +996,155 @@ fun FaceVerificationStep(sessionId: String, onSuccess: () -> Unit, onFailure: (S
                             },
                             modifier = Modifier.fillMaxSize()
                         )
+                    }
+
+                    // --- HOLOGRAPHIC SCANNING OVERLAY ---
+                    if (capturedBitmap == null && !isUploading) {
+                        // --- FACE QUALITY & INTEGRITY HUD ---
+                        if (faceDetected) {
+                            Column(
+                                modifier = Modifier
+                                    .align(Alignment.TopCenter)
+                                    .padding(top = 15.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    "INTEGRITY_SHIELD_ACTIVE",
+                                    color = Color(0xFF00E5FF).copy(alpha = 0.8f),
+                                    fontSize = 7.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                                    repeat(5) { i ->
+                                        Box(
+                                            modifier = Modifier
+                                                .size(width = 14.dp, height = 3.dp)
+                                                .background(
+                                                    if (livenessStep > i || (faceDetected && i < 2)) 
+                                                        Color(0xFF00E5FF) 
+                                                    else 
+                                                        Color.White.copy(alpha = 0.2f),
+                                                    RoundedCornerShape(1.dp)
+                                                )
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        // -------------------------------------
+
+                        val infiniteTransition = rememberInfiniteTransition(label = "hologram")
+                        val laserPos by infiniteTransition.animateFloat(
+                            initialValue = 0f,
+                            targetValue = 220f,
+                            animationSpec = infiniteRepeatable(
+                                animation = tween(2500, easing = LinearEasing),
+                                repeatMode = RepeatMode.Restart
+                            ), label = "laser"
+                        )
+                        
+                        val glowAlpha by infiniteTransition.animateFloat(
+                            initialValue = 0.2f,
+                            targetValue = 0.6f,
+                            animationSpec = infiniteRepeatable(
+                                animation = tween(1000, easing = FastOutSlowInEasing),
+                                repeatMode = RepeatMode.Reverse
+                            ), label = "glow"
+                        )
+
+                        // Moving Laser Grid Line
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(2.dp)
+                                .offset(y = (-110).dp + laserPos.dp)
+                                .background(
+                                    Brush.verticalGradient(
+                                        listOf(
+                                            Color.Transparent,
+                                            (if (livenessStep == 2) Color.Green else Color(0xFF00E5FF)).copy(alpha = if (faceDetected) 0.9f else 0.4f),
+                                            Color.Transparent
+                                        )
+                                    )
+                                )
+                        )
+
+                        // Cybernetic Corner Brackets
+                        Canvas(modifier = Modifier
+                            .fillMaxSize()
+                            .padding(35.dp)) {
+                            val color =
+                                if (livenessStep == 2) Color.Green.copy(alpha = glowAlpha) else Color(
+                                    0xFF00E5FF
+                                ).copy(alpha = glowAlpha)
+                            val s = 2.dp.toPx()
+                            val l = 25.dp.toPx()
+
+                            // Top Left
+                            drawRect(color, size = Size(l, s))
+                            drawRect(color, size = Size(s, l))
+
+                            // Top Right
+                            drawRect(
+                                color,
+                                topLeft = androidx.compose.ui.geometry.Offset(size.width - l, 0f),
+                                size = Size(l, s)
+                            )
+                            drawRect(
+                                color,
+                                topLeft = androidx.compose.ui.geometry.Offset(size.width - s, 0f),
+                                size = Size(s, l)
+                            )
+
+                            // Bottom Left
+                            drawRect(
+                                color,
+                                topLeft = androidx.compose.ui.geometry.Offset(0f, size.height - s),
+                                size = Size(l, s)
+                            )
+                            drawRect(
+                                color,
+                                topLeft = androidx.compose.ui.geometry.Offset(0f, size.height - l),
+                                size = Size(s, l)
+                            )
+
+                            // Bottom Right
+                            drawRect(
+                                color,
+                                topLeft = androidx.compose.ui.geometry.Offset(
+                                    size.width - l,
+                                    size.height - s
+                                ),
+                                size = Size(l, s)
+                            )
+                            drawRect(
+                                color,
+                                topLeft = androidx.compose.ui.geometry.Offset(
+                                    size.width - s,
+                                    size.height - l
+                                ),
+                                size = Size(s, l)
+                            )
+                        }
+
+                        // Terminal Style Text Overlay
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .padding(bottom = 30.dp)
+                                .background(Color.Black.copy(alpha = 0.4f), RoundedCornerShape(4.dp))
+                                .padding(horizontal = 8.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "> $typewriterText",
+                                color = Color(0xFF00E5FF),
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                            )
+                        }
                     }
 
                     if (isUploading) {

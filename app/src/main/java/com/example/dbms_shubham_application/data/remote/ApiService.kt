@@ -28,7 +28,9 @@ interface ApiService {
     suspend fun verifyFace(
         @Part image: MultipartBody.Part?,
         @Part("student_id") studentId: okhttp3.RequestBody,
-        @Part("session_id") sessionId: okhttp3.RequestBody
+        @Part("session_id") sessionId: okhttp3.RequestBody,
+        @Part("latitude") latitude: okhttp3.RequestBody?,
+        @Part("longitude") longitude: okhttp3.RequestBody?
     ): Response<FaceResponse>
 
     @GET("sessions/{session_id}/attendance")
@@ -216,6 +218,19 @@ interface ApiService {
     suspend fun exportDepartmentExcel(
         @Path("deptId") deptId: String
     ): Response<ResponseBody>
+
+    @Multipart
+    @POST("users/{userId}/profile-photo")
+    suspend fun uploadProfilePhoto(
+        @Path("userId") userId: String,
+        @Part file: MultipartBody.Part
+    ): Response<Map<String, Any>>
+
+    @PUT("users/{userId}")
+    suspend fun updateUser(
+        @Path("userId") userId: String,
+        @Body data: Map<String, String>
+    ): Response<Map<String, Any>>
 
     // Leave Management
     @POST("leaves/request")
