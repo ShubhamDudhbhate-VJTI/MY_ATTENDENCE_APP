@@ -110,8 +110,8 @@ fun AttendanceHistoryScreen(navController: NavController) {
                         enter = fadeIn(tween(600)) + slideInVertically(initialOffsetY = { -20 }, animationSpec = tween(600))
                     ) {
                         Column {
-                            Text("Academic Audit", color = colorScheme.onBackground, fontWeight = FontWeight.Black, fontSize = 22.sp)
-                            Text("Your attendance journey", color = colorScheme.primary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text("Attendance Journey", color = colorScheme.onBackground, fontWeight = FontWeight.Black, fontSize = 22.sp)
+                            Text("Historical Attendance Data", color = colorScheme.primary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 },
@@ -424,7 +424,7 @@ fun ModernHistoryStatsCard(percentage: Float, present: Int, absent: Int, total: 
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
-                    Text("Attendance Velocity", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
+                    Text("Attendance Summary", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = colorScheme.onSurfaceVariant.copy(alpha = 0.6f))
                     Text(percentText, fontSize = 40.sp, fontWeight = FontWeight.Black, color = colorScheme.onSurface)
                 }
                 Box(

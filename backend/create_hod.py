@@ -28,7 +28,7 @@ def create_hod_user():
         # 1. Create User entry
         db.execute(
             text("INSERT INTO app_users (id, username, email, password_hash, full_name, role) VALUES (:id, :u, :e, :p, :f, :r)"),
-            {"id": user_id, "u": "hod_it", "e": "hod_it@vjti.ac.in", "p": "hod123", "f": "Dr. V. B. Nikam", "r": "hod"}
+            {"id": user_id, "u": "hod_it", "e": "hod_it@academic.edu", "p": "hod123", "f": "Academic Head", "r": "hod"}
         )
 
         # 2. Create Teacher entry (HODs are stored in app_teachers table)

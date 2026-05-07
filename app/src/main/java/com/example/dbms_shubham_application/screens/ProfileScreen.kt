@@ -406,7 +406,7 @@ fun ProfileHeaderCard(
                     )
                 }
 
-                // Integrity Shield Badge
+                // Verification Shield Badge
                 if (profile?.image_url != null) {
                     Box(
                         modifier = Modifier
@@ -451,7 +451,7 @@ fun ProfileHeaderCard(
             }
             
             Text(
-                text = profile?.email ?: "vjti.student@vjti.ac.in",
+                text = profile?.email ?: "student@academic.edu",
                 fontSize = 15.sp,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                 textAlign = TextAlign.Center,

@@ -43,7 +43,7 @@ def upload_classrooms():
     count = 0
 
     # Use a consistent SSID for the campus
-    campus_ssid = "VJTI_Campus_WiFi"
+    campus_ssid = "Academic_Campus_WiFi"
 
     for name in classroom_names:
         exists = db.query(Classroom).filter(Classroom.name == name).first()

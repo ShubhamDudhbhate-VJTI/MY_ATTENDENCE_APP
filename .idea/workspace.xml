@@ -10,28 +10,8 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="37fbc4eb-d571-4aaf-8d9d-f890ab6307cf" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/backend/check_data_hex.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/check_session.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/check_supabase.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/check_supabase_students.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/check_user_id.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/check_user_id_hex.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/create_hod.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/debug_faculty_history.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/debug_query.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/demo_data.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/diagnostic.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/final_sync.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/fix_all_data.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/fix_db.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/fix_supabase_data.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/fix_supabase_data_v2.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/fix_supabase_data_v3.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/inject_test_data.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/inject_user_data.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/keep_best_5_sessions.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/simulate_404.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/backend/update_hod.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/backend/update_it_schedule.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gradle/9.3.1/checksums/checksums.lock" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/9.3.1/checksums/checksums.lock" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.gradle/9.3.1/executionHistory/executionHistory.bin" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/9.3.1/executionHistory/executionHistory.bin" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.gradle/9.3.1/executionHistory/executionHistory.lock" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/9.3.1/executionHistory/executionHistory.lock" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.gradle/9.3.1/fileHashes/fileHashes.bin" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/9.3.1/fileHashes/fileHashes.bin" afterDir="false" />
@@ -41,17 +21,19 @@
       <change beforePath="$PROJECT_DIR$/.gradle/file-system.probe" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/file-system.probe" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/caches/deviceStreaming.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/caches/deviceStreaming.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/example/dbms_shubham_application/data/local/SessionManager.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/example/dbms_shubham_application/data/local/SessionManager.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/example/dbms_shubham_application/data/model/AttendanceModels.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/example/dbms_shubham_application/data/model/AttendanceModels.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/example/dbms_shubham_application/data/remote/ApiService.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/example/dbms_shubham_application/data/remote/ApiService.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/example/dbms_shubham_application/network/RetrofitClient.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/example/dbms_shubham_application/network/RetrofitClient.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/example/dbms_shubham_application/screens/AttendanceHistoryScreen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/example/dbms_shubham_application/screens/AttendanceHistoryScreen.kt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/src/main/java/com/example/dbms_shubham_application/screens/DashboardScreen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/example/dbms_shubham_application/screens/DashboardScreen.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/example/dbms_shubham_application/screens/MarkAttendanceScreen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/example/dbms_shubham_application/screens/MarkAttendanceScreen.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/example/dbms_shubham_application/screens/FacultyHistoryScreen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/example/dbms_shubham_application/screens/FacultyHistoryScreen.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/example/dbms_shubham_application/screens/HODAnalyticsScreen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/example/dbms_shubham_application/screens/HODAnalyticsScreen.kt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/app/src/main/java/com/example/dbms_shubham_application/screens/ProfileScreen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/example/dbms_shubham_application/screens/ProfileScreen.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/example/dbms_shubham_application/ui/components/ModernComponents.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/example/dbms_shubham_application/ui/components/ModernComponents.kt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/backend/.gitignore" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/example/dbms_shubham_application/screens/ReportsScreen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/example/dbms_shubham_application/screens/ReportsScreen.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/example/dbms_shubham_application/screens/StartSessionScreen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/example/dbms_shubham_application/screens/StartSessionScreen.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/create_hod.py" beforeDir="false" afterPath="$PROJECT_DIR$/backend/create_hod.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/import_classrooms.py" beforeDir="false" afterPath="$PROJECT_DIR$/backend/import_classrooms.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/import_faculty.py" beforeDir="false" afterPath="$PROJECT_DIR$/backend/import_faculty.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/import_subjects.py" beforeDir="false" afterPath="$PROJECT_DIR$/backend/import_subjects.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/backend/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/backend/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/backend/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/backend/requirements.txt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/temp_faculty.kt" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -61,7 +43,7 @@
   <component name="ClangdSettings">
     <option name="formatViaClangd" value="false" />
   </component>
-  <component name="ExecutionTargetManager" SELECTED_TARGET="device_and_snapshot_combo_box_target[PhysicalDevice::serial=irpzauyx854tq8hu]" />
+  <component name="ExecutionTargetManager" SELECTED_TARGET="device_and_snapshot_combo_box_target[FirebaseDirectAccess:template:model_id=e1q/34]" />
   <component name="ExternalProjectsData">
     <projectState path="$PROJECT_DIR$">
       <ProjectState />
@@ -122,7 +104,7 @@
     &quot;settings.editor.selected.configurable&quot;: &quot;device.mirroring&quot;
   }
 }</component>
-  <component name="RunManager" selected="Android App.Render_APP_DBMS">
+  <component name="RunManager" selected="Android App.New Run Config">
     <configuration name="DBMS" type="AndroidRunConfigurationType" factoryName="Android App" activateToolWindowBeforeRun="false">
       <module name="DBMS_Shubham_Application.app" />
       <option name="ANDROID_RUN_CONFIGURATION_SCHEMA_VERSION" value="1" />

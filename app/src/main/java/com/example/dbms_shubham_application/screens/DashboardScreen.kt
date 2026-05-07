@@ -774,7 +774,7 @@ fun HODActionsSection(navController: NavController, modifier: Modifier = Modifie
     val scope = rememberCoroutineScope()
     var isExporting by remember { mutableStateOf(false) }
 
-    fun downloadDepartmentAudit() {
+    fun downloadDepartmentRecords() {
         if (branch.isEmpty()) {
             Toast.makeText(context, "Department information missing", Toast.LENGTH_SHORT).show()
             return
@@ -782,19 +782,19 @@ fun HODActionsSection(navController: NavController, modifier: Modifier = Modifie
         isExporting = true
         scope.launch(Dispatchers.IO) {
             try {
-                // Enterprise-grade master audit export
+                // Professional master data export
                 val response = RetrofitClient.apiService.downloadHodMasterExcel(departmentId = branch)
                 if (response.isSuccessful) {
                     response.body()?.let { 
                         FileUtils.saveFile(
                             it.byteStream(), 
-                            "VJTI_${branch}_Master_Audit.xlsx", 
+                            "Dept_${branch}_Master_Records.xlsx",
                             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", 
                             context
                         )
                     }
                     withContext(Dispatchers.Main) { 
-                        Toast.makeText(context, "Audit Exported Successfully", Toast.LENGTH_LONG).show() 
+                        Toast.makeText(context, "Records Exported Successfully", Toast.LENGTH_LONG).show()
                     }
                 } else {
                     withContext(Dispatchers.Main) { 
@@ -839,11 +839,11 @@ fun HODActionsSection(navController: NavController, modifier: Modifier = Modifie
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 24.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outline.copy(0.1f))
                     
                     HODActionStripItem(
-                        label = if (isExporting) "Generating Audit..." else "Export Master Audit",
+                        label = if (isExporting) "Generating Report..." else "Export Master Records",
                         icon = if (isExporting) Icons.Default.HourglassEmpty else Icons.Default.FileDownload,
                         color = MaterialTheme.colorScheme.secondary
                     ) {
-                        if (!isExporting) downloadDepartmentAudit()
+                        if (!isExporting) downloadDepartmentRecords()
                     }
                     
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 24.dp), thickness = 0.5.dp, color = MaterialTheme.colorScheme.outline.copy(0.1f))

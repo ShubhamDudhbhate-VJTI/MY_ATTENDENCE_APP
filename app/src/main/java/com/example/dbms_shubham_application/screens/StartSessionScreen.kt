@@ -227,7 +227,7 @@ fun StartSessionScreen(
                 title = { 
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            if (showReport) "Session Summary" else "Live Audit", 
+                            if (showReport) "Session Summary" else "Live Verification", 
                             color = colorScheme.onBackground, 
                             fontWeight = FontWeight.Black,
                             fontSize = 20.sp
@@ -317,7 +317,7 @@ fun StartSessionScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column {
-                                Text("Real-time Intelligence", color = colorScheme.onBackground, fontWeight = FontWeight.Black, fontSize = 18.sp)
+                                Text("Live Dashboard", color = colorScheme.onBackground, fontWeight = FontWeight.Black, fontSize = 18.sp)
                                 Text("${attendanceList.size} students verified", color = colorScheme.primary, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                             }
                             IconButton(
@@ -667,8 +667,8 @@ fun ModernSessionSummaryView(
                     
                     Spacer(modifier = Modifier.height(24.dp))
                     
-                    Text("Session Audited", color = colorScheme.onSurface, fontSize = 24.sp, fontWeight = FontWeight.Black)
-                    Text(report.course_id ?: "Academic Record", color = colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text("Session Complete", color = colorScheme.onSurface, fontSize = 24.sp, fontWeight = FontWeight.Black)
+                    Text(report.course_id ?: "Class Record", color = colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                     
                     Spacer(modifier = Modifier.height(32.dp))
                     
@@ -703,7 +703,7 @@ fun ModernSessionSummaryView(
 
             Spacer(modifier = Modifier.height(24.dp))
             
-            Text("Participant Intel", color = colorScheme.onBackground, fontWeight = FontWeight.Black, fontSize = 18.sp, modifier = Modifier.fillMaxWidth())
+            Text("Class Participants", color = colorScheme.onBackground, fontWeight = FontWeight.Black, fontSize = 18.sp, modifier = Modifier.fillMaxWidth())
             
             var showManualEntry by remember { mutableStateOf(false) }
             var manualStudentId by remember { mutableStateOf("") }

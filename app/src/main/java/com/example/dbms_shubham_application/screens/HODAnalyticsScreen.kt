@@ -252,14 +252,14 @@ fun HODAnalyticsScreen(navController: NavController) {
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth().padding(end = 48.dp)) {
                                 Text(
-                                    "Veermata Jijabai Technological Institute",
+                                    "Academic Attendance System",
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         fontWeight = FontWeight.ExtraBold,
                                         color = colorScheme.primary,
                                         letterSpacing = 0.5.sp
                                     )
                                 )
-                                Text("Department Intelligence", color = colorScheme.onBackground, fontWeight = FontWeight.Black, fontSize = 20.sp, letterSpacing = (-0.5).sp)
+                                Text("Department Dashboard", color = colorScheme.onBackground, fontWeight = FontWeight.Black, fontSize = 20.sp, letterSpacing = (-0.5).sp)
                                 Text("Domain: $departmentId Engineering", color = colorScheme.primary, fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
                             }
                         }
@@ -322,7 +322,7 @@ fun HODAnalyticsScreen(navController: NavController) {
                         )
 
                         Row(modifier = Modifier.fillMaxSize()) {
-                            listOf("Dashboard", "Audit Center").forEachIndexed { index, title ->
+                            listOf("Dashboard", "Reports Center").forEachIndexed { index, title ->
                                 Box(
                                     modifier = Modifier
                                         .weight(1f)
@@ -445,7 +445,7 @@ fun HODAnalyticsScreen(navController: NavController) {
                             }
                         }
                     } else {
-                        // REPORT FILTERS VIEW (Audit Center)
+                        // REPORT FILTERS VIEW (Reports Center)
                         Column(
                             modifier = Modifier.fillMaxSize().padding(horizontal = 24.dp).verticalScroll(rememberScrollState()),
                             verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -456,7 +456,7 @@ fun HODAnalyticsScreen(navController: NavController) {
                                 enter = fadeIn(tween(600, 100)) + slideInHorizontally(initialOffsetX = { -30 }, animationSpec = tween(600, 100))
                             ) {
                                 Column {
-                                    Text("Audit Parameters", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black)
+                                    Text("Report Parameters", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black)
                                     Text("Filter criteria for generating master academic reports.", color = Color.Gray, fontSize = 14.sp)
                                 }
                             }

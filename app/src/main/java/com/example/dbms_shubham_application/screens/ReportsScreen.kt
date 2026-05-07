@@ -323,7 +323,7 @@ fun ReportsScreen(navController: NavController) {
                         Box(modifier = Modifier.size(6.dp).background(colorScheme.primary, CircleShape))
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            "VEERMATA JIJABAI TECHNOLOGICAL INSTITUTE",
+                            "ACADEMIC ATTENDANCE SYSTEM",
                             style = MaterialTheme.typography.labelSmall.copy(
                                 fontWeight = FontWeight.Bold,
                                 color = colorScheme.onSurfaceVariant,
@@ -355,14 +355,14 @@ fun ReportsScreen(navController: NavController) {
                             
                             Column {
                                 Text(
-                                    text = "Audit Engine",
+                                    text = "Attendance Hub",
                                     style = MaterialTheme.typography.headlineSmall.copy(
                                         fontWeight = FontWeight.ExtraBold,
                                         letterSpacing = (-0.5).sp
                                     )
                                 )
                                 Text(
-                                    "Institutional Quality Control",
+                                    "Attendance Records",
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         color = colorScheme.primary,
                                         fontWeight = FontWeight.Bold
@@ -410,7 +410,7 @@ fun ReportsScreen(navController: NavController) {
 
                     Row(modifier = Modifier.fillMaxSize()) {
                         TabItem(Modifier.weight(1f), "Session Logs", selectedTab == 0) { selectedTab = 0 }
-                        TabItem(Modifier.weight(1f), "Audit Center", selectedTab == 1) { selectedTab = 1 }
+                        TabItem(Modifier.weight(1f), "Reports Center", selectedTab == 1) { selectedTab = 1 }
                     }
                 }
             }
@@ -428,7 +428,7 @@ fun ReportsScreen(navController: NavController) {
                         onDelete = ::deleteSession
                     )
                 } else {
-                    AuditCenterView(
+                    ReportsCenterView(
                         branches = branches,
                         years = years,
                         subjects = subjects,
@@ -445,7 +445,7 @@ fun ReportsScreen(navController: NavController) {
                         onRollNoChange = { studentRollNo = it },
                         onStartDateChange = { startDate = it },
                         onEndDateChange = { endDate = it },
-                        onGenerate = { downloadPdf("", "Consolidated_Audit_${System.currentTimeMillis()}.pdf", true) },
+                        onGenerate = { downloadPdf("", "Consolidated_Report_${System.currentTimeMillis()}.pdf", true) },
                         summaryCount = summaryCount,
                         isLoadingSummary = isLoadingSummary
                     )
@@ -635,7 +635,7 @@ fun HistoryStatsHeader(reports: List<FacultySessionRecord>) {
     val colorScheme = MaterialTheme.colorScheme
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
-            "SESSION INTELLIGENCE",
+            "SESSION SUMMARY",
             fontSize = 11.sp,
             fontWeight = FontWeight.Black,
             color = colorScheme.primary,
@@ -716,7 +716,7 @@ fun VerticalStripDivider() {
 }
 
 @Composable
-fun AuditCenterView(
+fun ReportsCenterView(
     branches: List<String>,
     years: List<String>,
     subjects: List<Subject>,
@@ -755,7 +755,7 @@ fun AuditCenterView(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(Modifier.size(8.dp, 24.dp).background(colorScheme.primary, RoundedCornerShape(4.dp)))
                     Spacer(Modifier.width(12.dp))
-                    Text("Filtration Intelligence", fontWeight = FontWeight.Black, fontSize = 18.sp)
+                    Text("Custom Search", fontWeight = FontWeight.Black, fontSize = 18.sp)
                 }
                 
                 FilterDropdown(label = "Target Branch", options = branches, selected = selectedBranch, onSelect = onBranchChange)
@@ -793,9 +793,9 @@ fun AuditCenterView(
                     horizontalArrangement = Arrangement.SpaceAround,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    AuditSummaryItem("Sessions", summaryCount?.first?.toString() ?: "0", Icons.Default.Event, isLoadingSummary)
+                    AttendanceSummaryItem("Sessions", summaryCount?.first?.toString() ?: "0", Icons.Default.Event, isLoadingSummary)
                     VerticalDivider(modifier = Modifier.height(24.dp), color = colorScheme.outline.copy(alpha = 0.1f))
-                    AuditSummaryItem("Students", summaryCount?.second?.toString() ?: "0", Icons.Default.Groups, isLoadingSummary)
+                    AttendanceSummaryItem("Students", summaryCount?.second?.toString() ?: "0", Icons.Default.Groups, isLoadingSummary)
                 }
             }
         }
@@ -812,7 +812,7 @@ fun AuditCenterView(
             } else {
                 Icon(Icons.Default.AutoGraph, null, modifier = Modifier.size(22.dp))
                 Spacer(modifier = Modifier.width(12.dp))
-                Text("Compile Audit Intelligence", fontWeight = FontWeight.Black, fontSize = 16.sp)
+                Text("Generate PDF Report", fontWeight = FontWeight.Black, fontSize = 16.sp)
             }
         }
         
@@ -821,7 +821,7 @@ fun AuditCenterView(
 }
 
 @Composable
-fun AuditSummaryItem(label: String, value: String, icon: androidx.compose.ui.graphics.vector.ImageVector, isLoading: Boolean) {
+fun AttendanceSummaryItem(label: String, value: String, icon: androidx.compose.ui.graphics.vector.ImageVector, isLoading: Boolean) {
     val colorScheme = MaterialTheme.colorScheme
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Row(verticalAlignment = Alignment.CenterVertically) {

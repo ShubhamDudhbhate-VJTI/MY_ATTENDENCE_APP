@@ -226,7 +226,7 @@ fun FacultyHistoryScreen(navController: NavController) {
                         enter = fadeIn(tween(600)) + slideInVertically(initialOffsetY = { -20 }, animationSpec = tween(600))
                     ) {
                         Column {
-                            Text("Session Intelligence", color = colorScheme.onBackground, fontWeight = FontWeight.Black, fontSize = 22.sp)
+                            Text("Session Summary", color = colorScheme.onBackground, fontWeight = FontWeight.Black, fontSize = 22.sp)
                             Text("${sessions.size} academic sessions recorded", color = colorScheme.primary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                     }

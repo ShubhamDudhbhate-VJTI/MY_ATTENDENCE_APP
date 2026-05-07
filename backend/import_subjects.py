@@ -3,7 +3,7 @@ import uuid
 from sqlalchemy import create_engine, text
 from main import DATABASE_URL
 
-# Branch Mapping (Based on VJTI Department IDs)
+# Branch Mapping (Academic Department IDs)
 DEPT_MAP = {
     "1": "Computer Engineering",
     "2": "Information Technology",
@@ -74,7 +74,7 @@ def import_full_curriculum():
         print("Emptying existing Subject Data for a fresh start...")
         conn.execute(text("TRUNCATE TABLE branch_subjects, subjects CASCADE"))
 
-        print("Importing FULL VJTI Curriculum (R5)...")
+        print("Importing FULL Academic Curriculum...")
 
         for dept_id, years in CURRICULUM.items():
             branch_name = DEPT_MAP.get(dept_id, "Unknown")
@@ -108,7 +108,7 @@ def import_full_curriculum():
                     })
 
         conn.commit()
-        print("\nSUCCESS: Entire 4-Year VJTI Curriculum (R5) imported successfully!")
+        print("\nSUCCESS: Entire 4-Year Academic Curriculum imported successfully!")
 
 if __name__ == "__main__":
     import_full_curriculum()

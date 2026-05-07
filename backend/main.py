@@ -347,7 +347,7 @@ def apply_academic_filters(query, model, branch=None, year=None):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifecycle manager for the FastAPI application"""
-    # Ensure static directories exist for forensic photo storage
+    # Ensure static directories exist for record photo storage
     os.makedirs("static/faces", exist_ok=True)
     print("--- AttendX Backend Started: Connected to Supabase ---")
     yield
@@ -702,7 +702,7 @@ async def verify_face(
                 student.face_embedding = json.dumps(resp.json()["embedding"]).encode('utf-8')
                 student.face_image = img_bytes
 
-                # Physical storage for PDF reports and forensic audits
+                # Physical storage for PDF reports and record archives
                 photo_path = f"static/faces/{student.registration_number}.jpg"
                 with open(photo_path, "wb") as f:
                     f.write(img_bytes)
@@ -1039,7 +1039,7 @@ class PDFReport(FPDF):
         self.surface_variant = (232, 240, 254) # Light Blue Surface
         self.error_color = (184, 27, 27)       # M3 Error Red
         self.success_color = (46, 125, 50)     # M3 Success Green
-        self.vjti_gold = (255, 215, 0)         # VJTI Branding Gold
+        self.brand_gold = (255, 215, 0)         # Branding Gold
 
     def header(self):
         # Grand Institutional Header
@@ -1047,11 +1047,16 @@ class PDFReport(FPDF):
         self.rect(0, 0, 210, 50, 'F')
 
         # Gold accent line (Institutional Excellence)
-        self.set_fill_color(*self.vjti_gold)
+        self.set_fill_color(*self.brand_gold)
         self.rect(0, 50, 210, 2, 'F')
 
-        # VJTI Logo - High Precision Placement (Right Aligned, Non-Overlapping)
-        logo_path = os.path.join(os.path.dirname(__file__), "..", "vjti.jpg")
+        # Institutional Logo - High Precision Placement (Right Aligned, Non-Overlapping)
+        # Prioritize VJTI Institutional Logo
+        base_dir = os.path.dirname(__file__)
+        logo_path = os.path.join(base_dir, "..", "vjti.jpg")
+        if not os.path.exists(logo_path):
+            logo_path = os.path.join(base_dir, "..", "logo.jpg")
+
         if os.path.exists(logo_path):
             try:
                 # Circular background container for the logo, pushed to the far right to avoid name overlap
@@ -1063,24 +1068,17 @@ class PDFReport(FPDF):
 
         # Typography: Grand Institutional Name
         self.set_text_color(255, 255, 255)
-        self.set_font('helvetica', 'B', 18)
+        self.set_font('helvetica', 'B', 15)
         self.set_xy(12, 10)
         self.cell(155, 10, 'VEERMATA JIJABAI TECHNOLOGICAL INSTITUTE', 0, 1, 'L')
 
         # Institutional Sub-details
         self.set_font('helvetica', '', 8)
         self.set_text_color(220, 230, 255)
-        self.set_xy(12, 19)
-        self.cell(155, 5, 'ESTABLISHED 1887 | AN AUTONOMOUS INSTITUTE OF GOVT. OF MAHARASHTRA', 0, 1, 'L')
-        self.set_xy(12, 23)
-        self.cell(155, 5, 'MATUNGA, MUMBAI - 400019 | ISO 9001:2015 CERTIFIED', 0, 1, 'L')
-
-        # Cryptographic Session Fingerprint (SHA-256) - Positioned subtly
-        if hasattr(self, 'session_hash'):
-            self.set_xy(12, 34)
-            self.set_font('helvetica', 'B', 7)
-            self.set_text_color(160, 180, 240)
-            self.cell(0, 5, f"SYSTEM AUTHENTICATION HASH: {self.session_hash}", 0, 0, 'L')
+        self.set_xy(12, 18)
+        self.cell(155, 5, 'ACADEMIC ATTENDANCE SYSTEM | SECURE BIOMETRIC LOGGING', 0, 1, 'L')
+        self.set_xy(12, 22)
+        self.cell(155, 5, 'MATUNGA, MUMBAI | ESTD. 1887', 0, 1, 'L')
 
         # Professional Branding Bar - Left aligned at the base of the header for a clean look
         self.set_xy(12, 42)
@@ -1151,20 +1149,20 @@ class PDFReport(FPDF):
 
         self.set_y(start_y + 35)
 
-    def draw_student_audit_card(self, student_obj, record_obj, db=None):
+    def draw_student_report_card(self, student_obj, record_obj, db=None):
         """Draws a detailed student profile card with their registered photo"""
         start_y = self.get_y()
         self.set_fill_color(252, 252, 252)
         self.set_draw_color(220, 226, 230)
         self.rect(10, start_y, 190, 65, 'FD')
 
-        # Sub-header: VJTI Audit Header
+        # Sub-header: Performance Record Header
         self.set_fill_color(*self.surface_variant)
         self.rect(10, start_y, 190, 10, 'F')
         self.set_xy(15, start_y + 2)
         self.set_font('helvetica', 'B', 11)
         self.set_text_color(*self.primary_color)
-        self.cell(0, 6, f"SESSION FORENSIC EVIDENCE: {student_obj.registration_number}", 0, 1)
+        self.cell(0, 6, f"SESSION ATTENDANCE DATA: {student_obj.registration_number}", 0, 1)
 
         # Student Photo (Left Side) - Ensure it exists from DB if missing
         photo_path = f"static/faces/{student_obj.registration_number}.jpg"
@@ -1197,8 +1195,7 @@ class PDFReport(FPDF):
             ("Full Name", student_obj.full_name),
             ("Academic Node", f"{student_obj.branch} - {student_obj.year}"),
             ("Auth Method", "AI Biometric (DeepFace)"),
-            ("Log Timestamp", record_obj.marked_at.strftime("%d %b %Y, %I:%M %p") if record_obj else "N/A"),
-            ("Forensic Hash", record_obj.record_hash[:24] if record_obj and record_obj.record_hash else "UNSPECIFIED")
+            ("Log Timestamp", record_obj.marked_at.strftime("%d %b %Y, %I:%M %p") if record_obj else "N/A")
         ]
 
         # Add Location Data if available
@@ -1212,7 +1209,7 @@ class PDFReport(FPDF):
             self.set_font('helvetica', '', 8)
             self.cell(0, 6, str(val), 0, 1)
 
-        # Audit Stamp
+        # Verification Stamp
         self.set_xy(145, start_y + 48)
         self.set_font('helvetica', 'B', 10)
         self.set_text_color(*self.success_color)
@@ -1297,7 +1294,7 @@ async def export_session_pdf(session_id: str, student_id: Optional[str] = None, 
 
     pdf = PDFReport()
     # Generate a cryptographic fingerprint for this specific session report
-    # Using deterministic session metadata and student record digest for forensic integrity
+    # Using deterministic session metadata and student record digest for data integrity
     record_digest = hashlib.sha256(str([(r.id, s.registration_number) for r, s in records]).encode()).hexdigest()
     session_str = f"{sid}|{sess.start_time}|{record_digest}"
     pdf.session_hash = hashlib.sha256(session_str.encode()).hexdigest().upper()[:40]
@@ -1305,23 +1302,23 @@ async def export_session_pdf(session_id: str, student_id: Optional[str] = None, 
     pdf.draw_digital_watermark()
 
     # Session Overview with Summary Box
-    pdf.chapter_title('Session Intelligence Report')
+    pdf.chapter_title('Session Records Report')
 
     metrics = [
         ("Subject Code", sub.code if sub else 'N/A', False),
         ("Total Present", len(records), False),
-        ("Audit Result", "AUTHENTICATED", False)
+        ("Verification", "AUTHENTICATED", False)
     ]
     pdf.draw_summary_box(metrics)
 
     # Detailed Student Showcase (ONLY if a specific student is selected)
     if student_id and student_id != "All" and records:
-        pdf.chapter_title('Biometric Forensic Audit')
+        pdf.chapter_title('Biometric Verification Report')
         # records[0] is the specific student result
         rec, stu = records[0]
-        pdf.draw_student_audit_card(stu, rec, db=db)
+        pdf.draw_student_report_card(stu, rec, db=db)
 
-    # Detailed Audit Info
+    # Detailed Verification Info
     pdf.set_font('helvetica', 'B', 10)
     pdf.set_text_color(50, 50, 50)
     pdf.cell(35, 7, "Course Title:", 0, 0)
@@ -1337,23 +1334,17 @@ async def export_session_pdf(session_id: str, student_id: Optional[str] = None, 
     pdf.cell(35, 7, "Environment:", 0, 0)
     pdf.set_font('helvetica', '', 10)
     pdf.cell(100, 7, f"{room.name if room else 'Virtual Node'} (WiFi: {room.wifi_ssid if room else 'N/A'})", 0, 1)
-
-    pdf.set_font('helvetica', 'B', 10)
-    pdf.cell(35, 7, "Record Hash:", 0, 0)
-    pdf.set_font('helvetica', '', 8)
-    pdf.set_text_color(120, 120, 120)
-    pdf.cell(100, 7, f"SHA256:{uuid.uuid4().hex}{uuid.uuid4().hex}".upper()[:40], 0, 1)
     pdf.ln(5)
 
-    # Professional Table with Forensic Photos
-    pdf.chapter_title('Verified Attendance Register (Forensic Data)')
+    # Professional Table with Data Integrity Photos
+    pdf.chapter_title('Verified Attendance Register (Secure Data)')
     pdf.set_font('helvetica', 'B', 9)
     pdf.set_fill_color(21, 101, 192) # Dark Blue
     pdf.set_text_color(255, 255, 255)
 
-    # Column widths: Adjusted for Forensic Photo column
+    # Column widths: Adjusted for Record Photo column
     w = [35, 75, 45, 35]
-    headers = ['Reg No', 'Student Identity', 'Biometric Record', 'Audit Status']
+    headers = ['Reg No', 'Student Identity', 'Verification Record', 'Status']
 
     for i in range(len(headers)):
         pdf.cell(w[i], 12, headers[i], 1, 0, 'C', 1)
@@ -1381,11 +1372,6 @@ async def export_session_pdf(session_id: str, student_id: Optional[str] = None, 
         pdf.set_xy(name_x + 2, start_y + 3)
         pdf.set_font('helvetica', 'B', 9)
         pdf.cell(w[1]-4, 5, f"{str(stu.full_name)[:35]}", 0, 1, 'L')
-
-        pdf.set_x(name_x + 2)
-        pdf.set_font('helvetica', 'I', 7)
-        pdf.set_text_color(120, 120, 120)
-        pdf.cell(w[1]-4, 4, f"Hash: {rec.record_hash[:20] if rec.record_hash else 'N/A'}", 0, 1, 'L')
 
         pdf.set_x(name_x + 2)
         pdf.set_font('helvetica', '', 7)
@@ -1517,19 +1503,19 @@ async def export_bulk_pdf(
 
     pdf = PDFReport()
 
-    # Check if we are auditing a specific student to include forensic evidence
-    audit_student_obj = None
+    # Check if we are generating a report for a specific student to include verification evidence
+    verification_student_obj = None
     latest_record = None
     if is_valid(student_id):
-        audit_student_obj = db.query(Student).filter(or_(Student.id == student_id, Student.registration_number == student_id)).first()
-        if audit_student_obj:
+        verification_student_obj = db.query(Student).filter(or_(Student.id == student_id, Student.registration_number == student_id)).first()
+        if verification_student_obj:
             latest_record = db.query(AttendanceRecord).filter(
-                AttendanceRecord.student_id == audit_student_obj.id,
+                AttendanceRecord.student_id == verification_student_obj.id,
                 AttendanceRecord.session_id.in_(session_id_sub)
             ).order_by(AttendanceRecord.marked_at.desc()).first()
 
     # Generate a cryptographic fingerprint for this bulk report
-    # Enhanced deterministic hash using data digest for forensic integrity
+    # Enhanced deterministic hash using data digest for verification integrity
     data_digest = hashlib.sha256(str(results).encode()).hexdigest()
     report_str = f"{fid}|{branch}|{year}|{subject_id}|{total_sess}|{data_digest}"
     pdf.session_hash = hashlib.sha256(report_str.encode()).hexdigest().upper()[:40]
@@ -1537,11 +1523,11 @@ async def export_bulk_pdf(
     pdf.draw_digital_watermark()
 
     # Advanced Summary Section
-    pdf.chapter_title('Faculty Consolidation & Audit Report')
+    pdf.chapter_title('Consolidated Attendance Report')
 
-    # Insert Forensic Evidence if a specific student is selected
-    if audit_student_obj:
-        pdf.draw_student_audit_card(audit_student_obj, latest_record)
+    # Insert Performance Evidence if a specific student is selected
+    if verification_student_obj:
+        pdf.draw_student_report_card(verification_student_obj, latest_record)
         pdf.ln(5)
 
     # Calculate High-Level Metrics
@@ -1581,14 +1567,14 @@ async def export_bulk_pdf(
     pdf.set_xy(15, insight_y + 2)
     pdf.set_font('helvetica', 'B', 9)
     pdf.set_text_color(*pdf.primary_color)
-    pdf.cell(0, 7, "SYSTEM INTELLIGENCE: COHORT ANALYSIS", 0, 1)
+    pdf.cell(0, 7, "SYSTEM DASHBOARD: COHORT ANALYSIS", 0, 1)
 
     pdf.set_font('helvetica', '', 9)
     pdf.set_text_color(80, 80, 80)
     pdf.set_x(15)
-    insight_text = f"Audit of {total_sess} sessions reveals a {avg_attendance:.1f}% engagement rate. " \
-                   f"{len(defaulters)} students are currently non-compliant with the 75% attendance policy. " \
-                   f"Recommendation: Dispatch academic warnings to critical nodes."
+    insight_text = f"Analysis of {total_sess} sessions reveals a {avg_attendance:.1f}% engagement rate. " \
+                   f"{len(defaulters)} students are currently below the 75% attendance threshold. " \
+                   f"Recommendation: Review records for critical students."
     pdf.multi_cell(180, 5, insight_text)
 
     pdf.set_y(insight_y + 40)
@@ -1862,7 +1848,7 @@ async def export_hod_master_pdf(
     end_date: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
-    """HOD Level: High-Standard Departmental Audit with Advanced Filtering & Null Handling"""
+    """HOD Level: High-Standard Departmental Verification with Advanced Filtering & Null Handling"""
     did = clean_id(department_id)
 
     # 1. Resolve Department
@@ -1918,7 +1904,7 @@ async def export_hod_master_pdf(
 
     total_sess = len(sessions_full)
 
-    # 3. Define the Student Audit Scope
+    # 3. Define the Student Verification Scope
     student_query = db.query(Student).filter(
         or_(
             Student.department_id.ilike(f"%{actual_dept}%"),
@@ -1962,38 +1948,38 @@ async def export_hod_master_pdf(
     # 5. Build Elite PDF
     pdf = PDFReport()
 
-    # Check if we are auditing a specific student to include forensic evidence
-    audit_student_obj = None
+    # Check if we are verifying a specific student to include verification evidence
+    verification_student_obj = None
     latest_record = None
     if is_valid(student_id):
-        audit_student_obj = db.query(Student).filter(or_(Student.id == student_id, Student.registration_number == student_id)).first()
-        if audit_student_obj:
+        verification_student_obj = db.query(Student).filter(or_(Student.id == student_id, Student.registration_number == student_id)).first()
+        if verification_student_obj:
             latest_record = db.query(AttendanceRecord).filter(
-                AttendanceRecord.student_id == audit_student_obj.id,
+                AttendanceRecord.student_id == verification_student_obj.id,
                 AttendanceRecord.session_id.in_(session_id_sub)
             ).order_by(AttendanceRecord.marked_at.desc()).first()
 
-    # Generate a cryptographic fingerprint for the HOD Master Audit
-    # We use a deterministic digest of the student statistics and filters to ensure forensic integrity
+    # Generate a cryptographic fingerprint for the HOD Master Verification
+    # We use a deterministic digest of the student statistics and filters to ensure data integrity
     stats_digest = hashlib.sha256(str(student_stats).encode()).hexdigest()
-    audit_str = f"{actual_dept}|{faculty_id}|{branch}|{year}|{subject_id}|{total_sess}|{stats_digest}"
-    pdf.session_hash = hashlib.sha256(audit_str.encode()).hexdigest().upper()[:40]
+    verification_str = f"{actual_dept}|{faculty_id}|{branch}|{year}|{subject_id}|{total_sess}|{stats_digest}"
+    pdf.session_hash = hashlib.sha256(verification_str.encode()).hexdigest().upper()[:40]
     pdf.add_page()
     pdf.draw_digital_watermark()
 
-    # Departmental Executive Summary
-    pdf.chapter_title(f'Departmental Executive Audit: {actual_dept.upper()}')
+    # Departmental Executive Report
+    pdf.chapter_title(f'Departmental Attendance Report: {actual_dept.upper()}')
 
-    # Insert Forensic Evidence if a specific student is selected
-    if audit_student_obj:
-        pdf.draw_student_audit_card(audit_student_obj, latest_record)
+    # Insert Performance Evidence if a specific student is selected
+    if verification_student_obj:
+        pdf.draw_student_report_card(verification_student_obj, latest_record)
         pdf.ln(5)
 
     metrics = [
         ("Faculty Node", len(set([s[2].id for s in sessions_full if s[2]])), False),
-        ("Audit Sessions", total_sess, False),
+        ("Verified Sessions", total_sess, False),
         ("AI Confidence", f"{ai_accuracy:.1f}%", False),
-        ("Compliance", "GOVT STANDARDS", False)
+        ("Compliance", "ACADEMIC STANDARDS", False)
     ]
     pdf.draw_summary_box(metrics)
 
@@ -2019,13 +2005,13 @@ async def export_hod_master_pdf(
     pdf.set_xy(15, insight_y + 2)
     pdf.set_font('helvetica', 'B', 9)
     pdf.set_text_color(*pdf.primary_color)
-    pdf.cell(0, 7, "VJTI INSTITUTIONAL INTELLIGENCE", 0, 1)
+    pdf.cell(0, 7, "SYSTEM ATTENDANCE ANALYTICS", 0, 1)
 
     pdf.set_font('helvetica', '', 9)
     pdf.set_text_color(60, 60, 60)
     pdf.set_x(15)
-    insight_text = f"Comprehensive audit of {actual_dept} department identifies {ranges[0]+ranges[1]} students in critical compliance zones. " \
-                   f"The AI verification pipeline maintained {ai_accuracy:.1f}% confidence across {total_recs} biometric points. " \
+    insight_text = f"Analysis of {actual_dept} department identifies {ranges[0]+ranges[1]} students in critical attendance zones. " \
+                   f"The biometric verification pipeline maintained {ai_accuracy:.1f}% confidence across {total_recs} verification points. " \
                    f"This record is digitally signed for academic permanence."
     pdf.multi_cell(180, 5, insight_text)
 
@@ -2059,7 +2045,7 @@ async def export_hod_master_pdf(
     pdf.ln(10)
 
     # Student Compliance
-    pdf.chapter_title('Student Academic Compliance Audit')
+    pdf.chapter_title('Student Attendance Progress')
     pdf.set_font('helvetica', 'B', 9); pdf.set_fill_color(21, 101, 192); pdf.set_text_color(255, 255, 255)
 
     w_stu = [35, 80, 40, 35]
@@ -2095,7 +2081,7 @@ async def export_hod_master_pdf(
         fill = not fill
 
     pdf_output = pdf.output(dest='S')
-    filename = f"HOD_Audit_{actual_dept}_{datetime.now().strftime('%Y%m%d')}.pdf"
+    filename = f"HOD_Verification_{actual_dept}_{datetime.now().strftime('%Y%m%d')}.pdf"
     if isinstance(pdf_output, (bytearray, bytes)):
         return Response(content=bytes(pdf_output), media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename={filename}"})
     else:
@@ -2113,7 +2099,7 @@ async def export_hod_master_excel(
     end_date: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
-    """Exports HOD Master Audit data as CSV (Excel compatible) with BOM and Full Filtering"""
+    """Exports HOD Master Verification data as CSV (Excel compatible) with BOM and Full Filtering"""
     import io, csv
     # 1. Resolve Department
     actual_dept = resolve_dept(department_id, db)
@@ -2160,7 +2146,7 @@ async def export_hod_master_excel(
     if total_sess == 0:
         raise HTTPException(status_code=404, detail="No data found matching these filters.")
 
-    # 3. Define the Student Audit Scope
+    # 3. Define the Student Verification Scope
     student_query = db.query(Student).filter((Student.department_id.ilike(f"%{actual_dept}%")) | (Student.branch.ilike(f"%{actual_dept}%")))
     student_query = apply_academic_filters(student_query, Student, branch, year)
 
@@ -2197,8 +2183,8 @@ async def export_hod_master_excel(
         "Total Classes",
         "Attendance %",
         "AI Accuracy %",
-        "Audit Status",
-        "Digital Fingerprint"
+        "Verification Status",
+        "Verification Hash"
     ])
 
     for reg, name, br, att, ai_v in stats:
@@ -2206,7 +2192,7 @@ async def export_hod_master_excel(
         ai_acc = (ai_v/att)*100 if att > 0 else 0
         status = "ELIGIBLE" if perc >= 75 else "DEFAULTER"
 
-        # Generate row-level fingerprint for audit integrity
+        # Generate row-level fingerprint for data integrity
         row_hash = hashlib.sha256(f"{reg}{att}{ai_v}{status}".encode()).hexdigest().upper()[:12]
 
         writer.writerow([
@@ -2219,10 +2205,10 @@ async def export_hod_master_excel(
             f"{perc:.1f}%",
             f"{ai_acc:.1f}%",
             status,
-            f"TX-{row_hash}"
+            f"ACAD-{row_hash}"
         ])
 
-    filename = f"HOD_Master_Audit_{actual_dept}.csv"
+    filename = f"HOD_Master_Verification_{actual_dept}.csv"
     return Response(
         content=output.getvalue(),
         media_type="text/csv",
@@ -2296,7 +2282,7 @@ async def export_department_excel(dept_id: str, db: Session = Depends(get_db)):
                 total_s,
                 f"{perc:.1f}%",
                 status,
-                f"VJTI-{v_hash}"
+                f"ACAD-{v_hash}"
             ])
 
     return Response(
@@ -2410,7 +2396,7 @@ async def get_all_faculty(db: Session = Depends(get_db)):
         profiles.append({
             "id": str(user.id),
             "username": str(user.username),
-            "email": str(user.email or f"{user.username}@vjti.ac.in"),
+            "email": str(user.email or f"{user.username}@academic.edu"),
             "full_name": str(user.full_name),
             "role": "faculty",
             "academic": {
