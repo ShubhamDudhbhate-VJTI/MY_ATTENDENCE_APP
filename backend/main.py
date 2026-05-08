@@ -1097,10 +1097,10 @@ class PDFReport(FPDF):
         self.ln(3)
         self.cell(0, 10, 'Officially Authenticated Digital Academic Record. Confidentiality Governed by IT Act 2000.', 0, 1, 'C')
 
-        # QR Placeholder and Metadata
+        # QR Placeholder and Registry Metadata
         self.set_font('helvetica', 'B', 8)
         self.set_text_color(100, 100, 100)
-        self.cell(0, 5, f'Page {self.page_no()} | UID: {uuid.uuid4().hex[:12].upper()} | DBMS-PROJ-2024-SHUBHAM', 0, 0, 'C')
+        self.cell(0, 5, f'Page {self.page_no()} | REG-ID: {uuid.uuid4().hex[:12].upper()} | VJTI-ACADEMIC-SYSTEM', 0, 0, 'C')
 
     def chapter_title(self, title, color=(21, 101, 192)):
         self.ln(8)
@@ -1365,7 +1365,7 @@ async def export_session_pdf(session_id: str, student_id: Optional[str] = None, 
     # Using deterministic session metadata and student record digest for data integrity
     record_digest = hashlib.sha256(str([(r.id, s.registration_number) for r, s in records]).encode()).hexdigest()
     session_str = f"{sid}|{sess.start_time}|{record_digest}"
-    pdf.session_hash = hashlib.sha256(session_str.encode()).hexdigest().upper()[:40]
+    # pdf.session_hash = hashlib.sha256(session_str.encode()).hexdigest().upper()[:40]
     pdf.add_page()
     pdf.draw_digital_watermark()
 
@@ -1405,8 +1405,8 @@ async def export_session_pdf(session_id: str, student_id: Optional[str] = None, 
     pdf.ln(5)
 
     # Professional Table with Data Integrity Photos
-    pdf.chapter_title('Verified Attendance Register (Secure Data)')
-    pdf.set_font('helvetica', 'B', 9)
+    pdf.chapter_title(\'Academic Attendance Register (Institutional)\')
+    pdf.set_font(\'helvetica\', \'B\', 9)
     pdf.set_fill_color(21, 101, 192) # Dark Blue
     pdf.set_text_color(255, 255, 255)
 
@@ -1581,7 +1581,7 @@ async def export_bulk_pdf(
     # Enhanced deterministic hash using data digest for verification integrity
     data_digest = hashlib.sha256(str(results).encode()).hexdigest()
     report_str = f"{fid}|{branch}|{year}|{subject_id}|{total_sess}|{data_digest}"
-    pdf.session_hash = hashlib.sha256(report_str.encode()).hexdigest().upper()[:40]
+    # pdf.session_hash = hashlib.sha256(report_str.encode()).hexdigest().upper()[:40]
     pdf.add_page()
     pdf.draw_digital_watermark()
 
@@ -2026,7 +2026,7 @@ async def export_hod_master_pdf(
     # We use a deterministic digest of the student statistics and filters to ensure data integrity
     stats_digest = hashlib.sha256(str(student_stats).encode()).hexdigest()
     verification_str = f"{actual_dept}|{faculty_id}|{branch}|{year}|{subject_id}|{total_sess}|{stats_digest}"
-    pdf.session_hash = hashlib.sha256(verification_str.encode()).hexdigest().upper()[:40]
+    # pdf.session_hash = hashlib.sha256(verification_str.encode()).hexdigest().upper()[:40]
     pdf.add_page()
     pdf.draw_digital_watermark()
 

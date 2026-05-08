@@ -205,7 +205,7 @@ fun EnvironmentDetectionStep(onDetected: (String, String, Double?, Double?) -> U
         val bssid = info.bssid ?: "02:00:00:00:00:00"
         val ssid = info.ssid?.replace("\"", "") ?: "Unknown"
 
-        status = "Acquiring GPS coordinates..."
+        status = "Verifying institutional location..."
         var lat: Double? = null
         var lon: Double? = null
         try {
@@ -216,7 +216,7 @@ fun EnvironmentDetectionStep(onDetected: (String, String, Double?, Double?) -> U
                 lon = location?.longitude
             }
         } catch (e: Exception) {
-            Log.e("Detection", "GPS failed", e)
+            Log.e("Detection", "Location verification failed", e)
         }
 
         delay(1500)
