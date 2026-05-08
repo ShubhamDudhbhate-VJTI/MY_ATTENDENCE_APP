@@ -11,7 +11,9 @@
   <component name="ChangeListManager">
     <list default="true" id="37fbc4eb-d571-4aaf-8d9d-f890ab6307cf" name="Changes" comment="">
       <change afterPath="$PROJECT_DIR$/backend/update_it_schedule.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/example/dbms_shubham_application/screens/MarkAttendanceScreen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/example/dbms_shubham_application/screens/MarkAttendanceScreen.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gradle/buildOutputCleanup/buildOutputCleanup.lock" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/buildOutputCleanup/buildOutputCleanup.lock" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/example/dbms_shubham_application/screens/ReportsScreen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/example/dbms_shubham_application/screens/ReportsScreen.kt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/backend/create_hod.py" beforeDir="false" afterPath="$PROJECT_DIR$/backend/create_hod.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/backend/import_classrooms.py" beforeDir="false" afterPath="$PROJECT_DIR$/backend/import_classrooms.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/backend/import_faculty.py" beforeDir="false" afterPath="$PROJECT_DIR$/backend/import_faculty.py" afterDir="false" />
@@ -26,7 +28,7 @@
   <component name="ClangdSettings">
     <option name="formatViaClangd" value="false" />
   </component>
-  <component name="ExecutionTargetManager" SELECTED_TARGET="device_and_snapshot_combo_box_target[PhysicalDevice::serial=irpzauyx854tq8hu]" />
+  <component name="ExecutionTargetManager" SELECTED_TARGET="device_and_snapshot_combo_box_target[FirebaseDirectAccess:template:model_id=e1q/34]" />
   <component name="ExternalProjectsData">
     <projectState path="$PROJECT_DIR$">
       <ProjectState />
@@ -50,7 +52,7 @@
     </system>
   </component>
   <component name="Git.Settings">
-    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/backend" />
     <option name="ROOT_SYNC" value="SYNC" />
   </component>
   <component name="GradleScriptDefinitionsStorage" workingDir="$PROJECT_DIR$" gradleHome="C:\Users\Shubham\.gradle\wrapper\dists\gradle-9.3.1-bin\23ovyewtku6u96viwx3xl3oks\gradle-9.3.1" javaHome="C:\Program Files\Android\Android Studio\jbr" gradleVersion="9.3.1" />

@@ -317,7 +317,7 @@ fun ReportsScreen(navController: NavController) {
                     // Subtle Institutional Branding
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.Center,
+                        horizontalArrangement = Arrangement.Start,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Box(modifier = Modifier.size(6.dp).background(colorScheme.primary, CircleShape))
@@ -410,7 +410,7 @@ fun ReportsScreen(navController: NavController) {
 
                     Row(modifier = Modifier.fillMaxSize()) {
                         TabItem(Modifier.weight(1f), "Session Logs", selectedTab == 0) { selectedTab = 0 }
-                        TabItem(Modifier.weight(1f), "Reports Center", selectedTab == 1) { selectedTab = 1 }
+                        TabItem(Modifier.weight(1f), "Audit Engine", selectedTab == 1) { selectedTab = 1 }
                     }
                 }
             }

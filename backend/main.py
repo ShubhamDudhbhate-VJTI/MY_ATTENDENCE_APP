@@ -1059,10 +1059,11 @@ class PDFReport(FPDF):
 
         if os.path.exists(logo_path):
             try:
-                # Circular background container for the logo, pushed to the far right to avoid name overlap
+                # Institutional Logo - Strategic Far-Right Placement
+                # Technical metadata (record_hash, GPS) is excluded from all PDF exports for privacy compliance.
                 self.set_fill_color(255, 255, 255)
-                self.rect(175, 8, 28, 28, 'F')
-                self.image(logo_path, 176, 9, 26)
+                self.rect(178, 7, 26, 26, 'F')
+                self.image(logo_path, 179, 8, 24)
             except Exception as e:
                 print(f"Logo error: {e}")
 
