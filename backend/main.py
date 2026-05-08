@@ -1098,10 +1098,11 @@ class PDFReport(FPDF):
         self.ln(3)
         self.cell(0, 10, 'Officially Authenticated Digital Academic Record. Confidentiality Governed by IT Act 2000.', 0, 1, 'C')
 
-        # QR Placeholder and Registry Metadata
+        # QR Placeholder and Registry Metadata - Institutional Signature Only
         self.set_font('helvetica', 'B', 8)
         self.set_text_color(100, 100, 100)
-        self.cell(0, 5, f'Page {self.page_no()} | REG-ID: {uuid.uuid4().hex[:12].upper()} | VJTI-ACADEMIC-SYSTEM', 0, 0, 'C')
+        # Technical metadata (record_hash, GPS) is strictly excluded from PDF generation
+        self.cell(0, 5, f'Page {self.page_no()} | VJTI-ACADEMIC-VERIFIED | OFFICIAL RECORD', 0, 0, 'C')
 
     def chapter_title(self, title, color=(21, 101, 192)):
         self.ln(8)
@@ -1388,7 +1389,6 @@ async def export_session_pdf(session_id: str, student_id: Optional[str] = None, 
         pdf.draw_student_report_card(stu, rec, db=db)
 
     # Detailed Verification Info
-    pdf.set_font('helvetica', 'B', 10)
     pdf.set_text_color(50, 50, 50)
     pdf.cell(35, 7, "Course Title:", 0, 0)
     pdf.set_font('helvetica', '', 10)
@@ -1399,10 +1399,7 @@ async def export_session_pdf(session_id: str, student_id: Optional[str] = None, 
     pdf.set_font('helvetica', '', 10)
     pdf.cell(100, 7, f"{user_obj.full_name if user_obj else 'N/A'} ({user_obj.username if user_obj else 'ID N/A'})", 0, 1)
 
-    pdf.set_font('helvetica', 'B', 10)
-    pdf.cell(35, 7, "Environment:", 0, 0)
-    pdf.set_font('helvetica', '', 10)
-    pdf.cell(100, 7, f"{room.name if room else 'Virtual Node'} (WiFi: {room.wifi_ssid if room else 'N/A'})", 0, 1)
+    # Privacy Scrub: Removed technical Environment/WiFi/GPS identifiers
     pdf.ln(5)
 
     # Professional Table with Data Integrity Photos
