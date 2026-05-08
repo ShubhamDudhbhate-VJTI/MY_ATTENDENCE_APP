@@ -56,8 +56,9 @@ import com.example.dbms_shubham_application.network.RetrofitClient
 import com.example.dbms_shubham_application.ui.theme.FacebookBlue
 import com.example.dbms_shubham_application.ui.theme.RedAccent
 import com.example.dbms_shubham_application.ui.theme.YellowAccent
-import com.google.accompanist.permissions.isGranted
-import com.google.accompanist.permissions.rememberPermissionState
+import com.example.dbms_shubham_application.utils.DateTimeUtils
+import com.example.dbms_shubham_application.data.model.SessionDetailsResponse
+import java.util.*
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
@@ -67,6 +68,8 @@ import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.face.FaceDetection
 import com.google.mlkit.vision.face.FaceDetectorOptions
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberPermissionState
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -174,7 +177,7 @@ fun MarkAttendanceScreen(navController: NavController) {
                                 }
                             }
                         )
-                        4 -> SuccessStep { navController.navigateUp() }
+                        4 -> SuccessStep(sessionId = sessionId) { navController.navigateUp() }
                     }
                 }
             } else {
@@ -1301,14 +1304,26 @@ fun FaceVerificationStep(
 }
 
 @Composable
-fun SuccessStep(onFinish: () -> Unit) {
+fun SuccessStep(sessionId: String, onFinish: () -> Unit) {
     val context = LocalContext.current
     val sessionManager = remember { SessionManager(context) }
     val userName = sessionManager.getName()?.replace("\"", "") ?: "Student"
     var visible by remember { mutableStateOf(false) }
+    var sessionDetails by remember { mutableStateOf<SessionDetailsResponse?>(null) }
+    var isLoading by remember { mutableStateOf(true) }
 
     LaunchedEffect(Unit) {
         visible = true
+        try {
+            val response = RetrofitClient.apiService.getSessionDetails(sessionId)
+            if (response.isSuccessful) {
+                sessionDetails = response.body()
+            }
+        } catch (e: Exception) {
+            Log.e("Attendance", "Failed to load session details", e)
+        } finally {
+            isLoading = false
+        }
     }
 
     AnimatedVisibility(
@@ -1323,39 +1338,80 @@ fun SuccessStep(onFinish: () -> Unit) {
             shape = RoundedCornerShape(24.dp)
         ) {
             Column(
-                modifier = Modifier.padding(40.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
+                modifier = Modifier.padding(32.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Box(
                     modifier = Modifier
-                        .size(120.dp)
+                        .size(80.dp)
                         .background(FacebookBlue.copy(alpha = 0.1f), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        Icons.Default.CheckCircle,
+                        Icons.Default.Verified,
                         null,
                         tint = FacebookBlue,
-                        modifier = Modifier.size(80.dp)
+                        modifier = Modifier.size(48.dp)
                     )
                 }
-                Spacer(modifier = Modifier.height(32.dp))
+                
+                Spacer(modifier = Modifier.height(24.dp))
+                
                 Text(
-                    "Attendance Marked!",
+                    "Verification Successful",
                     color = MaterialTheme.colorScheme.onSurface,
-                    fontSize = 26.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Black,
                     textAlign = TextAlign.Center
                 )
-                Spacer(modifier = Modifier.height(12.dp))
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
                 Text(
-                    "Thank you, $userName. Your attendance has been successfully recorded.",
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    "Authenticated as $userName",
+                    color = FacebookBlue,
                     fontSize = 14.sp,
-                    textAlign = TextAlign.Center
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
                 )
-                Spacer(modifier = Modifier.height(48.dp))
+
+                Spacer(modifier = Modifier.height(32.dp))
+
+                // Institutional Receipt Look
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                    shape = RoundedCornerShape(16.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
+                ) {
+                    Column(modifier = Modifier.padding(20.dp)) {
+                        Text(
+                            "ATTENDANCE_RECEIPT",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Black,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                            letterSpacing = 2.sp
+                        )
+                        
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        if (isLoading) {
+                            LinearProgressIndicator(
+                                modifier = Modifier.fillMaxWidth().height(2.dp),
+                                color = FacebookBlue,
+                                trackColor = FacebookBlue.copy(alpha = 0.1f)
+                            )
+                        } else {
+                            ReceiptRow("SUBJECT", sessionDetails?.subject_name ?: "Processing...")
+                            ReceiptRow("SESSION_ID", "#${sessionId.take(8).uppercase()}")
+                            ReceiptRow("TIMESTAMP", DateTimeUtils.formatTimeOnly(sessionDetails?.start_time ?: isoFormat.format(Date())))
+                            ReceiptRow("STATUS", "CONFIRMED", color = Color(0xFF4CAF50))
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(40.dp))
+                
                 Button(
                     onClick = onFinish,
                     modifier = Modifier
@@ -1365,16 +1421,41 @@ fun SuccessStep(onFinish: () -> Unit) {
                     shape = RoundedCornerShape(28.dp)
                 ) {
                     Text(
-                        "Back to Dashboard",
-                        fontWeight = FontWeight.Bold,
+                        "DONE",
+                        fontWeight = FontWeight.Black,
                         fontSize = 16.sp,
-                        color = Color.White
+                        color = Color.White,
+                        letterSpacing = 1.sp
                     )
                 }
             }
         }
     }
 }
+
+@Composable
+fun ReceiptRow(label: String, value: String, color: Color = MaterialTheme.colorScheme.onSurface) {
+    Row(
+        modifier = Modifier.padding(vertical = 4.dp).fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            label,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+        )
+        Text(
+            value,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.ExtraBold,
+            color = color,
+            textAlign = TextAlign.End
+        )
+    }
+}
+
+private val isoFormat = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.getDefault())
 
 @Composable
 fun PermissionSection(onRequest: () -> Unit) {

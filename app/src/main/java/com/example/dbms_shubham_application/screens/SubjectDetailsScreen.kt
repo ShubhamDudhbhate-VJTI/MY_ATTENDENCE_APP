@@ -28,6 +28,9 @@ import com.example.dbms_shubham_application.data.local.SessionManager
 import com.example.dbms_shubham_application.data.model.AttendanceRecord
 import com.example.dbms_shubham_application.network.RetrofitClient
 import com.example.dbms_shubham_application.ui.components.ModernAttendanceCard
+import com.example.dbms_shubham_application.ui.theme.StatusAbsent
+import com.example.dbms_shubham_application.ui.theme.StatusPresent
+import com.example.dbms_shubham_application.ui.theme.WarningYellow
 import com.example.dbms_shubham_application.utils.PredictiveAttendanceUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -227,9 +230,9 @@ fun ModernFilterChip(selected: Boolean, onClick: () -> Unit, label: String) {
 fun SubjectStatsCard(percentage: Double, attended: Int, total: Int) {
     val colorScheme = MaterialTheme.colorScheme
     val color = when {
-        percentage >= 0.75 -> colorScheme.primary
-        percentage >= 0.65 -> Color(0xFFFFA000)
-        else -> colorScheme.error
+        percentage >= 0.75 -> StatusPresent
+        percentage >= 0.65 -> WarningYellow
+        else -> StatusAbsent
     }
 
     Card(
@@ -273,8 +276,8 @@ fun SubjectStatsCard(percentage: Double, attended: Int, total: Int) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                DetailBox(Modifier.weight(1f), "Attended", "$attended", colorScheme.primary)
-                DetailBox(Modifier.weight(1f), "Absent", "${total - attended}", colorScheme.error)
+                DetailBox(Modifier.weight(1f), "Attended", "$attended", StatusPresent)
+                DetailBox(Modifier.weight(1f), "Absent", "${total - attended}", StatusAbsent)
                 DetailBox(Modifier.weight(1f), "Total", "$total", colorScheme.secondary)
             }
         }
@@ -286,7 +289,7 @@ fun SubjectPredictiveCard(attended: Int, total: Int) {
     val target = 0.75
     val current = if (total > 0) attended.toDouble() / total else 0.0
     val isSafe = current >= target
-    val color = if (isSafe) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+    val color = if (isSafe) StatusPresent else StatusAbsent
 
     Card(
         modifier = Modifier.fillMaxWidth(),

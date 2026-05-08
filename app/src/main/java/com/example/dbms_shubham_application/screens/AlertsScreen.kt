@@ -24,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -117,8 +118,8 @@ fun AlertsScreen(navController: NavController) {
                         enter = fadeIn(tween(600)) + slideInVertically(initialOffsetY = { -20 }, animationSpec = tween(600))
                     ) {
                         Column {
-                            Text("Alerts & Notifications", color = colorScheme.onBackground, fontWeight = FontWeight.Bold, fontSize = 20.sp)
-                            Text("Important updates and reminders", color = colorScheme.onBackground.copy(alpha = 0.6f), fontSize = 12.sp, fontWeight = FontWeight.Normal)
+                            Text("Institutional Alerts", color = colorScheme.onBackground, fontWeight = FontWeight.ExtraBold, fontSize = 22.sp, letterSpacing = (-0.5).sp)
+                            Text("SECURE NOTIFICATION CHANNEL", color = colorScheme.primary, fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.5.sp, fontFamily = FontFamily.Monospace)
                         }
                     }
                 },

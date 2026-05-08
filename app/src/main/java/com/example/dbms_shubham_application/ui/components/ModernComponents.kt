@@ -34,6 +34,9 @@ import com.example.dbms_shubham_application.data.model.AttendanceRecord
 import com.example.dbms_shubham_application.data.model.FacultySessionRecord
 import com.example.dbms_shubham_application.data.model.SessionDetailsResponse
 import com.example.dbms_shubham_application.data.model.TrendData
+import com.example.dbms_shubham_application.ui.theme.LightPrimary
+import com.example.dbms_shubham_application.ui.theme.StatusAbsent
+import com.example.dbms_shubham_application.ui.theme.StatusPresent
 import com.example.dbms_shubham_application.utils.DateTimeUtils
 
 fun Modifier.pulseEffect(targetScale: Float = 1.05f): Modifier = composed {
@@ -67,7 +70,7 @@ fun ModernAttendanceCard(
     val isPresent = (record.status ?: "absent").lowercase() == "present"
     val date = record.timestamp?.let { DateTimeUtils.formatDateOnly(it) } ?: "N/A"
     val time = record.timestamp?.let { DateTimeUtils.formatTimeOnly(it) } ?: "N/A"
-    val statusColor = if (isPresent) Color(0xFF00C853) else Color(0xFFFF3D00)
+    val statusColor = if (isPresent) StatusPresent else StatusAbsent
 
     var visible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { visible = true }
@@ -179,11 +182,11 @@ fun ModernReportCard(
     val status = session.status.lowercase()
     val (statusColor, statusIcon, cardGradient) = when {
         status.contains("stop") || status.contains("fail") || status.contains("cancel") -> 
-            Triple(Color(0xFFFF5252), Icons.Default.Block, Brush.verticalGradient(listOf(Color(0xFFFF5252).copy(0.05f), Color.Transparent)))
+            Triple<Color, ImageVector, Brush>(StatusAbsent, Icons.Default.Block, Brush.verticalGradient(listOf(StatusAbsent.copy(0.05f), Color.Transparent)))
         status.contains("active") -> 
-            Triple(Color(0xFF2979FF), Icons.Default.Radar, Brush.verticalGradient(listOf(Color(0xFF2979FF).copy(0.05f), Color.Transparent)))
+            Triple<Color, ImageVector, Brush>(LightPrimary, Icons.Default.Radar, Brush.verticalGradient(listOf(LightPrimary.copy(0.05f), Color.Transparent)))
         else -> 
-            Triple(Color(0xFF00E676), Icons.Default.CheckCircle, Brush.verticalGradient(listOf(Color(0xFF00E676).copy(0.05f), Color.Transparent)))
+            Triple<Color, ImageVector, Brush>(StatusPresent, Icons.Default.CheckCircle, Brush.verticalGradient(listOf(StatusPresent.copy(0.05f), Color.Transparent)))
     }
 
     val infiniteTransition = rememberInfiniteTransition(label = "Pulse")
@@ -235,7 +238,7 @@ fun ModernReportCard(
                                 Box(
                                     modifier = Modifier
                                         .background(
-                                            Brush.horizontalGradient(listOf(Color(0xFFFF5252), Color(0xFFFF8A65))),
+                                            Brush.horizontalGradient(listOf(StatusAbsent, Color(0xFFFF8A65))),
                                             RoundedCornerShape(8.dp)
                                         )
                                         .padding(horizontal = 8.dp, vertical = 2.dp)

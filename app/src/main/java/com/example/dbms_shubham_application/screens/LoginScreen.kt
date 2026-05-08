@@ -120,18 +120,17 @@ fun LoginScreen(navController: NavController, role: String) {
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = "${role.replaceFirstChar { it.uppercase() }} Portal",
-                        fontSize = 32.sp,
-                        fontWeight = FontWeight.Black,
-                        color = onBackground,
-                        letterSpacing = (-1).sp
+                        text = "${role.replaceFirstChar { it.uppercase() }} Access",
+                        style = MaterialTheme.typography.headlineLarge,
+                        color = onBackground
                     )
                     
                     Text(
-                        text = "Secure access to your dashboard",
-                        fontSize = 15.sp,
-                        color = onBackground.copy(alpha = 0.6f),
-                        fontWeight = FontWeight.Medium,
+                        text = "Sign in to VJTI Academic Portal",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            color = onBackground.copy(alpha = 0.6f),
+                            fontWeight = FontWeight.Medium
+                        ),
                         modifier = Modifier.padding(top = 8.dp, bottom = 48.dp)
                     )
                 }

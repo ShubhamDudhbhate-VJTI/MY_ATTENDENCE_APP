@@ -35,6 +35,9 @@ import com.example.dbms_shubham_application.data.local.SessionManager
 import com.example.dbms_shubham_application.data.model.Subject
 import com.example.dbms_shubham_application.network.RetrofitClient
 import com.example.dbms_shubham_application.ui.components.ModernAttendanceCard
+import com.example.dbms_shubham_application.ui.theme.StatusAbsent
+import com.example.dbms_shubham_application.ui.theme.StatusPresent
+import com.example.dbms_shubham_application.ui.theme.SuccessGreen
 import com.example.dbms_shubham_application.utils.DateTimeUtils
 import com.example.dbms_shubham_application.utils.PredictiveAttendanceUtils
 import kotlinx.coroutines.launch
@@ -385,8 +388,8 @@ fun StudentFilterSection(
         Surface(
             onClick = onDateClick,
             shape = RoundedCornerShape(14.dp),
-            color = if (selectedDate != null) Color(0xFF4CAF50) else colorScheme.surfaceVariant.copy(alpha = 0.5f),
-            border = BorderStroke(1.dp, if (selectedDate != null) Color(0xFF4CAF50) else colorScheme.outline.copy(alpha = 0.1f)),
+            color = if (selectedDate != null) SuccessGreen else colorScheme.surfaceVariant.copy(alpha = 0.5f),
+            border = BorderStroke(1.dp, if (selectedDate != null) SuccessGreen else colorScheme.outline.copy(alpha = 0.1f)),
             modifier = Modifier.height(44.dp).weight(0.9f)
         ) {
             Row(modifier = Modifier.padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
@@ -407,7 +410,7 @@ fun StudentFilterSection(
 fun ModernHistoryStatsCard(percentage: Float, present: Int, absent: Int, total: Int) {
     val colorScheme = MaterialTheme.colorScheme
     val percentText = "%.1f%%".format(percentage * 100)
-    val statusColor = if (percentage >= 0.75f) colorScheme.primary else colorScheme.error
+    val statusColor = if (percentage >= 0.75f) StatusPresent else StatusAbsent
 
     Card(
         modifier = Modifier
@@ -466,9 +469,9 @@ fun ModernHistoryStatsCard(percentage: Float, present: Int, absent: Int, total: 
                     .padding(16.dp),
                 horizontalArrangement = Arrangement.SpaceAround
             ) {
-                ModernMiniStatItem("Present", present.toString(), colorScheme.primary)
+                ModernMiniStatItem("Present", present.toString(), StatusPresent)
                 VerticalDivider(modifier = Modifier.height(30.dp), color = colorScheme.outline.copy(alpha = 0.2f))
-                ModernMiniStatItem("Absent", absent.toString(), colorScheme.error)
+                ModernMiniStatItem("Absent", absent.toString(), StatusAbsent)
                 VerticalDivider(modifier = Modifier.height(30.dp), color = colorScheme.outline.copy(alpha = 0.2f))
                 ModernMiniStatItem("Total", total.toString(), colorScheme.onSurfaceVariant)
             }
@@ -491,7 +494,7 @@ fun PredictiveAlertCard(present: Int, total: Int) {
     val currentPercentage = if (total > 0) present.toFloat() / total else 0f
     
     val isSafe = currentPercentage >= target
-    val statusColor = if (isSafe) colorScheme.primary else colorScheme.error
+    val statusColor = if (isSafe) StatusPresent else StatusAbsent
     
     Card(
         modifier = Modifier

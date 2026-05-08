@@ -39,6 +39,7 @@ import com.example.dbms_shubham_application.data.model.Subject
 import com.example.dbms_shubham_application.network.RetrofitClient
 import com.example.dbms_shubham_application.ui.components.ModernDetailsDialog
 import com.example.dbms_shubham_application.ui.components.ModernReportCard
+import com.example.dbms_shubham_application.ui.theme.SuccessGreen
 import com.example.dbms_shubham_application.utils.DateTimeUtils
 import com.example.dbms_shubham_application.utils.FileUtils
 import kotlinx.coroutines.Dispatchers
@@ -594,8 +595,8 @@ fun FilterSection(
         Surface(
             onClick = onDateClick,
             shape = RoundedCornerShape(14.dp),
-            color = if (selectedDate != null) Color(0xFF4CAF50) else colorScheme.surfaceVariant.copy(alpha = 0.5f),
-            border = BorderStroke(1.dp, if (selectedDate != null) Color(0xFF4CAF50) else colorScheme.outline.copy(alpha = 0.1f)),
+            color = if (selectedDate != null) SuccessGreen else colorScheme.surfaceVariant.copy(alpha = 0.5f),
+            border = BorderStroke(1.dp, if (selectedDate != null) SuccessGreen else colorScheme.outline.copy(alpha = 0.1f)),
             modifier = Modifier.height(44.dp).weight(1f)
         ) {
             Row(modifier = Modifier.padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {

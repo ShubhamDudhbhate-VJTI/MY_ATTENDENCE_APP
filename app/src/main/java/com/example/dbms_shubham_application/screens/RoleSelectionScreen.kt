@@ -98,18 +98,17 @@ fun RoleSelectionScreen(navController: NavController) {
                 Spacer(modifier = Modifier.height(12.dp))
                 
                 Text(
-                    text = "AttendX",
-                    fontSize = 48.sp,
-                    fontWeight = FontWeight.Black,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    letterSpacing = (-1.5).sp
+                    text = "VJTI Portal",
+                    style = MaterialTheme.typography.headlineLarge,
+                    color = MaterialTheme.colorScheme.onBackground
                 )
                 
                 Text(
-                    text = "Secure Biometric Attendance",
-                    fontSize = 16.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = FontWeight.Medium,
+                    text = "Academic Attendance System",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        fontWeight = FontWeight.Medium
+                    ),
                     textAlign = TextAlign.Center
                 )
                 
@@ -169,15 +168,14 @@ fun RoleSelectionScreen(navController: NavController) {
                     modifier = Modifier.width(40.dp).padding(bottom = 12.dp)
                 )
                 Text(
-                    text = "Faculty of Information Technology",
+                    text = "Department of Information Technology",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium
+                    style = MaterialTheme.typography.labelMedium
                 )
                 Text(
-                    text = "Engineering College Portal",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                    fontSize = 10.sp
+                    text = "VEERMATA JIJABAI TECHNOLOGICAL INSTITUTE",
+                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.labelMedium.copy(fontSize = 10.sp, letterSpacing = 1.sp)
                 )
             }
         }

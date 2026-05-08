@@ -27,6 +27,9 @@ import androidx.navigation.NavController
 import com.example.dbms_shubham_application.data.local.SessionManager
 import com.example.dbms_shubham_application.data.model.LeaveRequestRecord
 import com.example.dbms_shubham_application.network.RetrofitClient
+import com.example.dbms_shubham_application.ui.theme.StatusAbsent
+import com.example.dbms_shubham_application.ui.theme.StatusPresent
+import com.example.dbms_shubham_application.ui.theme.WarningYellow
 import kotlinx.coroutines.launch
 import java.util.*
 
@@ -142,9 +145,9 @@ fun LeaveManagementScreen(navController: NavController) {
 fun LeaveRecordCard(leave: LeaveRequestRecord) {
     val colorScheme = MaterialTheme.colorScheme
     val statusColor = when (leave.status.lowercase()) {
-        "approved" -> Color(0xFF4CAF50)
-        "rejected" -> colorScheme.error
-        else -> Color(0xFFFF9800)
+        "approved" -> StatusPresent
+        "rejected" -> StatusAbsent
+        else -> WarningYellow
     }
 
     Card(

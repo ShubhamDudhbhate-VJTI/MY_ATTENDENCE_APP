@@ -5,6 +5,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -15,6 +16,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -72,20 +74,21 @@ fun SplashScreen(navController: NavController) {
         }
     }
     
-    // Deep Space Background with a subtle radial glow
+    // VJTI Professional Background
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF020617)), // Match our new color.xml
+            .background(MaterialTheme.colorScheme.background),
         contentAlignment = Alignment.Center
     ) {
-        // Ambient Glow in the background
-        Canvas(modifier = Modifier.fillMaxSize().blur(80.dp).alpha(0.4f)) {
+        // Ambient Institutional Glow
+        val glowColor = MaterialTheme.colorScheme.primary
+        Canvas(modifier = Modifier.fillMaxSize().blur(100.dp).alpha(0.15f)) {
             drawCircle(
                 brush = Brush.radialGradient(
-                    colors = listOf(Color(0xFF2563EB), Color.Transparent),
+                    colors = listOf(glowColor, Color.Transparent),
                     center = center,
-                    radius = size.minDimension * 0.8f
+                    radius = size.minDimension * 0.9f
                 )
             )
         }
@@ -94,39 +97,43 @@ fun SplashScreen(navController: NavController) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // The Kinetic Logo
+            // Institutional Logo Container
             Box(
                 modifier = Modifier
-                    .size(140.dp)
+                    .size(150.dp)
                     .scale(scale.value)
                     .alpha(alpha.value)
                     .background(
-                        Brush.linearGradient(listOf(Color(0xFF3B82F6), Color(0xFF1D4ED8))),
-                        shape = CircleShape
+                        Brush.linearGradient(listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.secondary)),
+                        shape = RoundedCornerShape(40.dp)
                     )
-                    .padding(4.dp),
+                    .padding(2.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    shape = CircleShape,
-                    color = Color(0xFF020617) // Dark core
+                    shape = RoundedCornerShape(38.dp),
+                    color = MaterialTheme.colorScheme.surface
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Text(
-                            text = "SD",
-                            fontSize = 54.sp,
+                            text = "VJTI",
+                            fontSize = 42.sp,
                             fontWeight = FontWeight.Black,
-                            color = Color.White,
-                            letterSpacing = (-2).sp
+                            style = TextStyle(
+                                brush = Brush.linearGradient(
+                                    listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.secondary)
+                                )
+                            ),
+                            letterSpacing = (-1).sp
                         )
                     }
                 }
             }
             
-            Spacer(modifier = Modifier.height(40.dp))
+            Spacer(modifier = Modifier.height(48.dp))
             
-            // App Name with Staggered Overshoot
+            // App Name with Professional Typography
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier
@@ -134,41 +141,40 @@ fun SplashScreen(navController: NavController) {
                     .alpha(textAlpha.value)
             ) {
                 Text(
-                    text = "Smart Detection",
-                    fontSize = 32.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = Color.White,
-                    letterSpacing = 2.sp
+                    text = "Academic Portal",
+                    style = MaterialTheme.typography.headlineLarge,
+                    color = MaterialTheme.colorScheme.onBackground
                 )
                 
                 Surface(
-                    color = Color(0xFF3B82F6).copy(alpha = 0.2f),
+                    color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f),
                     shape = CircleShape,
-                    modifier = Modifier.padding(top = 12.dp)
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f)),
+                    modifier = Modifier.padding(top = 16.dp)
                 ) {
                     Text(
-                        text = "SECURE INTELLIGENT SYSTEM",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF60A5FA),
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
-                        letterSpacing = 2.sp
+                        text = "VEERMATA JIJABAI TECHNOLOGICAL INSTITUTE",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Black,
+                        color = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+                        letterSpacing = 1.sp
                     )
                 }
             }
         }
 
-        // Bottom Branding
+        // Bottom Footer
         Text(
-            text = "POWERED BY BIOMETRIC AI",
+            text = "MATUNGA, MUMBAI • ESTD 1887",
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 40.dp)
-                .alpha(textAlpha.value * 0.5f),
-            color = Color.White,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Medium,
-            letterSpacing = 3.sp
+                .padding(bottom = 48.dp)
+                .alpha(textAlpha.value * 0.7f),
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 2.sp
         )
     }
 }

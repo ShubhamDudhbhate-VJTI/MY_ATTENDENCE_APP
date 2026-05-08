@@ -26,6 +26,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -208,6 +209,36 @@ fun HODAnalyticsScreen(navController: NavController) {
         }
     }
 
+    fun downloadDefaulterLetters() {
+        isDownloading = true
+        scope.launch(Dispatchers.IO) {
+            try {
+                val response = RetrofitClient.apiService.downloadDefaulterLetters(
+                    departmentId = departmentId,
+                    branch = selectedBranch.takeIf { it != "All" },
+                    year = selectedYear.takeIf { it != "All" }
+                )
+                
+                if (response.isSuccessful) {
+                    val body = response.body()
+                    if (body != null) {
+                        FileUtils.saveFile(body.byteStream(), "Defaulter_Warning_Letters.pdf", "application/pdf", context)
+                    }
+                } else {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, "No defaulters found for current criteria", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Network Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            } finally {
+                withContext(Dispatchers.Main) { isDownloading = false }
+            }
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize().background(colorScheme.background)) {
         // Advanced Decorative Background
         Canvas(modifier = Modifier.fillMaxSize()) {
@@ -252,15 +283,15 @@ fun HODAnalyticsScreen(navController: NavController) {
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth().padding(end = 48.dp)) {
                                 Text(
-                                    "Academic Attendance System",
+                                    "Veermata Jijabai Technological Institute",
                                     style = MaterialTheme.typography.labelSmall.copy(
                                         fontWeight = FontWeight.ExtraBold,
                                         color = colorScheme.primary,
                                         letterSpacing = 0.5.sp
                                     )
                                 )
-                                Text("Department Dashboard", color = colorScheme.onBackground, fontWeight = FontWeight.Black, fontSize = 20.sp, letterSpacing = (-0.5).sp)
-                                Text("Domain: $departmentId Engineering", color = colorScheme.primary, fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
+                                Text("Analytics Dashboard", color = colorScheme.onBackground, fontWeight = FontWeight.Black, fontSize = 20.sp, letterSpacing = (-0.5).sp)
+                                Text("DOMAIN: $departmentId ENGINEERING", color = colorScheme.primary, fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 2.sp, fontFamily = FontFamily.Monospace)
                             }
                         }
                     },
@@ -356,7 +387,7 @@ fun HODAnalyticsScreen(navController: NavController) {
                                     enter = fadeIn(tween(600)) + slideInVertically(initialOffsetY = { 30 }, animationSpec = tween(600))
                                 ) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text("Real-time Overview", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                                        Text("LIVE TELEMETRY", fontSize = 12.sp, fontWeight = FontWeight.Black, color = colorScheme.primary, fontFamily = FontFamily.Monospace, letterSpacing = 1.sp)
                                         Spacer(modifier = Modifier.width(12.dp))
                                         if (isRefreshing) {
                                             CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
@@ -456,8 +487,8 @@ fun HODAnalyticsScreen(navController: NavController) {
                                 enter = fadeIn(tween(600, 100)) + slideInHorizontally(initialOffsetX = { -30 }, animationSpec = tween(600, 100))
                             ) {
                                 Column {
-                                    Text("Report Parameters", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Black)
-                                    Text("Filter criteria for generating master academic reports.", color = Color.Gray, fontSize = 14.sp)
+                                    Text("REPORT PARAMETERS", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Black, color = colorScheme.primary, fontFamily = FontFamily.Monospace, letterSpacing = 1.sp)
+                                    Text("Institutional Registry Center", color = colorScheme.onBackground, fontWeight = FontWeight.Black, fontSize = 24.sp, letterSpacing = (-0.5).sp)
                                 }
                             }
 
@@ -597,6 +628,19 @@ fun HODAnalyticsScreen(navController: NavController) {
                                         Spacer(Modifier.width(12.dp))
                                         Text("Export Data to Excel/CSV", fontWeight = FontWeight.Bold)
                                     }
+
+                                    Button(
+                                        onClick = { downloadDefaulterLetters() },
+                                        modifier = Modifier.fillMaxWidth().height(56.dp),
+                                        shape = RoundedCornerShape(16.dp),
+                                        enabled = !isDownloading,
+                                        colors = ButtonDefaults.buttonColors(containerColor = colorScheme.error),
+                                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+                                    ) {
+                                        Icon(Icons.Default.WarningAmber, contentDescription = null)
+                                        Spacer(Modifier.width(12.dp))
+                                        Text("Generate Defaulter Letters", fontWeight = FontWeight.Bold)
+                                    }
                                 }
                             }
                             
@@ -675,12 +719,12 @@ fun SummaryItem(label: String, value: String, icon: ImageVector, isLoading: Bool
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(icon, null, modifier = Modifier.size(14.dp), tint = colorScheme.primary)
             Spacer(Modifier.width(6.dp))
-            Text(label, fontSize = 11.sp, fontWeight = FontWeight.ExtraBold, color = colorScheme.primary.copy(alpha = 0.8f))
+            Text(label.uppercase(), fontSize = 10.sp, fontWeight = FontWeight.Black, color = colorScheme.primary.copy(alpha = 0.8f), fontFamily = FontFamily.Monospace)
         }
         if (isLoading) {
             CircularProgressIndicator(modifier = Modifier.size(16.dp).padding(top = 8.dp), strokeWidth = 2.dp)
         } else {
-            Text(value, fontSize = 22.sp, fontWeight = FontWeight.Black, color = colorScheme.onSurface)
+            Text(value, fontSize = 24.sp, fontWeight = FontWeight.Black, color = colorScheme.onSurface, fontFamily = FontFamily.Monospace)
         }
     }
 }

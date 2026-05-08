@@ -4,6 +4,7 @@ import android.util.Log
 import android.widget.Toast
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -39,6 +40,9 @@ import com.example.dbms_shubham_application.data.model.FacultySessionRecord
 import com.example.dbms_shubham_application.data.model.ScheduleRecord
 import com.example.dbms_shubham_application.data.model.SubjectAttendance
 import com.example.dbms_shubham_application.network.RetrofitClient
+import com.example.dbms_shubham_application.ui.theme.StatusAbsent
+import com.example.dbms_shubham_application.ui.theme.StatusPresent
+import com.example.dbms_shubham_application.ui.theme.WarningYellow
 import com.example.dbms_shubham_application.ui.components.DashboardShimmer
 import com.example.dbms_shubham_application.ui.components.HODActionStripItem
 import com.example.dbms_shubham_application.ui.components.LiveSessionPulse
@@ -212,14 +216,19 @@ fun DashboardScreen(navController: NavController, role: String) {
                             val year = userProfile?.academic?.get("year") ?: "N/A"
                             val regNo = userProfile?.academic?.get("reg_no") ?: userId
                             
-                            val dynamicSubtext = if (normalizedRole == "student") {
-                                "$year $branch • $regNo"
-                            } else {
-                                "$branch Dept. • $userId"
+                            val dynamicSubtext = when (normalizedRole) {
+                                "student" -> "$year $branch • $regNo"
+                                "hod" -> "$branch Department Head"
+                                else -> "$branch Dept. • Faculty ID: $userId"
                             }
                             
                             GreetingSection(normalizedRole, userName, dynamicSubtext, modifier = Modifier.padding(horizontal = 24.dp))
                         }
+                    }
+
+                    // Floating Role Indicator (Repurposed as Logo/Status)
+                    item {
+                        InstitutionalBanner()
                     }
 
                     // Live Session Pulse for Faculty
@@ -321,11 +330,11 @@ fun HeaderSection(navController: NavController, unreadCount: Int) {
     Column(modifier = Modifier.fillMaxWidth()) {
         // Institutional Branding
         Text(
-            "Veermata Jijabai Technological Institute",
-            style = MaterialTheme.typography.labelSmall.copy(
-                fontWeight = FontWeight.ExtraBold,
+            "VEERMATA JIJABAI TECHNOLOGICAL INSTITUTE",
+            style = MaterialTheme.typography.labelMedium.copy(
+                fontWeight = FontWeight.Black,
                 color = MaterialTheme.colorScheme.primary,
-                letterSpacing = 0.5.sp
+                letterSpacing = 1.sp
             ),
             modifier = Modifier.padding(bottom = 8.dp)
         )
@@ -1062,9 +1071,9 @@ fun SubjectAttendanceSection(attendance: List<SubjectAttendance>, isLoading: Boo
 @Composable
 fun SubjectAttendanceCard(item: SubjectAttendance, navController: NavController?) {
     val color = when {
-        item.percentage >= 0.75 -> MaterialTheme.colorScheme.primary
-        item.percentage >= 0.65 -> Color(0xFFFFA000)
-        else -> MaterialTheme.colorScheme.error
+        item.percentage >= 0.75 -> StatusPresent
+        item.percentage >= 0.65 -> WarningYellow
+        else -> StatusAbsent
     }
 
     Card(
@@ -1127,6 +1136,43 @@ fun SubjectAttendanceCard(item: SubjectAttendance, navController: NavController?
                     modifier = Modifier.fillMaxWidth().height(6.dp).clip(CircleShape),
                     color = color,
                     trackColor = color.copy(alpha = 0.1f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun InstitutionalBanner() {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp),
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.05f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                Icons.Default.VerifiedUser,
+                null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(24.dp)
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Column {
+                Text(
+                    "Verified Institutional Access",
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    "Session secured via biometric verification",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )
             }
         }

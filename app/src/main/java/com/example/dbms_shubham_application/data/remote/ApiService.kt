@@ -180,6 +180,14 @@ interface ApiService {
         @Query("student_id") studentId: String? = null
     ): Response<okhttp3.ResponseBody>
 
+    @GET("reports/defaulter-letters")
+    @Streaming
+    suspend fun downloadDefaulterLetters(
+        @Query("department_id") departmentId: String,
+        @Query("branch") branch: String? = "All",
+        @Query("year") year: String? = "All"
+    ): Response<okhttp3.ResponseBody>
+
     @GET("reports/summary")
     suspend fun getReportsSummary(
         @Query("faculty_id") facultyId: String? = null,

@@ -1198,10 +1198,6 @@ class PDFReport(FPDF):
             ("Log Timestamp", record_obj.marked_at.strftime("%d %b %Y, %I:%M %p") if record_obj else "N/A")
         ]
 
-        # Add Location Data if available
-        if record_obj and record_obj.latitude and record_obj.longitude:
-            info.append(("Coordinates", f"{record_obj.latitude}, {record_obj.longitude}"))
-
         for label, val in info:
             self.set_x(55)
             self.set_font('helvetica', 'B', 8)
@@ -1218,6 +1214,78 @@ class PDFReport(FPDF):
 
         self.set_y(start_y + 70)
 
+    def draw_warning_letter(self, student_name, reg_no, branch, year, attendance_perc, attended, total):
+        """Generates a formal academic warning letter for low attendance"""
+        self.add_page()
+        self.draw_digital_watermark()
+
+        # Letter Date
+        self.set_y(60)
+        self.set_font('helvetica', '', 10)
+        self.set_text_color(50, 50, 50)
+        self.cell(0, 10, f"Date: {datetime.now().strftime('%d %B, %Y')}", 0, 1, 'R')
+
+        # Recipient
+        self.ln(10)
+        self.set_font('helvetica', 'B', 11)
+        self.set_text_color(33, 33, 33)
+        self.cell(0, 7, "TO,", 0, 1)
+        self.set_font('helvetica', '', 11)
+        self.cell(0, 7, f"Mr./Ms. {student_name}", 0, 1)
+        self.cell(0, 7, f"Registration Number: {reg_no}", 0, 1)
+        self.cell(0, 7, f"Branch: {branch}", 0, 1)
+        self.cell(0, 7, f"Year: {year}", 0, 1)
+
+        # Subject
+        self.ln(10)
+        self.set_font('helvetica', 'BU', 12)
+        self.set_text_color(*self.error_color)
+        self.cell(0, 10, "SUBJECT: FORMAL WARNING REGARDING ATTENDANCE DEFAULT", 0, 1, 'C')
+
+        # Salutation & Body
+        self.ln(10)
+        self.set_font('helvetica', '', 11)
+        self.set_text_color(30, 30, 30)
+
+        body_intro = f"Dear Student,"
+        self.cell(0, 7, body_intro, 0, 1)
+        self.ln(3)
+
+        body_text = (
+            f"Upon reviewing the official academic records of the current semester, it has been observed that "
+            f"your attendance is critically low. As of today, you have attended {attended} out of {total} "
+            f"scheduled sessions, resulting in an aggregate attendance percentage of {attendance_perc:.1f}%.\n\n"
+            f"Please be advised that as per VJTI Academic Regulations, a minimum of 75% attendance is "
+            f"mandatory to be eligible for appearing in the End Semester Examinations. Falling below this "
+            f"threshold is a serious compliance issue and may lead to debarment from the examinations or "
+            f"other disciplinary actions as per the institute's policy.\n\n"
+            f"You are hereby instructed to meet your Head of Department (HOD) or Class Teacher immediately "
+            f"to provide a valid justification for your absences. We expect you to ensure regular attendance "
+            f"for all remaining sessions to improve your standing.\n\n"
+            f"Please treat this as a final official warning."
+        )
+        self.multi_cell(0, 7, body_text)
+
+        # Signatures Section
+        self.ln(40)
+        curr_y = self.get_y()
+        self.set_draw_color(150, 150, 150)
+        self.line(15, curr_y, 65, curr_y)
+        self.line(145, curr_y, 195, curr_y)
+
+        self.set_xy(15, curr_y + 2)
+        self.set_font('helvetica', 'B', 10)
+        self.set_text_color(50, 50, 50)
+        self.cell(50, 7, "Class Teacher", 0, 0, 'C')
+
+        self.set_xy(145, curr_y + 2)
+        self.cell(50, 7, "Head of Department", 0, 0, 'C')
+
+        # Professional Stamp Placeholder
+        self.set_xy(150, curr_y - 25)
+        self.set_font('helvetica', 'I', 8)
+        self.set_text_color(200, 200, 200)
+        self.cell(40, 20, "(Office Stamp)", 1, 0, 'C')
 
     def draw_digital_watermark(self):
         """Adds a subtle 'OFFICIAL' watermark in the background"""
@@ -1366,17 +1434,12 @@ async def export_session_pdf(session_id: str, student_id: Optional[str] = None, 
         # Cell 1: Reg No
         pdf.cell(w[0], row_h, f" {str(stu.registration_number)}", 1, 0, 'C', 1)
 
-        # Cell 2: Student Name + Hash
+        # Cell 2: Student Name
         name_x = pdf.get_x()
         pdf.cell(w[1], row_h, "", 1, 0, 'L', 1)
-        pdf.set_xy(name_x + 2, start_y + 3)
-        pdf.set_font('helvetica', 'B', 9)
+        pdf.set_xy(name_x + 2, start_y + 8) # Centered vertically better without subtitle
+        pdf.set_font('helvetica', 'B', 10)
         pdf.cell(w[1]-4, 5, f"{str(stu.full_name)[:35]}", 0, 1, 'L')
-
-        pdf.set_x(name_x + 2)
-        pdf.set_font('helvetica', '', 7)
-        loc_str = f"GPS: {rec.latitude}, {rec.longitude}" if rec.latitude else "GPS: Signal Lost/Interior"
-        pdf.cell(w[1]-4, 4, loc_str, 0, 0, 'L')
 
         pdf.set_text_color(0, 0, 0)
         pdf.set_font('helvetica', '', 8)
@@ -2183,17 +2246,13 @@ async def export_hod_master_excel(
         "Total Classes",
         "Attendance %",
         "AI Accuracy %",
-        "Verification Status",
-        "Verification Hash"
+        "Verification Status"
     ])
 
     for reg, name, br, att, ai_v in stats:
         perc = (att/total_sess)*100 if total_sess > 0 else 0
         ai_acc = (ai_v/att)*100 if att > 0 else 0
         status = "ELIGIBLE" if perc >= 75 else "DEFAULTER"
-
-        # Generate row-level fingerprint for data integrity
-        row_hash = hashlib.sha256(f"{reg}{att}{ai_v}{status}".encode()).hexdigest().upper()[:12]
 
         writer.writerow([
             reg,
@@ -2204,8 +2263,7 @@ async def export_hod_master_excel(
             total_sess,
             f"{perc:.1f}%",
             f"{ai_acc:.1f}%",
-            status,
-            f"ACAD-{row_hash}"
+            status
         ])
 
     filename = f"HOD_Master_Verification_{actual_dept}.csv"
@@ -2217,6 +2275,92 @@ async def export_hod_master_excel(
             "Cache-Control": "no-cache"
         }
     )
+
+@app.get("/reports/defaulter-letters")
+async def export_defaulter_letters(
+    department_id: str,
+    branch: Optional[str] = "All",
+    year: Optional[str] = "All",
+    db: Session = Depends(get_db)
+):
+    """Generates bulk professional warning letters for students below 75% attendance"""
+    # 1. Resolve Department
+    actual_dept = resolve_dept(department_id, db)
+
+    # 2. Gather Sessions in Scope to calculate total possible attendance
+    query = db.query(AttendanceSession).join(Subject, AttendanceSession.subject_id == Subject.id)\
+        .outerjoin(Teacher, AttendanceSession.faculty_id == Teacher.id)\
+        .filter(~AttendanceSession.id.ilike("cloud___%"))\
+        .filter(~Subject.id.ilike("cloud___%"))
+
+    # HOD scope: subjects in their dept or teachers in their dept
+    query = query.filter(
+        (Subject.department_id.ilike(f"%{actual_dept}%")) |
+        (Subject.branch.ilike(f"%{actual_dept}%")) |
+        (Teacher.department_id.ilike(f"%{actual_dept}%")) |
+        (Teacher.branch.ilike(f"%{actual_dept}%"))
+    )
+    query = apply_academic_filters(query, Subject, branch, year)
+
+    session_id_sub = query.with_entities(AttendanceSession.id)
+    total_sess = db.query(func.count(AttendanceSession.id)).filter(AttendanceSession.id.in_(session_id_sub)).scalar()
+
+    if total_sess == 0:
+        raise HTTPException(status_code=404, detail=f"No sessions found for {branch} {year}")
+
+    # 3. Identify Students in Scope
+    student_query = db.query(Student).filter(
+        or_(Student.department_id.ilike(f"%{actual_dept}%"), Student.branch.ilike(f"%{actual_dept}%"))
+    )
+    student_query = apply_academic_filters(student_query, Student, branch, year)
+
+    target_student_id_sub = student_query.with_entities(Student.id)
+
+    # 4. Aggregate Performance and Filter Defaulters (< 75%)
+    # We use a subquery to calculate counts per student
+    results = db.query(
+        Student.registration_number,
+        Student.full_name,
+        Student.branch,
+        Student.year,
+        func.count(AttendanceRecord.id).label('attended_count')
+    ).outerjoin(AttendanceRecord, (Student.id == AttendanceRecord.student_id) & (AttendanceRecord.session_id.in_(session_id_sub)))\
+     .filter(Student.id.in_(target_student_id_sub))\
+     .group_by(Student.registration_number, Student.full_name, Student.branch, Student.year)\
+     .all()
+
+    defaulters = []
+    for reg, name, br, yr, att in results:
+        perc = (att / total_sess) * 100
+        if perc < 75:
+            defaulters.append({
+                "name": name, "reg_no": reg, "branch": br, "year": yr,
+                "perc": perc, "attended": att, "total": total_sess
+            })
+
+    if not defaulters:
+        raise HTTPException(status_code=404, detail="No defaulters found for the selected criteria. All students are compliant.")
+
+    # 5. Build PDF with one letter per page
+    pdf = PDFReport()
+    for d in defaulters:
+        pdf.draw_warning_letter(
+            student_name=d["name"],
+            reg_no=d["reg_no"],
+            branch=d["branch"],
+            year=d["year"],
+            attendance_perc=d["perc"],
+            attended=d["attended"],
+            total=d["total"]
+        )
+
+    pdf_output = pdf.output(dest='S')
+    filename = f"Defaulter_Letters_{actual_dept}_{branch}_{year}.pdf"
+
+    if isinstance(pdf_output, (bytearray, bytes)):
+        return Response(content=bytes(pdf_output), media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename={filename}"})
+    else:
+        return Response(content=pdf_output.encode('latin-1'), media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename={filename}"})
 
 @app.get("/analytics/department/{dept_id}/export")
 async def export_department_excel(dept_id: str, db: Session = Depends(get_db)):
@@ -2247,8 +2391,7 @@ async def export_department_excel(dept_id: str, db: Session = Depends(get_db)):
         "AI Verified",
         "Total Sessions",
         "Attendance %",
-        "Status",
-        "Verification Hash"
+        "Status"
     ])
 
     if session_ids:
@@ -2269,9 +2412,6 @@ async def export_department_excel(dept_id: str, db: Session = Depends(get_db)):
             perc = (att_count / total_s) * 100 if total_s > 0 else 0
             status = "Compliant" if perc >= 75 else "DEFAULTER"
 
-            # Row integrity hash
-            v_hash = hashlib.sha256(f"{s.registration_number}{att_count}{status}".encode()).hexdigest().upper()[:12]
-
             writer.writerow([
                 s.registration_number,
                 s.full_name,
@@ -2281,8 +2421,7 @@ async def export_department_excel(dept_id: str, db: Session = Depends(get_db)):
                 ai_count,
                 total_s,
                 f"{perc:.1f}%",
-                status,
-                f"ACAD-{v_hash}"
+                status
             ])
 
     return Response(
