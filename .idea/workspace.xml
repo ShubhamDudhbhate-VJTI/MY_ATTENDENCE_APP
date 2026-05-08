@@ -13,7 +13,6 @@
       <change afterPath="$PROJECT_DIR$/backend/update_it_schedule.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.gradle/buildOutputCleanup/buildOutputCleanup.lock" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/buildOutputCleanup/buildOutputCleanup.lock" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/example/dbms_shubham_application/screens/ReportsScreen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/example/dbms_shubham_application/screens/ReportsScreen.kt" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/backend/create_hod.py" beforeDir="false" afterPath="$PROJECT_DIR$/backend/create_hod.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/backend/import_classrooms.py" beforeDir="false" afterPath="$PROJECT_DIR$/backend/import_classrooms.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/backend/import_faculty.py" beforeDir="false" afterPath="$PROJECT_DIR$/backend/import_faculty.py" afterDir="false" />
