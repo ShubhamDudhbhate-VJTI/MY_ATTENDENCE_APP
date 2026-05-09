@@ -82,13 +82,13 @@ fun SplashScreen(navController: NavController) {
         contentAlignment = Alignment.Center
     ) {
         // Ambient Institutional Glow
-        val glowColor = MaterialTheme.colorScheme.primary
-        Canvas(modifier = Modifier.fillMaxSize().blur(100.dp).alpha(0.15f)) {
+        val glowColor = MaterialTheme.colorScheme.secondary
+        Canvas(modifier = Modifier.fillMaxSize().blur(80.dp).alpha(0.2f)) {
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(glowColor, Color.Transparent),
                     center = center,
-                    radius = size.minDimension * 0.9f
+                    radius = size.minDimension * 0.8f
                 )
             )
         }

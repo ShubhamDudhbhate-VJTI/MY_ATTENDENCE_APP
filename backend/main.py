@@ -1403,8 +1403,8 @@ async def export_session_pdf(session_id: str, student_id: Optional[str] = None, 
     pdf.ln(5)
 
     # Professional Table with Data Integrity Photos
-    pdf.chapter_title(\'Academic Attendance Register (Institutional)\')
-    pdf.set_font(\'helvetica\', \'B\', 9)
+    pdf.chapter_title('Academic Attendance Register (Institutional)')
+    pdf.set_font('helvetica', 'B', 9)
     pdf.set_fill_color(21, 101, 192) # Dark Blue
     pdf.set_text_color(255, 255, 255)
 

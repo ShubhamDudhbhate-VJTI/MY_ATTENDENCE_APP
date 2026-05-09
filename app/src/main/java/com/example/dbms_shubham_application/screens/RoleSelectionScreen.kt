@@ -38,25 +38,42 @@ import androidx.navigation.NavController
 
 @Composable
 fun RoleSelectionScreen(navController: NavController) {
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val secondaryColor = MaterialTheme.colorScheme.secondary
+    val backgroundColor = MaterialTheme.colorScheme.background
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(backgroundColor)
     ) {
+        // --- LUXURY BACKGROUND GRADIENT ---
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            primaryColor.copy(alpha = 0.05f),
+                            backgroundColor,
+                            secondaryColor.copy(alpha = 0.05f)
+                        )
+                    )
+                )
+        )
+
         // --- DECORATIVE AMBIENT GLOWS ---
         Box(modifier = Modifier.fillMaxSize()) {
             Box(
                 modifier = Modifier
-                    .size(300.dp)
-                    .offset(x = (-100).dp, y = (-50).dp)
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f), CircleShape)
-            )
-            Box(
-                modifier = Modifier
-                    .size(250.dp)
-                    .align(Alignment.BottomEnd)
-                    .offset(x = 100.dp, y = 50.dp)
-                    .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.15f), CircleShape)
+                    .size(400.dp)
+                    .offset(x = (-150).dp, y = (-100).dp)
+                    .background(
+                        Brush.radialGradient(
+                            listOf(primaryColor.copy(alpha = 0.12f), Color.Transparent)
+                        ),
+                        CircleShape
+                    )
             )
         }
         
@@ -65,64 +82,79 @@ fun RoleSelectionScreen(navController: NavController) {
                 .fillMaxSize()
                 .systemBarsPadding()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 28.dp, vertical = 24.dp),
+                .padding(horizontal = 24.dp, vertical = 32.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(32.dp)
+            verticalArrangement = Arrangement.spacedBy(40.dp)
         ) {
             // --- HEADER SECTION ---
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Modern Logo Container
+                // Glassmorphic Logo Container
                 Box(
                     modifier = Modifier
-                        .size(100.dp)
-                        .clip(RoundedCornerShape(30.dp))
+                        .size(110.dp)
+                        .clip(RoundedCornerShape(32.dp))
                         .background(
                             Brush.linearGradient(
-                                colors = listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.secondary)
+                                colors = listOf(primaryColor, secondaryColor)
                             )
                         )
-                        .border(1.dp, MaterialTheme.colorScheme.onBackground.copy(alpha = 0.3f), RoundedCornerShape(30.dp)),
+                        .padding(2.dp)
+                        .clip(RoundedCornerShape(30.dp))
+                        .background(backgroundColor)
+                        .padding(12.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.VerifiedUser,
-                        contentDescription = null,
-                        modifier = Modifier.size(48.dp),
-                        tint = MaterialTheme.colorScheme.onPrimary
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(Brush.linearGradient(listOf(primaryColor, secondaryColor))),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.VerifiedUser,
+                            contentDescription = null,
+                            modifier = Modifier.size(42.dp),
+                            tint = Color.White
+                        )
+                    }
+                }
+                
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "VJTI Portal",
+                        style = MaterialTheme.typography.displaySmall.copy(
+                            fontWeight = FontWeight.Black,
+                            letterSpacing = (-1).sp
+                        ),
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    
+                    Text(
+                        text = "Smart Attendance Management",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                            fontWeight = FontWeight.Medium
+                        ),
+                        textAlign = TextAlign.Center
                     )
                 }
                 
-                Spacer(modifier = Modifier.height(12.dp))
-                
-                Text(
-                    text = "VJTI Portal",
-                    style = MaterialTheme.typography.headlineLarge,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                
-                Text(
-                    text = "Academic Attendance System",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                        fontWeight = FontWeight.Medium
-                    ),
-                    textAlign = TextAlign.Center
-                )
-                
                 Surface(
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                    shape = RoundedCornerShape(20.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
+                    color = primaryColor.copy(alpha = 0.08f),
+                    shape = RoundedCornerShape(12.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, primaryColor.copy(alpha = 0.15f))
                 ) {
                     Text(
-                        text = "v2.0 Professional",
-                        fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+                        text = "V3.0 ENTERPRISE EDITION",
+                        fontSize = 10.sp,
+                        color = primaryColor,
+                        fontWeight = FontWeight.Black,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        letterSpacing = 1.sp
                     )
                 }
             }
@@ -130,14 +162,14 @@ fun RoleSelectionScreen(navController: NavController) {
             // --- ROLE CARDS SECTION ---
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(18.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 ProfessionalRoleCard(
                     icon = Icons.Default.Person,
                     title = "Student",
                     description = "Verify identity & track records",
-                    accentColor = MaterialTheme.colorScheme.primary,
+                    accentColor = secondaryColor,
                     onClick = { navController.navigate("login/student") }
                 )
                 
@@ -145,7 +177,7 @@ fun RoleSelectionScreen(navController: NavController) {
                     icon = Icons.Default.School,
                     title = "Faculty",
                     description = "Initialize & monitor sessions",
-                    accentColor = MaterialTheme.colorScheme.primary, // Using primary blue
+                    accentColor = primaryColor,
                     onClick = { navController.navigate("login/faculty") }
                 )
                 
@@ -153,29 +185,27 @@ fun RoleSelectionScreen(navController: NavController) {
                     icon = Icons.Default.AdminPanelSettings,
                     title = "HOD",
                     description = "Departmental management",
-                    accentColor = MaterialTheme.colorScheme.secondary,
+                    accentColor = primaryColor,
                     onClick = { navController.navigate("login/hod") }
                 )
             }
             
+            Spacer(modifier = Modifier.weight(1f))
+
             // --- FOOTER ---
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.padding(top = 20.dp)
             ) {
-                HorizontalDivider(
-                    color = MaterialTheme.colorScheme.outlineVariant,
-                    modifier = Modifier.width(40.dp).padding(bottom = 12.dp)
-                )
                 Text(
-                    text = "Department of Information Technology",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.labelMedium
+                    text = "DEPARTMENT OF INFORMATION TECHNOLOGY",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                    style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 2.sp)
                 )
                 Text(
                     text = "VEERMATA JIJABAI TECHNOLOGICAL INSTITUTE",
-                    color = MaterialTheme.colorScheme.primary,
-                    style = MaterialTheme.typography.labelMedium.copy(fontSize = 10.sp, letterSpacing = 1.sp)
+                    color = primaryColor.copy(alpha = 0.8f),
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
                 )
             }
         }
@@ -194,43 +224,44 @@ fun ProfessionalRoleCard(
     val isPressed by interactionSource.collectIsPressedAsState()
     
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.96f else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+        targetValue = if (isPressed) 0.97f else 1f,
+        animationSpec = spring(stiffness = Spring.StiffnessLow),
         label = "scale"
     )
 
-    Card(
+    Surface(
+        onClick = onClick,
+        interactionSource = interactionSource,
         modifier = Modifier
             .fillMaxWidth()
-            .height(100.dp)
-            .scale(scale)
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick
-            ),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.8f)),
-        shape = RoundedCornerShape(24.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
+            .height(110.dp)
+            .scale(scale),
+        shape = RoundedCornerShape(28.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = androidx.compose.foundation.BorderStroke(
+            1.dp, 
+            if(isPressed) accentColor.copy(alpha = 0.5f) else MaterialTheme.colorScheme.outline.copy(alpha = 0.1f)
+        ),
+        shadowElevation = if(isPressed) 0.dp else 2.dp
     ) {
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 20.dp),
+                .padding(horizontal = 24.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Icon Container
+            // Modern Glass Icon Container
             Box(
                 modifier = Modifier
-                    .size(56.dp)
-                    .background(accentColor.copy(alpha = 0.12f), RoundedCornerShape(18.dp))
-                    .border(1.dp, accentColor.copy(alpha = 0.25f), RoundedCornerShape(18.dp)),
+                    .size(64.dp)
+                    .clip(RoundedCornerShape(22.dp))
+                    .background(accentColor.copy(alpha = 0.1f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    modifier = Modifier.size(28.dp),
+                    modifier = Modifier.size(32.dp),
                     tint = accentColor
                 )
             }
@@ -240,15 +271,16 @@ fun ProfessionalRoleCard(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontWeight = FontWeight.ExtraBold,
+                        letterSpacing = (-0.5).sp
+                    ),
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
                     text = description,
-                    fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                    fontWeight = FontWeight.Medium
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                 )
             }
             
@@ -256,7 +288,7 @@ fun ProfessionalRoleCard(
                 imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                 contentDescription = null,
                 modifier = Modifier.size(20.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                tint = accentColor.copy(alpha = 0.4f)
             )
         }
     }

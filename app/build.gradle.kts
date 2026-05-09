@@ -20,8 +20,9 @@ android {
 
     buildTypes {
         debug {
-            resValue("string", "app_name", "AttendX (Local)")
-            buildConfigField("String", "BASE_URL", "\"http://10.143.103.244:8000/\"")
+            resValue("string", "app_name", "AttendX (Debug)")
+            buildConfigField("String", "BASE_URL", "\"http://127.0.0.1:8000/\"")
+//              buildConfigField("String", "BASE_URL", "\"http://10.143.103.244:8000/\"")
         }
         release {
             isMinifyEnabled = true
@@ -32,7 +33,7 @@ android {
                 "proguard-rules.pro"
             )
             // Updated to use the correct Render URL without typos
-            buildConfigField("String", "BASE_URL", "\"https://sd-backend-attenedence-app.onrender.com/\"")
+            buildConfigField("String", "BASE_URL", "\"https://sd-backend-attendance-app.onrender.com/\"")
             signingConfig = signingConfigs.getByName("debug")
         }
     }

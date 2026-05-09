@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -30,8 +31,6 @@ import com.example.dbms_shubham_application.network.RetrofitClient
 import com.example.dbms_shubham_application.ui.components.ModernTextField
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-
-// Removed hardcoded colors, using MaterialTheme.colorScheme instead
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -46,109 +45,179 @@ fun SignUpScreen(navController: NavController, role: String) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
+    // Get colors from theme
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val secondaryColor = MaterialTheme.colorScheme.secondary
+    val backgroundColor = MaterialTheme.colorScheme.background
+    val onBackground = MaterialTheme.colorScheme.onBackground
+    val surfaceColor = MaterialTheme.colorScheme.surface
+    val outlineColor = MaterialTheme.colorScheme.outline
+
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(backgroundColor)
     ) {
+        // --- LUXURY BACKGROUND GRADIENT ---
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            primaryColor.copy(alpha = 0.05f),
+                            backgroundColor,
+                            secondaryColor.copy(alpha = 0.05f)
+                        )
+                    )
+                )
+        )
+
         // Decorative background elements
         Box(
             modifier = Modifier
-                .size(300.dp)
-                .offset(x = 200.dp, y = (-100).dp)
-                .background(MaterialTheme.colorScheme.tertiary.copy(alpha = 0.1f), CircleShape)
+                .size(350.dp)
+                .offset(x = 180.dp, y = (-120).dp)
+                .background(
+                    Brush.radialGradient(
+                        listOf(primaryColor.copy(alpha = 0.12f), Color.Transparent)
+                    ),
+                    CircleShape
+                )
         )
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 24.dp)
+                .systemBarsPadding()
+                .padding(horizontal = 28.dp)
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(modifier = Modifier.height(60.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
-            // Rebranded Logo/Header
+            // Back Button Row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Start
+            ) {
+                IconButton(
+                    onClick = { navController.navigateUp() },
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .background(onBackground.copy(alpha = 0.05f))
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        tint = onBackground
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Enterprise-grade Logo Container
             Box(
                 modifier = Modifier
-                    .size(80.dp)
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(Brush.linearGradient(listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.tertiary)))
-                    .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(20.dp)),
+                    .size(90.dp)
+                    .clip(RoundedCornerShape(28.dp))
+                    .background(
+                        Brush.linearGradient(
+                            colors = listOf(primaryColor, secondaryColor)
+                        )
+                    )
+                    .padding(2.dp)
+                    .clip(RoundedCornerShape(26.dp))
+                    .background(backgroundColor)
+                    .padding(8.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Default.PersonAdd, null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(40.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Brush.linearGradient(listOf(primaryColor, secondaryColor))),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.PersonAdd,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(36.dp)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
 
             Text(
-                text = "Join AttendX",
-                fontSize = 32.sp,
-                fontWeight = FontWeight.Black,
-                color = MaterialTheme.colorScheme.onBackground,
-                letterSpacing = (-1).sp
+                text = "Create Account",
+                style = MaterialTheme.typography.displaySmall.copy(
+                    fontWeight = FontWeight.Black,
+                    letterSpacing = (-1).sp
+                ),
+                color = onBackground
             )
             
             Text(
-                text = "Create your ${role} account to get started",
-                fontSize = 15.sp,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
-                modifier = Modifier.padding(top = 8.dp, bottom = 40.dp)
+                text = "Register as ${role.replaceFirstChar { it.uppercase() }} to access VJTI Portal",
+                style = MaterialTheme.typography.titleMedium.copy(
+                    color = onBackground.copy(alpha = 0.5f),
+                    fontWeight = FontWeight.Medium
+                ),
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(top = 4.dp, bottom = 40.dp)
             )
 
-            ModernTextField(
-                value = userIdInput,
-                onValueChange = { userIdInput = it },
-                label = if (role.lowercase() == "student") "Registration Number" else "Employee ID",
-                icon = Icons.Default.Badge,
-                colors = Pair(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.outline),
-                textColor = MaterialTheme.colorScheme.onBackground,
-                surfaceColor = MaterialTheme.colorScheme.surface
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
+                ModernTextField(
+                    value = userIdInput,
+                    onValueChange = { userIdInput = it },
+                    label = if (role.lowercase() == "student") "Registration Number" else "Employee ID",
+                    icon = Icons.Default.Badge,
+                    colors = primaryColor to outlineColor,
+                    textColor = onBackground,
+                    surfaceColor = surfaceColor
+                )
 
-            Spacer(modifier = Modifier.height(20.dp))
+                ModernTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = "Full Name",
+                    icon = Icons.Default.Person,
+                    colors = primaryColor to outlineColor,
+                    textColor = onBackground,
+                    surfaceColor = surfaceColor
+                )
 
-            ModernTextField(
-                value = name,
-                onValueChange = { name = it },
-                label = "Full Name",
-                icon = Icons.Default.Person,
-                colors = Pair(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.outline),
-                textColor = MaterialTheme.colorScheme.onBackground,
-                surfaceColor = MaterialTheme.colorScheme.surface
-            )
+                ModernTextField(
+                    value = email,
+                    onValueChange = { email = it },
+                    label = "Institutional Email",
+                    icon = Icons.Default.Email,
+                    keyboardType = KeyboardType.Email,
+                    colors = primaryColor to outlineColor,
+                    textColor = onBackground,
+                    surfaceColor = surfaceColor
+                )
 
-            Spacer(modifier = Modifier.height(20.dp))
+                ModernTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = "Password",
+                    icon = Icons.Default.Lock,
+                    keyboardType = KeyboardType.Password,
+                    isPassword = true,
+                    passwordVisible = passwordVisible,
+                    onPasswordToggle = { passwordVisible = !passwordVisible },
+                    colors = primaryColor to outlineColor,
+                    textColor = onBackground,
+                    surfaceColor = surfaceColor
+                )
+            }
 
-            ModernTextField(
-                value = email,
-                onValueChange = { email = it },
-                label = "Institutional Email",
-                icon = Icons.Default.Email,
-                keyboardType = KeyboardType.Email,
-                colors = Pair(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.outline),
-                textColor = MaterialTheme.colorScheme.onBackground,
-                surfaceColor = MaterialTheme.colorScheme.surface
-            )
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            ModernTextField(
-                value = password,
-                onValueChange = { password = it },
-                label = "Password",
-                icon = Icons.Default.Lock,
-                keyboardType = KeyboardType.Password,
-                isPassword = true,
-                passwordVisible = passwordVisible,
-                onPasswordToggle = { passwordVisible = !passwordVisible },
-                colors = Pair(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.outline),
-                textColor = MaterialTheme.colorScheme.onBackground,
-                surfaceColor = MaterialTheme.colorScheme.surface
-            )
-
-            Spacer(modifier = Modifier.height(40.dp))
+            Spacer(modifier = Modifier.height(48.dp))
 
             Button(
                 onClick = {
@@ -192,33 +261,37 @@ fun SignUpScreen(navController: NavController, role: String) {
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                shape = RoundedCornerShape(16.dp),
+                    .height(60.dp)
+                    .clip(RoundedCornerShape(20.dp)),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if(role.lowercase() == "student") secondaryColor else primaryColor,
+                    contentColor = Color.White
+                ),
+                shape = RoundedCornerShape(20.dp),
                 enabled = !isLoading
             ) {
                 if (isLoading) {
-                    CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                    CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp), strokeWidth = 3.dp)
                 } else {
-                    Text("Create Account", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.onPrimary)
+                    Text("Register Now", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
                 }
             }
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Already have an account?", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f), fontSize = 14.sp)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(bottom = 40.dp)
+            ) {
+                Text("Already have an account?", color = onBackground.copy(alpha = 0.6f), fontSize = 14.sp)
                 Text(
                     text = " Sign In",
-                    color = MaterialTheme.colorScheme.primary,
+                    color = primaryColor,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.ExtraBold,
                     modifier = Modifier.clickable { navController.navigateUp() }
                 )
             }
-            
-            Spacer(modifier = Modifier.height(40.dp))
         }
     }
 }
-

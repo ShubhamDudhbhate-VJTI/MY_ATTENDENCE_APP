@@ -171,14 +171,43 @@ fun DashboardScreen(navController: NavController, role: String) {
         bottomBar = { BottomNavBar(navController, role) },
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
-        PullToRefreshBox(
-            isRefreshing = isLoading && refreshCount > 0,
-            onRefresh = { 
-                isLoading = true
-                refreshCount++
-            },
-            modifier = Modifier.fillMaxSize().padding(innerPadding)
-        ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            // --- LUXURY BACKGROUND GRADIENT ---
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.05f),
+                                MaterialTheme.colorScheme.background,
+                                MaterialTheme.colorScheme.secondary.copy(alpha = 0.03f)
+                            )
+                        )
+                    )
+            )
+
+            // --- AMBIENT GLOWS ---
+            Box(
+                modifier = Modifier
+                    .size(350.dp)
+                    .offset(x = (-150).dp, y = (-100).dp)
+                    .background(
+                        Brush.radialGradient(
+                            listOf(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f), Color.Transparent)
+                        ),
+                        CircleShape
+                    )
+            )
+
+            PullToRefreshBox(
+                isRefreshing = isLoading && refreshCount > 0,
+                onRefresh = { 
+                    isLoading = true
+                    refreshCount++
+                },
+                modifier = Modifier.fillMaxSize().padding(innerPadding)
+            ) {
             if (isLoading && refreshCount == 0) {
                 DashboardShimmer()
             } else {
@@ -196,10 +225,15 @@ fun DashboardScreen(navController: NavController, role: String) {
                             Box(modifier = Modifier
                                 .fillMaxWidth()
                                 .background(
-                                    Brush.verticalGradient(listOf(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f), Color.Transparent))
+                                    Brush.verticalGradient(
+                                        listOf(
+                                            MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+                                            Color.Transparent
+                                        )
+                                    )
                                 )
                                 .statusBarsPadding()
-                                .padding(20.dp)
+                                .padding(horizontal = 24.dp, vertical = 20.dp)
                             ) {
                                 HeaderSection(navController, unreadNotificationsCount)
                             }
@@ -248,79 +282,50 @@ fun DashboardScreen(navController: NavController, role: String) {
                         if (normalizedRole == "student") {
                             Column(verticalArrangement = Arrangement.spacedBy(28.dp)) {
                                 StudentStatsRow(studentHistory, isLoading)
+                                QuickActionsSection(navController, modifier = Modifier.padding(horizontal = 24.dp))
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 24.dp).fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                ) {
+                                    ModernRecentAttendanceCard(modifier = Modifier.weight(1f), history = studentHistory)
+                                    ModernScheduleCard(modifier = Modifier.weight(1f), schedule = todaySchedule) {
+                                        navController.navigate("student_schedule")
+                                    }
+                                }
                                 SubjectAttendanceSection(subjectAttendance, isLoading, navController)
                             }
                         } else if (normalizedRole == "hod") {
-                            HODStatsSection(isLoading, deptAnalytics)
-                        } else {
-                            FacultyStatsRow(facultySessions, todaySchedule, isLoading)
-                        }
-                    }
-
-                    // Actions Section
-                    item {
-                        when (normalizedRole) {
-                            "student" -> QuickActionsSection(navController, modifier = Modifier.padding(horizontal = 24.dp))
-                            "faculty" -> FacultyManagementSection(navController, modifier = Modifier.padding(horizontal = 24.dp))
-                            "hod" -> HODActionsSection(
-                                navController = navController, 
-                                modifier = Modifier.padding(horizontal = 24.dp),
-                                branch = userProfile?.academic?.get("branch") ?: ""
-                            )
-                        }
-                    }
-
-                    // Main Content Cards
-                    item {
-                        Column(
-                            modifier = Modifier.padding(horizontal = 24.dp),
-                            verticalArrangement = Arrangement.spacedBy(20.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(16.dp)
-                            ) {
-                                if (normalizedRole == "student") {
-                                    ModernRecentAttendanceCard(
-                                        modifier = Modifier.weight(1f),
-                                        history = studentHistory
-                                    )
-                                } else {
-                                    ModernRecentSessionsCard(
-                                        modifier = Modifier.weight(1f),
-                                        sessions = facultySessions
-                                    )
-                                }
-                                ModernScheduleCard(
-                                    modifier = Modifier.weight(1f),
-                                    schedule = todaySchedule,
-                                    onViewAll = {
-                                        if (normalizedRole == "faculty") navController.navigate("faculty_classes")
-                                    }
+                            Column(verticalArrangement = Arrangement.spacedBy(28.dp)) {
+                                HODStatsSection(isLoading, deptAnalytics)
+                                HODActionsSection(
+                                    navController = navController, 
+                                    modifier = Modifier.padding(horizontal = 24.dp),
+                                    branch = userProfile?.academic?.get("branch") ?: ""
                                 )
+                            }
+                        } else {
+                            Column(verticalArrangement = Arrangement.spacedBy(28.dp)) {
+                                FacultyStatsRow(facultySessions, todaySchedule, isLoading)
+                                FacultyManagementSection(navController, modifier = Modifier.padding(horizontal = 24.dp))
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 24.dp).fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                ) {
+                                    ModernRecentSessionsCard(modifier = Modifier.weight(1f), sessions = facultySessions)
+                                    ModernScheduleCard(modifier = Modifier.weight(1f), schedule = todaySchedule) {
+                                        navController.navigate("faculty_schedule")
+                                    }
+                                }
                             }
                         }
                     }
                 }
             }
-
-            // Floating "Mark Attendance" for Students
-            if (normalizedRole == "student") {
-                ExtendedFloatingActionButton(
-                    onClick = { navController.navigate("mark_attendance") },
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(bottom = 24.dp, end = 16.dp)
-                        .shadow(12.dp, CircleShape, spotColor = MaterialTheme.colorScheme.primary),
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                    icon = { Icon(Icons.Default.QrCodeScanner, null) },
-                    text = { Text("Mark Attendance", fontWeight = FontWeight.Bold) }
-                )
-            }
         }
     }
 }
+}
+
 
 @Composable
 fun HeaderSection(navController: NavController, unreadCount: Int) {
@@ -385,9 +390,9 @@ fun HeaderSection(navController: NavController, unreadCount: Int) {
             ) {
                 Icon(Icons.Default.Person, null, tint = MaterialTheme.colorScheme.onPrimary)
             }
+            }
         }
     }
-}
 }
 
 @Composable
@@ -653,8 +658,8 @@ fun QuickActionsSection(navController: NavController, modifier: Modifier = Modif
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            ModernActionItem("Schedule", Icons.Default.CalendarMonth, MaterialTheme.colorScheme.primary, Modifier.weight(1f)) {
-                 /* TODO */
+            ModernActionItem("Mark Attendance", Icons.Default.QrCodeScanner, MaterialTheme.colorScheme.primary, Modifier.weight(1f)) {
+                navController.navigate("mark_attendance")
             }
             ModernActionItem("History", Icons.Default.History, MaterialTheme.colorScheme.secondary, Modifier.weight(1f)) {
                 navController.navigate("attendance_history")
@@ -907,35 +912,34 @@ fun ModernActionItem(label: String, icon: ImageVector, color: Color, modifier: M
 @Composable
 fun ModernRecentAttendanceCard(modifier: Modifier = Modifier, history: List<AttendanceRecord>) {
     Card(
-        modifier = modifier.height(200.dp),
+        modifier = modifier.height(180.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         shape = RoundedCornerShape(28.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
     ) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            Text("Latest Log", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-            Spacer(modifier = Modifier.height(16.dp))
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.SpaceBetween) {
+            Text("Latest Log", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             
             if (history.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("No logs", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), fontSize = 12.sp)
+                    Text("No logs", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                 }
             } else {
                 val latest = history.first()
                 val isPresent = latest.status.lowercase() == "present"
                 val statusColor = if (isPresent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column {
                     Text(
                         text = latest.subject_name.ifEmpty { latest.subject_id },
-                        fontSize = 18.sp,
+                        style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Black,
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    Text(latest.timestamp.take(10), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                    Text(latest.timestamp.take(10), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                     
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
                     Surface(
                         color = statusColor.copy(alpha = 0.15f),
                         shape = RoundedCornerShape(8.dp)
@@ -943,7 +947,7 @@ fun ModernRecentAttendanceCard(modifier: Modifier = Modifier, history: List<Atte
                         Text(
                             latest.status.uppercase(),
                             color = statusColor,
-                            fontSize = 11.sp,
+                            style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Black,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                         )
@@ -957,27 +961,31 @@ fun ModernRecentAttendanceCard(modifier: Modifier = Modifier, history: List<Atte
 @Composable
 fun ModernRecentSessionsCard(modifier: Modifier = Modifier, sessions: List<FacultySessionRecord>) {
     Card(
-        modifier = modifier.height(200.dp),
+        modifier = modifier.height(180.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         shape = RoundedCornerShape(28.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
     ) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            Text("Last Class", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-            Spacer(modifier = Modifier.height(16.dp))
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.SpaceBetween) {
+            Text("Last Class", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
             
             if (sessions.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("No sessions", color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f), fontSize = 12.sp)
+                    Text("No sessions", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                 }
             } else {
                 val latest = sessions.first()
                 val displayName = latest.subject_name.ifEmpty { latest.subject_id }
                 Column {
-                    Text(displayName, fontSize = 18.sp, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text("${latest.student_count} Present", fontSize = 14.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                    Text(displayName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text("${latest.student_count} Students", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(12.dp))
-                    Text("COMPLETED", fontSize = 10.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Black)
+                    Surface(
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("COMPLETED", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Black, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
+                    }
                 }
             }
         }
@@ -987,26 +995,29 @@ fun ModernRecentSessionsCard(modifier: Modifier = Modifier, sessions: List<Facul
 @Composable
 fun ModernScheduleCard(modifier: Modifier = Modifier, schedule: List<ScheduleRecord>, onViewAll: () -> Unit) {
     Card(
-        modifier = modifier.height(200.dp).clickable { onViewAll() },
+        modifier = modifier.height(180.dp).clickable { onViewAll() },
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         shape = RoundedCornerShape(28.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
     ) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            Text("Up Next", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-            Spacer(modifier = Modifier.height(16.dp))
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.SpaceBetween) {
+            Text("Up Next", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.secondary)
             
             if (schedule.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("Free Day", color = MaterialTheme.colorScheme.primary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Text("Free Day", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                 }
             } else {
                 val next = schedule.first()
                 Column {
-                    Text(next.time, fontSize = 11.sp, color = MaterialTheme.colorScheme.secondary, fontWeight = FontWeight.Bold)
-                    Text(next.subject, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(next.room, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                    Text(next.time, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary, fontWeight = FontWeight.Bold)
+                    Text(next.subject, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Place, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(next.room, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                    }
                 }
             }
         }
@@ -1200,6 +1211,7 @@ fun BottomNavBar(navController: NavController, role: String) {
             "student" -> {
                 listOf(
                     Triple("Home", Icons.Default.GridView, "dashboard/student"),
+                    Triple("Mark", Icons.Default.QrCodeScanner, "mark_attendance"),
                     Triple("Log", Icons.AutoMirrored.Filled.Assignment, "attendance_history"),
                     Triple("Alert", Icons.Default.NotificationsNone, "alerts")
                 )
@@ -1230,9 +1242,17 @@ fun BottomNavBar(navController: NavController, role: String) {
             val selected = currentRoute == route
             NavigationBarItem(
                 icon = { Icon(icon, null, modifier = Modifier.size(24.dp)) },
-                label = { Text(label, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal) },
+                label = { 
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                        maxLines = 1
+                    ) 
+                },
                 selected = selected,
-                onClick = { if (route.isNotEmpty()) navController.navigate(route) },
+                alwaysShowLabel = true,
+                onClick = { if (route.isNotEmpty() && currentRoute != route) navController.navigate(route) },
                 colors = NavigationBarItemDefaults.colors(
                     selectedIconColor = MaterialTheme.colorScheme.primary,
                     selectedTextColor = MaterialTheme.colorScheme.primary,

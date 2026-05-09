@@ -3,15 +3,15 @@ package com.example.dbms_shubham_application.ui.theme
 import androidx.compose.ui.graphics.Color
 
 // VJTI Institutional Palette - Deep Blue & Academic Gold
-val LightPrimary = Color(0xFF0D47A1) // Deep Institutional Blue
+val LightPrimary = Color(0xFF003366) // Deep Navy Blue (Trust/Professional)
 val LightOnPrimary = Color(0xFFFFFFFF)
-val LightPrimaryContainer = Color(0xFFE3F2FD) 
-val LightOnPrimaryContainer = Color(0xFF001945)
+val LightPrimaryContainer = Color(0xFFD1E3FF) 
+val LightOnPrimaryContainer = Color(0xFF001D36)
 
-val LightSecondary = Color(0xFFB8860B) // Dark Goldenrod (Academic Gold)
+val LightSecondary = Color(0xFFE65100) // Deep Burnt Orange (Modern/Vibrant)
 val LightOnSecondary = Color(0xFFFFFFFF)
-val LightSecondaryContainer = Color(0xFFFFF9C4)
-val LightOnSecondaryContainer = Color(0xFF212121)
+val LightSecondaryContainer = Color(0xFFFFE0B2)
+val LightOnSecondaryContainer = Color(0xFF4E2600)
 
 val LightTertiary = Color(0xFF455A64) // Blue Gray
 val LightOnTertiary = Color(0xFFFFFFFF)
@@ -27,15 +27,15 @@ val LightSurfaceVariant = Color(0xFFF1F3F5)
 val LightOnSurfaceVariant = Color(0xFF495057)
 
 // Dark Theme - Sophisticated Midnight
-val DarkPrimary = Color(0xFF42A5F5) 
-val DarkOnPrimary = Color(0xFF002147)
-val DarkPrimaryContainer = Color(0xFF0D47A1)
+val DarkPrimary = Color(0xFF64B5F6) 
+val DarkOnPrimary = Color(0xFF001D36)
+val DarkPrimaryContainer = Color(0xFF004481)
 val DarkOnPrimaryContainer = Color(0xFFD1E4FF)
 
-val DarkSecondary = Color(0xFFFFD700) // Bright Gold
-val DarkOnSecondary = Color(0xFF3E2723)
-val DarkSecondaryContainer = Color(0xFF5D4037)
-val DarkOnSecondaryContainer = Color(0xFFFFE082)
+val DarkSecondary = Color(0xFFFFB74D) // Soft Orange for Dark Mode
+val DarkOnSecondary = Color(0xFF4E2600)
+val DarkSecondaryContainer = Color(0xFF943800)
+val DarkOnSecondaryContainer = Color(0xFFFFE0B2)
 
 val DarkTertiary = Color(0xFF90A4AE)
 val DarkOnTertiary = Color(0xFF263238)

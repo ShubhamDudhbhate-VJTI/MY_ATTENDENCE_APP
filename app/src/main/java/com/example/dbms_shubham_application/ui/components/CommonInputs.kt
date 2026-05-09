@@ -3,8 +3,9 @@ package com.example.dbms_shubham_application.ui.components
 import android.app.DatePickerDialog
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -46,16 +47,26 @@ fun ModernTextField(
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
-        label = { Text(label, color = textColor.copy(alpha = 0.5f), fontSize = 14.sp) },
-        placeholder = placeholder?.let { { Text(it, color = textColor.copy(alpha = 0.4f), fontSize = 14.sp) } },
-        leadingIcon = { Icon(icon, contentDescription = null, tint = primary, modifier = Modifier.size(20.dp)) },
+        label = { Text(label, fontWeight = FontWeight.SemiBold) },
+        placeholder = placeholder?.let { { Text(it, color = textColor.copy(alpha = 0.4f)) } },
+        leadingIcon = { 
+            Surface(
+                color = primary.copy(alpha = 0.08f),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.padding(8.dp).size(36.dp)
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(icon, contentDescription = null, tint = primary, modifier = Modifier.size(18.dp))
+                }
+            }
+        },
         trailingIcon = {
             if (isPassword) {
                 IconButton(onClick = onPasswordToggle) {
                     Icon(
                         imageVector = if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
                         contentDescription = null,
-                        tint = textColor.copy(alpha = 0.5f),
+                        tint = primary.copy(alpha = 0.5f),
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -66,14 +77,14 @@ fun ModernTextField(
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = primary,
-            unfocusedBorderColor = outline.copy(alpha = 0.3f),
+            unfocusedBorderColor = outline.copy(alpha = 0.15f),
             cursorColor = primary,
             focusedTextColor = textColor,
             unfocusedTextColor = textColor,
-            focusedContainerColor = surfaceColor,
-            unfocusedContainerColor = surfaceColor,
+            focusedContainerColor = primary.copy(alpha = 0.02f),
+            unfocusedContainerColor = Color.Transparent,
             focusedLabelColor = primary,
-            unfocusedLabelColor = textColor.copy(alpha = 0.5f)
+            unfocusedLabelColor = textColor.copy(alpha = 0.4f)
         ),
         shape = RoundedCornerShape(20.dp),
         singleLine = singleLine,

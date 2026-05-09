@@ -90,29 +90,44 @@ fun LoginScreen(navController: NavController, role: String) {
                 visible = visible,
                 enter = fadeIn(tween(600)) + slideInVertically(initialOffsetY = { -40 }, animationSpec = tween(600))
             ) {
-                // Logo/Icon with Gradient
+                // Enterprise-grade Logo Container
                 Box(
                     modifier = Modifier
-                        .size(90.dp)
-                        .clip(RoundedCornerShape(24.dp))
-                        .background(Brush.linearGradient(listOf(primaryColor, secondaryColor)))
-                        .border(1.dp, onBackground.copy(alpha = 0.2f), RoundedCornerShape(24.dp)),
+                        .size(100.dp)
+                        .clip(RoundedCornerShape(32.dp))
+                        .background(
+                            Brush.linearGradient(
+                                colors = listOf(primaryColor, secondaryColor)
+                            )
+                        )
+                        .padding(2.dp)
+                        .clip(RoundedCornerShape(30.dp))
+                        .background(backgroundColor)
+                        .padding(8.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = when(role.lowercase()) {
-                            "student" -> Icons.Default.Person
-                            "faculty" -> Icons.Default.School
-                            else -> Icons.Default.AdminPanelSettings
-                        },
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(44.dp)
-                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(RoundedCornerShape(22.dp))
+                            .background(Brush.linearGradient(listOf(primaryColor, secondaryColor))),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = when(role.lowercase()) {
+                                "student" -> Icons.Default.Person
+                                "faculty" -> Icons.Default.School
+                                else -> Icons.Default.AdminPanelSettings
+                            },
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(40.dp)
+                        )
+                    }
                 }
             }
             
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(28.dp))
             
             AnimatedVisibility(
                 visible = visible,
@@ -121,17 +136,20 @@ fun LoginScreen(navController: NavController, role: String) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
                         text = "${role.replaceFirstChar { it.uppercase() }} Access",
-                        style = MaterialTheme.typography.headlineLarge,
+                        style = MaterialTheme.typography.displaySmall.copy(
+                            fontWeight = FontWeight.Black,
+                            letterSpacing = (-1).sp
+                        ),
                         color = onBackground
                     )
                     
                     Text(
                         text = "Sign in to VJTI Academic Portal",
                         style = MaterialTheme.typography.titleMedium.copy(
-                            color = onBackground.copy(alpha = 0.6f),
+                            color = onBackground.copy(alpha = 0.5f),
                             fontWeight = FontWeight.Medium
                         ),
-                        modifier = Modifier.padding(top = 8.dp, bottom = 48.dp)
+                        modifier = Modifier.padding(top = 4.dp, bottom = 40.dp)
                     )
                 }
             }
@@ -240,8 +258,8 @@ fun LoginScreen(navController: NavController, role: String) {
                                 }
                             } catch (e: Exception) {
                                 val errorMsg = when (e) {
-                                    is java.net.SocketTimeoutException -> "Connection Timeout: Check your Wi-Fi signal."
-                                    is java.net.ConnectException -> "Cannot reach Server: Ensure PC and Mobile are on same Wi-Fi."
+                                    is java.net.SocketTimeoutException -> "Connection Timeout: Check your USB connection."
+                                    is java.net.ConnectException -> "Cannot reach Server: Run 'adb reverse tcp:8000 tcp:8000'."
                                     is java.io.IOException -> "Network Error: ${e.localizedMessage}"
                                     else -> "Error: ${e.message}"
                                 }
@@ -256,8 +274,8 @@ fun LoginScreen(navController: NavController, role: String) {
                         .height(60.dp)
                         .clip(RoundedCornerShape(20.dp)),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = primaryColor,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
+                        containerColor = if(role.lowercase() == "student") secondaryColor else primaryColor,
+                        contentColor = Color.White
                     ),
                     shape = RoundedCornerShape(20.dp),
                     enabled = !isLoading && username.isNotBlank() && password.isNotBlank()
