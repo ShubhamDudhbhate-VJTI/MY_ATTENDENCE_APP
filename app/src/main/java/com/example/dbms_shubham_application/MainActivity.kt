@@ -55,14 +55,22 @@ import android.util.Log
 class MainActivity : ComponentActivity() {
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val audioAttributes = android.media.AudioAttributes.Builder()
+                .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION)
+                .build()
+
             val channel = NotificationChannel(
-                MyFirebaseMessagingService.CHANNEL_ID,
-                MyFirebaseMessagingService.CHANNEL_NAME,
+                "attendx_urgent_v4",
+                "Urgent Notifications",
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
                 description = "Urgent alerts and attendance notifications"
                 enableLights(true)
                 enableVibration(true)
+                setShowBadge(true)
+                setSound(android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_NOTIFICATION), audioAttributes)
+                lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
             }
             val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.createNotificationChannel(channel)

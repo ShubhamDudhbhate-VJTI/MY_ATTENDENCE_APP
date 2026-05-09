@@ -1,6 +1,14 @@
 package com.example.dbms_shubham_application.screens
 
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.media.MediaPlayer
+import android.media.RingtoneManager
 import android.util.Log
+import android.os.Build
+import androidx.core.content.ContextCompat
 import android.widget.Toast
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
@@ -95,6 +103,64 @@ fun DashboardScreen(navController: NavController, role: String) {
 
     var userProfile by remember { mutableStateOf<com.example.dbms_shubham_application.data.model.UserProfile?>(null) }
     
+    // Notification Popup State
+    var showInAppNotification by remember { mutableStateOf(false) }
+    var lastNotificationTitle by remember { mutableStateOf("") }
+    var lastNotificationMessage by remember { mutableStateOf("") }
+
+    // Register broadcast receiver for in-app notifications
+    DisposableEffect(context) {
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                lastNotificationTitle = intent.getStringExtra("title") ?: "Notification"
+                lastNotificationMessage = intent.getStringExtra("message") ?: ""
+                showInAppNotification = true
+                
+                // Play notification sound
+                try {
+                    val notificationUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+                    val mp = MediaPlayer.create(context, notificationUri)
+                    mp?.setOnCompletionListener { it.release() }
+                    mp?.start()
+                } catch (e: Exception) {
+                    Log.e("DashboardScreen", "Error playing sound", e)
+                }
+            }
+        }
+        
+        val filter = IntentFilter("com.example.attendx.NOTIFICATION_RECEIVED")
+        
+        // Use ContextCompat for safe registration
+        ContextCompat.registerReceiver(
+            context,
+            receiver,
+            filter,
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
+        
+        onDispose {
+            context.unregisterReceiver(receiver)
+        }
+    }
+
+    // In-App Notification Dialog
+    if (showInAppNotification) {
+        AlertDialog(
+            onDismissRequest = { showInAppNotification = false },
+            icon = { Icon(Icons.Default.Notifications, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+            title = { Text(lastNotificationTitle, fontWeight = FontWeight.Bold) },
+            text = { Text(lastNotificationMessage) },
+            confirmButton = {
+                TextButton(onClick = { showInAppNotification = false }) {
+                    Text("Dismiss")
+                }
+            },
+            shape = RoundedCornerShape(24.dp),
+            containerColor = MaterialTheme.colorScheme.surface,
+            tonalElevation = 8.dp
+        )
+    }
+
     // Use a key for refreshing
     var refreshCount by remember { mutableIntStateOf(0) }
 
@@ -325,7 +391,6 @@ fun DashboardScreen(navController: NavController, role: String) {
     }
 }
 }
-
 
 @Composable
 fun HeaderSection(navController: NavController, unreadCount: Int) {

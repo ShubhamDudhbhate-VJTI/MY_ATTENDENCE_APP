@@ -36,7 +36,7 @@
 
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
-            android:value="attendx_urgent_v2" />
+            android:value="attendx_urgent_v3" />
 
         <activity
             android:name=".MainActivity"

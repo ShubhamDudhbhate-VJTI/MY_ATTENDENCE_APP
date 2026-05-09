@@ -6,6 +6,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.media.AudioAttributes
 import android.media.RingtoneManager
 import androidx.core.app.NotificationCompat
 import com.example.dbms_shubham_application.MainActivity
@@ -16,23 +17,25 @@ import com.google.firebase.messaging.RemoteMessage
 class MyFirebaseMessagingService : FirebaseMessagingService() {
 
     companion object {
-        const val CHANNEL_ID = "attendx_urgent_v2"
+        const val CHANNEL_ID = "attendx_urgent_v4"
         const val CHANNEL_NAME = "Urgent Notifications"
     }
 
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         super.onMessageReceived(remoteMessage)
 
-        remoteMessage.notification?.let {
-            showNotification(it.title, it.body)
-        } ?: run {
-            if (remoteMessage.data.isNotEmpty()) {
-                val title = remoteMessage.data["title"]
-                val message = remoteMessage.data["message"]
-                if (title != null || message != null) {
-                    showNotification(title, message)
-                }
+        val title = remoteMessage.notification?.title ?: remoteMessage.data["title"]
+        val message = remoteMessage.notification?.body ?: remoteMessage.data["message"]
+
+        if (title != null || message != null) {
+            showNotification(title, message)
+            
+            // Send local broadcast for in-app popup
+            val intent = Intent("com.example.attendx.NOTIFICATION_RECEIVED").apply {
+                putExtra("title", title)
+                putExtra("message", message)
             }
+            sendBroadcast(intent)
         }
     }
 
@@ -40,6 +43,11 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val attributes = AudioAttributes.Builder()
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                .build()
+
             val channel = NotificationChannel(
                 CHANNEL_ID,
                 CHANNEL_NAME,
@@ -49,6 +57,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                 enableLights(true)
                 enableVibration(true)
                 setShowBadge(true)
+                setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION), attributes)
                 lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
             }
             notificationManager.createNotificationChannel(channel)
@@ -78,16 +87,17 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         val defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
         
         val notificationBuilder = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_dialog_info) // Standard system icon for testing
+            .setSmallIcon(R.drawable.ic_launcher_foreground) // Use app icon
             .setContentTitle(title ?: "AttendX Notification")
             .setContentText(message ?: "You have a new update")
             .setAutoCancel(true)
             .setSound(defaultSoundUri)
-            .setVibrate(longArrayOf(0, 500, 200, 500))
+            .setVibrate(longArrayOf(0, 500, 250, 500))
             .setPriority(NotificationCompat.PRIORITY_MAX) 
             .setDefaults(NotificationCompat.DEFAULT_ALL)
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setOnlyAlertOnce(false)
             .setContentIntent(pendingIntent)
             .addAction(android.R.drawable.ic_menu_delete, "Delete", deletePendingIntent)
 
