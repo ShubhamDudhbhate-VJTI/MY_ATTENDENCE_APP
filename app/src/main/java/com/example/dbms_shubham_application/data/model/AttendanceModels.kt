@@ -1,198 +1,200 @@
 package com.example.dbms_shubham_application.data.model
 
+import com.google.gson.annotations.SerializedName
+
 data class StartSessionRequest(
-    val faculty_id: String,
-    val subject_id: String,
-    val classroom_id: String,
-    val duration_minutes: Int = 45
+    @SerializedName("faculty_id") val faculty_id: String,
+    @SerializedName("subject_id") val subject_id: String,
+    @SerializedName("classroom_id") val classroom_id: String,
+    @SerializedName("duration_minutes") val duration_minutes: Int = 45
 )
 
 data class SessionResponse(
-    val session_id: String,
-    val qr_token: String,
-    val expires_at: String,
-    val classroom_name: String
+    @SerializedName("session_id") val session_id: String,
+    @SerializedName("qr_token") val qr_token: String,
+    @SerializedName("expires_at") val expires_at: String,
+    @SerializedName("classroom_name") val classroom_name: String
 )
 
 data class AttendanceLog(
-    val student_id: String,
-    val student_name: String? = null,
-    val timestamp: String,
-    val status: String,
-    val face_verified: Boolean = false
+    @SerializedName("student_id") val student_id: String,
+    @SerializedName("student_name") val student_name: String? = null,
+    @SerializedName("timestamp") val timestamp: String,
+    @SerializedName("status") val status: String,
+    @SerializedName("face_verified") val face_verified: Boolean = false
 )
 
 data class LiveAttendanceResponse(
-    val session_id: String,
-    val total_count: Int,
-    val students: List<AttendanceLog>
+    @SerializedName("session_id") val session_id: String,
+    @SerializedName("total_count") val total_count: Int,
+    @SerializedName("students") val students: List<AttendanceLog>
 )
 
 data class WifiRequest(
-    val session_id: String,
-    val bssid: String,
-    val ssid: String,
-    val latitude: Double? = null,
-    val longitude: Double? = null
+    @SerializedName("session_id") val session_id: String,
+    @SerializedName("bssid") val bssid: String,
+    @SerializedName("ssid") val ssid: String,
+    @SerializedName("latitude") val latitude: Double? = null,
+    @SerializedName("longitude") val longitude: Double? = null
 )
 
 data class WifiResponse(
-    val success: Boolean,
-    val message: String,
-    val location_match: Boolean = false
+    @SerializedName("success") val success: Boolean,
+    @SerializedName("message") val message: String,
+    @SerializedName("location_match") val location_match: Boolean = false
 )
 
 data class QrRequest(
-    val session_id: String,
-    val token: String
+    @SerializedName("session_id") val session_id: String,
+    @SerializedName("token") val token: String
 )
 
 data class FaceResponse(
-    val success: Boolean,
-    val message: String
+    @SerializedName("success") val success: Boolean,
+    @SerializedName("message") val message: String
 )
 
 data class LoginResponse(
-    val success: Boolean,
-    val user_id: String? = null,
-    val role: String? = null,
-    val name: String? = null,
-    val message: String? = null
+    @SerializedName("success") val success: Boolean,
+    @SerializedName("user_id") val user_id: String? = null,
+    @SerializedName("role") val role: String? = null,
+    @SerializedName("name") val name: String? = null,
+    @SerializedName("message") val message: String? = null
 )
 
 data class AttendanceRecord(
-    val subject_id: String,
-    val subject_name: String = "",
-    val session_id: String,
-    val timestamp: String,
-    val status: String
+    @SerializedName("subject_id") val subject_id: String,
+    @SerializedName("subject_name") val subject_name: String = "",
+    @SerializedName("session_id") val session_id: String,
+    @SerializedName("timestamp") val timestamp: String,
+    @SerializedName("status") val status: String
 )
 
 data class SubjectAttendance(
-    val subject_id: String,
-    val subject_name: String,
-    val total_classes: Int,
-    val attended_classes: Int,
-    val percentage: Double
+    @SerializedName("subject_id") val subject_id: String,
+    @SerializedName("subject_name") val subject_name: String,
+    @SerializedName("total_classes") val total_classes: Int,
+    @SerializedName("attended_classes") val attended_classes: Int,
+    @SerializedName("percentage") val percentage: Double
 )
 
 data class SessionDetailsResponse(
-    val session_id: String,
-    val subject_name: String,
-    val start_time: String,
-    val total_students: Int,
-    val students: List<SessionStudentDetail>
+    @SerializedName("session_id") val session_id: String,
+    @SerializedName("subject_name") val subject_name: String,
+    @SerializedName("start_time") val start_time: String,
+    @SerializedName("total_students") val total_students: Int,
+    @SerializedName("students") val students: List<SessionStudentDetail>
 )
 
 data class SessionStudentDetail(
-    val student_id: String,
-    val student_name: String,
-    val marked_at: String,
-    val status: String
+    @SerializedName("student_id") val student_id: String,
+    @SerializedName("student_name") val student_name: String,
+    @SerializedName("marked_at") val marked_at: String,
+    @SerializedName("status") val status: String
 )
 
 data class FacultySessionRecord(
-    val session_id: String,
-    val subject_id: String,
-    val subject_name: String = "",
-    val classroom_id: String,
-    val start_time: String = "",
-    val expires_at: String?,
-    val status: String,
-    val student_count: Int
+    @SerializedName("session_id") val session_id: String,
+    @SerializedName("subject_id") val subject_id: String,
+    @SerializedName("subject_name") val subject_name: String = "",
+    @SerializedName("classroom_id") val classroom_id: String,
+    @SerializedName("start_time") val start_time: String = "",
+    @SerializedName("expires_at") val expires_at: String?,
+    @SerializedName("status") val status: String,
+    @SerializedName("student_count") val student_count: Int
 )
 
 data class Classroom(
-    val id: String,
-    val name: String,
-    val wifi_ssid: String? = null,
-    val wifi_bssid: String? = null
+    @SerializedName("id") val id: String,
+    @SerializedName("name") val name: String,
+    @SerializedName("wifi_ssid") val wifi_ssid: String? = null,
+    @SerializedName("wifi_bssid") val wifi_bssid: String? = null
 )
 
 data class Subject(
-    val id: String,
-    val name: String,
-    val code: String? = null,
-    val branch: String? = null,
-    val year: String? = null,
-    val department_id: String? = null
+    @SerializedName("id") val id: String,
+    @SerializedName("name") val name: String,
+    @SerializedName("code") val code: String? = null,
+    @SerializedName("branch") val branch: String? = null,
+    @SerializedName("year") val year: String? = null,
+    @SerializedName("department_id") val department_id: String? = null
 )
 
 data class ActiveSession(
-    val session_id: String,
-    val subject_id: String,
-    val classroom_name: String,
-    val expires_at: String
+    @SerializedName("session_id") val session_id: String,
+    @SerializedName("subject_id") val subject_id: String,
+    @SerializedName("classroom_name") val classroom_name: String,
+    @SerializedName("expires_at") val expires_at: String
 )
 
 data class SessionReportResponse(
-    val session_id: String,
-    val total_present: Int,
-    val students: List<StudentReport>? = emptyList(),
-    val course_id: String? = null
+    @SerializedName("session_id") val session_id: String,
+    @SerializedName("total_present") val total_present: Int,
+    @SerializedName("students") val students: List<StudentReport>? = emptyList(),
+    @SerializedName("course_id") val course_id: String? = null
 )
 
 data class StudentReport(
-    val id: String,
-    val name: String,
-    val time: String
+    @SerializedName("id") val id: String,
+    @SerializedName("name") val name: String,
+    @SerializedName("time") val time: String
 )
 
 data class ScheduleRecord(
-    val id: String? = null,
-    val day: String,
-    val subject: String,
-    val subject_id: String? = null,
-    val subject_code: String? = null,
-    val branch: String? = null,
-    val year: String? = null,
-    val room: String,
-    val classroom_id: String? = null,
-    val time: String,
-    val is_official: Boolean = false
+    @SerializedName("id") val id: String? = null,
+    @SerializedName("day") val day: String,
+    @SerializedName("subject") val subject: String,
+    @SerializedName("subject_id") val subject_id: String? = null,
+    @SerializedName("subject_code") val subject_code: String? = null,
+    @SerializedName("branch") val branch: String? = null,
+    @SerializedName("year") val year: String? = null,
+    @SerializedName("room") val room: String,
+    @SerializedName("classroom_id") val classroom_id: String? = null,
+    @SerializedName("time") val time: String,
+    @SerializedName("is_official") val is_official: Boolean = false
 )
 
 data class UserProfile(
-    val id: String,
-    val username: String,
-    val email: String,
-    val full_name: String,
-    val role: String,
-    val image_url: String? = null,
-    val profile_photo_url: String? = null,
-    val academic: Map<String, String?>? = emptyMap()
+    @SerializedName("id") val id: String,
+    @SerializedName("username") val username: String,
+    @SerializedName("email") val email: String,
+    @SerializedName("full_name") val full_name: String,
+    @SerializedName("role") val role: String,
+    @SerializedName("image_url") val image_url: String? = null,
+    @SerializedName("profile_photo_url") val profile_photo_url: String? = null,
+    @SerializedName("academic") val academic: Map<String, String?>? = emptyMap()
 )
 
 data class SyncScheduleResponse(
-    val date: String,
-    val day: String,
-    val schedule: List<ScheduleRecord>
+    @SerializedName("date") val date: String,
+    @SerializedName("day") val day: String,
+    @SerializedName("schedule") val schedule: List<ScheduleRecord>
 )
 
 data class NotificationRecord(
-    val id: String,
-    val title: String,
-    val message: String,
-    val is_read: Boolean,
-    val created_at: String
+    @SerializedName("id") val id: String,
+    @SerializedName("title") val title: String,
+    @SerializedName("message") val message: String,
+    @SerializedName("is_read") val is_read: Boolean,
+    @SerializedName("created_at") val created_at: String
 )
 
 data class LeaveRequestRecord(
-    val id: String,
-    val student_id: String,
-    val type: String, // OD, Medical, Other
-    val start_date: String,
-    val end_date: String,
-    val reason: String,
-    val status: String, // Pending, Approved, Rejected
-    val created_at: String
+    @SerializedName("id") val id: String,
+    @SerializedName("student_id") val student_id: String,
+    @SerializedName("type") val type: String, // OD, Medical, Other
+    @SerializedName("start_date") val start_date: String,
+    @SerializedName("end_date") val end_date: String,
+    @SerializedName("reason") val reason: String,
+    @SerializedName("status") val status: String, // Pending, Approved, Rejected
+    @SerializedName("created_at") val created_at: String
 )
 
 data class HeatmapPoint(
-    val name: String,
-    val reg_no: String,
-    val lat: Double,
-    val lng: Double,
-    val verified: Boolean,
-    val timestamp: String
+    @SerializedName("name") val name: String,
+    @SerializedName("reg_no") val reg_no: String,
+    @SerializedName("lat") val lat: Double,
+    @SerializedName("lng") val lng: Double,
+    @SerializedName("verified") val verified: Boolean,
+    @SerializedName("timestamp") val timestamp: String
 )
