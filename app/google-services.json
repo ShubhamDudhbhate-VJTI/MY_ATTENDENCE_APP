@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "510243445473",
-    "project_id": "dbms-675bb",
-    "storage_bucket": "dbms-675bb.firebasestorage.app"
+    "project_number": "130635523256",
+    "project_id": "dbmsshubhamapplicati-cd1c9c2e",
+    "storage_bucket": "dbmsshubhamapplicati-cd1c9c2e.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:510243445473:android:5d3ca5405032b35d45f5a0",
+        "mobilesdk_app_id": "1:130635523256:android:62704d6594b4be6c08804d",
         "android_client_info": {
           "package_name": "com.example.dbms_shubham_application"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyDTfUQRbL7FLx5x4y7agPMrSiN62rUdqGM"
+          "current_key": "AIzaSyADLSuDklVmKeiiIk1Xe71Wsuar3cAFAao"
         }
       ],
       "services": {

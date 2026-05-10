@@ -15,6 +15,8 @@ import android.net.wifi.WifiManager
 import android.util.Log
 import android.widget.Toast
 import android.view.ScaleGestureDetector
+import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.foundation.gestures.transformable
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
@@ -302,7 +304,7 @@ fun QrScanningStep(
     var isVerifying by remember { mutableStateOf(false) }
     var qrDetected by remember { mutableStateOf(false) }
     var visible by remember { mutableStateOf(false) }
-    var camera by remember { mutableStateOf<Camera?>(null) }
+    val cameraState = remember { mutableStateOf<Camera?>(null) }
 
     LaunchedEffect(Unit) {
         visible = true
@@ -408,38 +410,44 @@ fun QrScanningStep(
                 )
                 Spacer(modifier = Modifier.height(32.dp))
 
+                // PINCH TO ZOOM STATE
+                val state = rememberTransformableState { zoomChange, _, _ ->
+                    cameraState.value?.let { cam ->
+                        val zoomState = cam.cameraInfo.zoomState.value
+                        val currentZoom = zoomState?.zoomRatio ?: 1f
+                        cam.cameraControl.setZoomRatio(currentZoom * zoomChange)
+                    }
+                }
+
                 Box(
                     modifier = Modifier
-                        .size(260.dp)
+                        .size(280.dp)
                         .clip(RoundedCornerShape(24.dp))
                         .border(
                             2.dp,
                             MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
                             RoundedCornerShape(24.dp)
-                        ),
+                        )
+                        .transformable(state = state), // NATIVE COMPOSE ZOOM
                     contentAlignment = Alignment.Center
                 ) {
                     AndroidView(
                         factory = { ctx ->
                             val previewView = PreviewView(ctx).apply {
                                 scaleType = PreviewView.ScaleType.FILL_CENTER
+                                implementationMode = PreviewView.ImplementationMode.COMPATIBLE
                             }
 
-                            // PINCH TO ZOOM LOGIC
-                            val listener = object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
-                                override fun onScale(detector: ScaleGestureDetector): Boolean {
-                                    camera?.let { cam ->
-                                        val zoomState = cam.cameraInfo.zoomState.value
-                                        val currentZoomRatio = zoomState?.zoomRatio ?: 1f
-                                        cam.cameraControl.setZoomRatio(currentZoomRatio * detector.scaleFactor)
-                                    }
-                                    return true
-                                }
-                            }
-                            val scaleGestureDetector = ScaleGestureDetector(ctx, listener)
-
+                            // TAP TO FOCUS ONLY (Zoom handled by Box above)
                             previewView.setOnTouchListener { view, event ->
-                                scaleGestureDetector.onTouchEvent(event)
+                                if (event.action == android.view.MotionEvent.ACTION_UP && event.pointerCount == 1) {
+                                    cameraState.value?.let { cam ->
+                                        val factory = previewView.meteringPointFactory
+                                        val point = factory.createPoint(event.x, event.y)
+                                        val action = FocusMeteringAction.Builder(point).build()
+                                        cam.cameraControl.startFocusAndMetering(action)
+                                    }
+                                }
                                 view.performClick()
                                 true
                             }
@@ -447,21 +455,9 @@ fun QrScanningStep(
                             val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
                             cameraProviderFuture.addListener({
                                 val cameraProvider = cameraProviderFuture.get()
-
                                 val preview = Preview.Builder().build()
-
-                                // Optimize resolution for analysis (720p is the sweet spot for ML Kit)
-                                val resolutionSelector = ResolutionSelector.Builder()
-                                    .setResolutionStrategy(
-                                        ResolutionStrategy(
-                                            android.util.Size(1280, 720),
-                                            ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER
-                                        )
-                                    )
-                                    .build()
-
+                                
                                 val imageAnalysis = ImageAnalysis.Builder()
-                                    .setResolutionSelector(resolutionSelector)
                                     .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                                     .build()
 
@@ -469,10 +465,7 @@ fun QrScanningStep(
                                     @AndroidxOptIn(androidx.camera.core.ExperimentalGetImage::class)
                                     val mediaImage = imageProxy.image
                                     if (mediaImage != null && !qrDetected) {
-                                        val image = InputImage.fromMediaImage(
-                                            mediaImage,
-                                            imageProxy.imageInfo.rotationDegrees
-                                        )
+                                        val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
                                         scanner.process(image)
                                             .addOnSuccessListener { barcodes ->
                                                 if (barcodes.isNotEmpty() && !qrDetected) {
@@ -482,9 +475,6 @@ fun QrScanningStep(
                                                     }
                                                 }
                                             }
-                                            .addOnFailureListener {
-                                                Log.e("Scanner", "ML Kit Error", it)
-                                            }
                                             .addOnCompleteListener { imageProxy.close() }
                                     } else {
                                         imageProxy.close()
@@ -493,13 +483,13 @@ fun QrScanningStep(
 
                                 try {
                                     cameraProvider.unbindAll()
-                                    val cameraInstance = cameraProvider.bindToLifecycle(
+                                    val cam = cameraProvider.bindToLifecycle(
                                         lifecycleOwner,
                                         CameraSelector.DEFAULT_BACK_CAMERA,
                                         preview,
                                         imageAnalysis
                                     )
-                                    camera = cameraInstance // Store camera for zoom
+                                    cameraState.value = cam
                                     preview.surfaceProvider = previewView.surfaceProvider
                                 } catch (e: Exception) {
                                     Log.e("Camera", "Binding failed", e)

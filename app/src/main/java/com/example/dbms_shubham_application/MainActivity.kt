@@ -55,24 +55,31 @@ import android.util.Log
 class MainActivity : ComponentActivity() {
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            
+            // --- CRITICAL: Delete old channels to force refresh settings ---
+            notificationManager.deleteNotificationChannel("attendx_urgent_v8")
+
             val audioAttributes = android.media.AudioAttributes.Builder()
                 .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
                 .setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION)
                 .build()
 
             val channel = NotificationChannel(
-                "attendx_urgent_v4",
+                "attendx_urgent_v9",
                 "Urgent Notifications",
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
                 description = "Urgent alerts and attendance notifications"
                 enableLights(true)
+                lightColor = android.graphics.Color.RED
                 enableVibration(true)
+                vibrationPattern = longArrayOf(0, 500, 200, 500)
                 setShowBadge(true)
                 setSound(android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_NOTIFICATION), audioAttributes)
                 lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
+                setBypassDnd(true)
             }
-            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.createNotificationChannel(channel)
         }
     }
