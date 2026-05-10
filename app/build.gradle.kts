@@ -33,7 +33,7 @@ android {
                 "proguard-rules.pro"
             )
             // Use Render URL for wireless production testing
-            buildConfigField("String", "BASE_URL", "\"https://sd-backend-attendance-app.onrender.com/\"")
+            buildConfigField("String", "BASE_URL", "\"https://sd-backend-attenedence-app.onrender.com/\"")
 //            buildConfigField("String", "BASE_URL", "\"http://127.0.0.1:8000/\"")
             signingConfig = signingConfigs.getByName("debug")
         }

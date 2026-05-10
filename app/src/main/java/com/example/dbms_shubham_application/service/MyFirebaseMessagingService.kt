@@ -17,7 +17,7 @@ import com.google.firebase.messaging.RemoteMessage
 class MyFirebaseMessagingService : FirebaseMessagingService() {
 
     companion object {
-        const val CHANNEL_ID = "attendx_urgent_v4"
+        const val CHANNEL_ID = "attendx_urgent_v9"
         const val CHANNEL_NAME = "Urgent Notifications"
     }
 
@@ -34,6 +34,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             val intent = Intent("com.example.attendx.NOTIFICATION_RECEIVED").apply {
                 putExtra("title", title)
                 putExtra("message", message)
+                setPackage(packageName) // Explicitly target this app
             }
             sendBroadcast(intent)
         }
@@ -42,6 +43,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
     private fun showNotification(title: String?, message: String?) {
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
+        // Ensure channel is created (though it should be done in MainActivity too)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val attributes = AudioAttributes.Builder()
                 .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
@@ -59,12 +61,13 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                 setShowBadge(true)
                 setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION), attributes)
                 lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
+                setBypassDnd(true) // Attempt to bypass DND
             }
             notificationManager.createNotificationChannel(channel)
         }
 
         val intent = Intent(this, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
         
         val pendingIntent = PendingIntent.getActivity(
@@ -74,32 +77,21 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
 
         val notificationId = System.currentTimeMillis().toInt()
         
-        // Add Delete Action
-        val deleteIntent = Intent(this, NotificationReceiver::class.java).apply {
-            action = "ACTION_DELETE_NOTIFICATION"
-            putExtra("notification_id", notificationId)
-        }
-        val deletePendingIntent = PendingIntent.getBroadcast(
-            this, notificationId, deleteIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
         val defaultSoundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
         
         val notificationBuilder = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_launcher_foreground) // Use app icon
-            .setContentTitle(title ?: "AttendX Notification")
+            .setSmallIcon(R.drawable.ic_launcher_foreground) 
+            .setContentTitle(title ?: "AttendX Alert")
             .setContentText(message ?: "You have a new update")
             .setAutoCancel(true)
             .setSound(defaultSoundUri)
-            .setVibrate(longArrayOf(0, 500, 250, 500))
+            .setVibrate(longArrayOf(1000, 1000, 1000, 1000)) // Stronger vibration
             .setPriority(NotificationCompat.PRIORITY_MAX) 
             .setDefaults(NotificationCompat.DEFAULT_ALL)
-            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
+            .setCategory(NotificationCompat.CATEGORY_CALL) // CALL category is even higher than ALARM for banners
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setOnlyAlertOnce(false)
+            .setFullScreenIntent(pendingIntent, true) // FORCES the banner
             .setContentIntent(pendingIntent)
-            .addAction(android.R.drawable.ic_menu_delete, "Delete", deletePendingIntent)
 
         notificationManager.notify(notificationId, notificationBuilder.build())
     }

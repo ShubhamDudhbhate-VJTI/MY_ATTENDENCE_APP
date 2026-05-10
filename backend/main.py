@@ -34,6 +34,8 @@ import traceback
 import hashlib
 from fpdf import FPDF
 import io
+import firebase_admin
+from firebase_admin import credentials, messaging
 
 
 # Optional Local AI Import (used in OFFLINE_DEBUG_MODE)
@@ -51,6 +53,14 @@ OFFLINE_DEBUG_MODE = False
 
 # Load environment variables (Supabase URL, HF Tokens, etc.)
 load_dotenv()
+
+# --- FIREBASE ADMIN SDK ---
+try:
+    cred = credentials.Certificate("serviceAccountKey.json")
+    firebase_admin.initialize_app(cred)
+    print("--- SUCCESS: Firebase Admin Initialized ---")
+except Exception as e:
+    print(f"--- WARNING: Firebase Admin failed to initialize: {e} ---")
 
 # --- CLOUD AI CONFIG (Hugging Face) ---
 # AttendX uses a dedicated AI Inference Space on Hugging Face for face embeddings and verification.
@@ -282,11 +292,35 @@ class Notification(Base):
 # --- UTILITY FUNCTIONS ---
 
 def create_notification(db: Session, user_id: str, title: str, message: str):
-    """Adds notification to DB and prints log"""
+    """Adds notification to DB and sends FCM push if token exists"""
     try:
         new_notif = Notification(id=str(uuid.uuid4()), user_id=user_id, title=title, message=message)
         db.add(new_notif)
         db.commit()
+
+        # Fetch FCM Token for Push
+        user = db.query(User).filter(User.id == user_id).first()
+        if user and user.fcm_token:
+            try:
+                # CRITICAL: Data-Only Payload for Heads-up Banner
+                # By omitting the 'notification' field and putting title/message in 'data',
+                # we force the Android Service to handle the display manually.
+                fcm_message = messaging.Message(
+                    data={
+                        "title": title,
+                        "message": message,
+                        "channel_id": "attendx_urgent_v9",
+                    },
+                    android=messaging.AndroidConfig(
+                        priority='high',
+                    ),
+                    token=user.fcm_token,
+                )
+                response = messaging.send(fcm_message)
+                print(f"Successfully sent FCM message: {response}")
+            except Exception as fcm_err:
+                print(f"FCM Push Failed: {fcm_err}")
+
     except Exception as e:
         print(f"Error creating notification: {e}")
         db.rollback()

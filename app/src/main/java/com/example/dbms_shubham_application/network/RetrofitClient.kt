@@ -33,10 +33,10 @@ object RetrofitClient {
 
     private val httpClient = OkHttpClient.Builder()
         .addInterceptor(logging)
-        .connectTimeout(30, TimeUnit.SECONDS) // Increased for slow Wi-Fi
-        .readTimeout(30, TimeUnit.SECONDS)
-        .writeTimeout(30, TimeUnit.SECONDS)
-        .retryOnConnectionFailure(true) // Automatically retry if Wi-Fi drops
+        .connectTimeout(60, TimeUnit.SECONDS) // Increased to 60s for Render cold start
+        .readTimeout(60, TimeUnit.SECONDS)
+        .writeTimeout(60, TimeUnit.SECONDS)
+        .retryOnConnectionFailure(true)
         .build()
 
     val apiService: ApiService by lazy {

@@ -143,22 +143,64 @@ fun DashboardScreen(navController: NavController, role: String) {
         }
     }
 
-    // In-App Notification Dialog
+    // In-App Notification Banner (Modern Top-Slide)
     if (showInAppNotification) {
-        AlertDialog(
-            onDismissRequest = { showInAppNotification = false },
-            icon = { Icon(Icons.Default.Notifications, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
-            title = { Text(lastNotificationTitle, fontWeight = FontWeight.Bold) },
-            text = { Text(lastNotificationMessage) },
-            confirmButton = {
-                TextButton(onClick = { showInAppNotification = false }) {
-                    Text("Dismiss")
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp),
+            contentAlignment = Alignment.TopCenter
+        ) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .offset(y = 40.dp),
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.primaryContainer,
+                tonalElevation = 8.dp,
+                shadowElevation = 12.dp
+            ) {
+                Row(
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.NotificationsActive,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(32.dp)
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = lastNotificationTitle,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                        Text(
+                            text = lastNotificationMessage,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
+                            maxLines = 2
+                        )
+                    }
+                    IconButton(onClick = { showInAppNotification = false }) {
+                        Icon(Icons.Default.Close, contentDescription = "Close", tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                    }
                 }
-            },
-            shape = RoundedCornerShape(24.dp),
-            containerColor = MaterialTheme.colorScheme.surface,
-            tonalElevation = 8.dp
-        )
+            }
+        }
+        
+        // Auto-hide after 5 seconds
+        LaunchedEffect(showInAppNotification) {
+            if (showInAppNotification) {
+                kotlinx.coroutines.delay(5000)
+                showInAppNotification = false
+            }
+        }
     }
 
     // Use a key for refreshing

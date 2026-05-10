@@ -211,7 +211,7 @@ fun LoginScreen(navController: NavController, role: String) {
                 Button(
                     onClick = {
                         isLoading = true
-                        scope.launch {
+                         scope.launch {
                             try {
                                 val credentials = mapOf(
                                     "username" to username.trim(),
@@ -227,6 +227,24 @@ fun LoginScreen(navController: NavController, role: String) {
                                     val userName = body.name ?: ""
                                     
                                     sessionManager.saveSession(userId, userRole, userName)
+
+                                    // --- SYNC FCM TOKEN ON LOGIN ---
+                                    com.google.firebase.messaging.FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+                                        if (task.isSuccessful) {
+                                            val token = task.result
+                                            scope.launch {
+                                                try {
+                                                    RetrofitClient.apiService.updateFcmToken(mapOf(
+                                                        "user_id" to userId,
+                                                        "fcm_token" to token
+                                                    ))
+                                                    android.util.Log.d("FCM", "Token synced on login: $token")
+                                                } catch (e: Exception) {
+                                                    android.util.Log.e("FCM", "Token sync failed on login", e)
+                                                }
+                                            }
+                                        }
+                                    }
 
                                     if (userRole == "student") {
                                         scope.launch {
@@ -248,11 +266,12 @@ fun LoginScreen(navController: NavController, role: String) {
                                         popUpTo("role_selection") { inclusive = false }
                                     }
                                 } else {
+                                    val errorBody = response.errorBody()?.string()
                                     val errorMsg = when (response.code()) {
-                                        503, 504 -> "Server is starting up, please wait a moment."
-                                        404 -> "User not found. Please check your credentials."
-                                        401 -> "Invalid password. Try again."
-                                        else -> "Authentication Failed (${response.code()}): ${response.message()}"
+                                        503, 504 -> "Server is starting up (Render Cold Start). Please wait 30 seconds and try again."
+                                        404 -> "Server Error (404): Endpoint not found. Check if the Render URL is correct or if the user exists in the cloud database."
+                                        401 -> "Invalid credentials. Please check your password."
+                                        else -> "Authentication Failed (${response.code()}): ${errorBody ?: response.message()}"
                                     }
                                     Toast.makeText(context, errorMsg, Toast.LENGTH_LONG).show()
                                 }

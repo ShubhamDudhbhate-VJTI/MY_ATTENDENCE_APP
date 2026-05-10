@@ -249,8 +249,13 @@ fun SignUpScreen(navController: NavController, role: String) {
                                     popUpTo("role_selection") { inclusive = false }
                                 }
                             } else {
-                                val errorMsg = response.errorBody()?.string() ?: "Unknown Error"
-                                Toast.makeText(context, "Signup Failed: $errorMsg", Toast.LENGTH_LONG).show()
+                                val errorBody = response.errorBody()?.string()
+                                val errorMsg = when(response.code()) {
+                                    404 -> "Signup failed (404): Server endpoint not found. Verify the Render URL."
+                                    503 -> "Server is starting up. Please try again in 30 seconds."
+                                    else -> "Signup Failed: ${errorBody ?: "Unknown Error"}"
+                                }
+                                Toast.makeText(context, errorMsg, Toast.LENGTH_LONG).show()
                             }
                         } catch (e: Exception) {
                             Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
