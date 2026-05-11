@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Users, UserSquare2, BookOpen, Building2, ClipboardList,
-  ArrowUpRight, Activity, Clock, GraduationCap, BarChart3
+  ArrowUpRight, Activity, Clock, GraduationCap, BarChart3,
+  RefreshCcw, TrendingUp
 } from 'lucide-react';
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -12,25 +13,49 @@ import { analyticsApi } from '../api';
 const COLORS = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899', '#64748b'];
 const PIE_COLORS = ['#6366f1', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#06b6d4', '#8b5cf6', '#ec4899'];
 
-const StatCard = ({ title, value, icon: Icon, gradient, sub, loading }) => (
-  <div className="bg-white dark:bg-gray-900 p-5 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm stat-card">
-    <div className="flex items-center justify-between mb-4">
-      <div className={`p-2.5 rounded-xl bg-gradient-to-br ${gradient}`}>
-        <Icon className="text-white" size={20} />
+// Animated counter hook
+const useAnimatedCounter = (target, duration = 1200) => {
+  const [count, setCount] = useState(0);
+  const prevTarget = useRef(0);
+  useEffect(() => {
+    if (target === 0) return;
+    const start = prevTarget.current;
+    prevTarget.current = target;
+    const startTime = Date.now();
+    const tick = () => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+      setCount(Math.round(start + (target - start) * eased));
+      if (progress < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }, [target, duration]);
+  return count;
+};
+
+const StatCard = ({ title, value, icon: Icon, gradient, sub, loading }) => {
+  const animatedValue = useAnimatedCounter(loading ? 0 : value);
+  return (
+    <div className="bg-white dark:bg-gray-900 p-5 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm stat-card">
+      <div className="flex items-center justify-between mb-4">
+        <div className={`p-2.5 rounded-xl bg-gradient-to-br ${gradient}`}>
+          <Icon className="text-white" size={20} />
+        </div>
+        <ArrowUpRight size={16} className="text-gray-300" />
       </div>
-      <ArrowUpRight size={16} className="text-gray-300" />
+      <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">{title}</p>
+      {loading ? (
+        <div className="skeleton h-8 w-16 mt-1.5"></div>
+      ) : (
+        <>
+          <p className="text-2xl font-extrabold text-gray-900 dark:text-white mt-1">{animatedValue.toLocaleString()}</p>
+          {sub && <p className="text-[11px] text-gray-400 mt-0.5">{sub}</p>}
+        </>
+      )}
     </div>
-    <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">{title}</p>
-    {loading ? (
-      <div className="skeleton h-8 w-16 mt-1.5"></div>
-    ) : (
-      <>
-        <p className="text-2xl font-extrabold text-gray-900 dark:text-white mt-1">{value}</p>
-        {sub && <p className="text-[11px] text-gray-400 mt-0.5">{sub}</p>}
-      </>
-    )}
-  </div>
-);
+  );
+};
 
 const CustomTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
@@ -58,33 +83,35 @@ const Dashboard = () => {
   const [sessionStatus, setSessionStatus] = useState([]);
   const [recentSessions, setRecentSessions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState(null);
 
+  const fetchAll = async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true); else setLoading(true);
+    try {
+      const [s, sb, sy, fb, sub, ss, rs] = await Promise.all([
+        analyticsApi.getDashboardStats(),
+        analyticsApi.getStudentsByBranch(),
+        analyticsApi.getStudentsByYear(),
+        analyticsApi.getFacultyByBranch(),
+        analyticsApi.getSubjectsByBranch(),
+        analyticsApi.getSessionStatusBreakdown(),
+        analyticsApi.getRecentSessions(6),
+      ]);
+      setStats(s); setStudentsByBranch(sb); setStudentsByYear(sy);
+      setFacultyByBranch(fb); setSubjectsByBranch(sub);
+      setSessionStatus(ss); setRecentSessions(rs);
+      setLastUpdated(new Date());
+    } catch (err) { console.error('Dashboard error:', err); }
+    finally { setLoading(false); setRefreshing(false); }
+  };
+
+  useEffect(() => { fetchAll(); }, []);
+
+  // Auto-refresh every 60 seconds
   useEffect(() => {
-    const fetchAll = async () => {
-      try {
-        const [s, sb, sy, fb, sub, ss, rs] = await Promise.all([
-          analyticsApi.getDashboardStats(),
-          analyticsApi.getStudentsByBranch(),
-          analyticsApi.getStudentsByYear(),
-          analyticsApi.getFacultyByBranch(),
-          analyticsApi.getSubjectsByBranch(),
-          analyticsApi.getSessionStatusBreakdown(),
-          analyticsApi.getRecentSessions(6),
-        ]);
-        setStats(s);
-        setStudentsByBranch(sb);
-        setStudentsByYear(sy);
-        setFacultyByBranch(fb);
-        setSubjectsByBranch(sub);
-        setSessionStatus(ss);
-        setRecentSessions(rs);
-      } catch (err) {
-        console.error('Dashboard error:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchAll();
+    const interval = setInterval(() => fetchAll(true), 60000);
+    return () => clearInterval(interval);
   }, []);
 
   const formatTime = (iso) => {
@@ -110,12 +137,25 @@ const Dashboard = () => {
   return (
     <div className="space-y-6 animate-fadeIn">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-extrabold text-gray-900 dark:text-white flex items-center gap-2">
-          <BarChart3 size={24} className="text-blue-600" />
-          College Dashboard
-        </h1>
-        <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">Real-time analytics from Supabase — all data is live.</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-extrabold text-gray-900 dark:text-white flex items-center gap-2">
+            <BarChart3 size={24} className="text-blue-600" />
+            College Dashboard
+          </h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">
+            Real-time analytics from Supabase
+            {lastUpdated && <span className="ml-2 text-gray-400">• Updated {formatTime(lastUpdated)}</span>}
+          </p>
+        </div>
+        <button
+          onClick={() => fetchAll(true)}
+          disabled={refreshing}
+          className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-all disabled:opacity-50"
+        >
+          <RefreshCcw size={16} className={refreshing ? 'animate-spin' : ''} />
+          {refreshing ? 'Refreshing...' : 'Refresh'}
+        </button>
       </div>
 
       {/* Stat Cards */}

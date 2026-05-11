@@ -13,10 +13,9 @@ import android.graphics.Bitmap
 import android.graphics.Matrix
 import android.net.wifi.WifiManager
 import android.util.Log
-import android.widget.Toast
 import android.view.ScaleGestureDetector
-import androidx.compose.foundation.gestures.rememberTransformableState
-import androidx.compose.foundation.gestures.transformable
+import android.widget.Toast
+import androidx.core.graphics.scale
 import androidx.camera.core.*
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
@@ -42,14 +41,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
-import androidx.camera.core.resolutionselector.ResolutionSelector
-import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavController
@@ -299,6 +298,7 @@ fun QrScanningStep(
     onSuccess: (String) -> Unit,
     onFailure: (String) -> Unit
 ) {
+    val density = LocalDensity.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
     var isVerifying by remember { mutableStateOf(false) }
@@ -315,6 +315,12 @@ fun QrScanningStep(
             .setBarcodeFormats(Barcode.FORMAT_QR_CODE, Barcode.FORMAT_AZTEC)
             .build()
         BarcodeScanning.getClient(options)
+    }
+
+    DisposableEffect(scanner) {
+        onDispose {
+            scanner.close()
+        }
     }
 
     fun verifyEverything(qrToken: String) {
@@ -410,15 +416,6 @@ fun QrScanningStep(
                 )
                 Spacer(modifier = Modifier.height(32.dp))
 
-                // PINCH TO ZOOM STATE
-                val state = rememberTransformableState { zoomChange, _, _ ->
-                    cameraState.value?.let { cam ->
-                        val zoomState = cam.cameraInfo.zoomState.value
-                        val currentZoom = zoomState?.zoomRatio ?: 1f
-                        cam.cameraControl.setZoomRatio(currentZoom * zoomChange)
-                    }
-                }
-
                 Box(
                     modifier = Modifier
                         .size(280.dp)
@@ -427,19 +424,35 @@ fun QrScanningStep(
                             2.dp,
                             MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
                             RoundedCornerShape(24.dp)
-                        )
-                        .transformable(state = state), // NATIVE COMPOSE ZOOM
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
                     AndroidView(
                         factory = { ctx ->
                             val previewView = PreviewView(ctx).apply {
                                 scaleType = PreviewView.ScaleType.FILL_CENTER
-                                implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+                                implementationMode = PreviewView.ImplementationMode.PERFORMANCE
                             }
 
-                            // TAP TO FOCUS ONLY (Zoom handled by Box above)
+                            var currentZoomRatio = 1f
+                            val scaleGestureDetector = ScaleGestureDetector(ctx, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
+                                override fun onScaleBegin(detector: ScaleGestureDetector): Boolean {
+                                    currentZoomRatio = cameraState.value?.cameraInfo?.zoomState?.value?.zoomRatio ?: 1f
+                                    return true
+                                }
+
+                                override fun onScale(detector: ScaleGestureDetector): Boolean {
+                                    val cam = cameraState.value ?: return false
+                                    val zoomState = cam.cameraInfo.zoomState.value ?: return false
+                                    currentZoomRatio *= detector.scaleFactor
+                                    currentZoomRatio = currentZoomRatio.coerceIn(zoomState.minZoomRatio, zoomState.maxZoomRatio)
+                                    cam.cameraControl.setZoomRatio(currentZoomRatio)
+                                    return true
+                                }
+                            })
+
                             previewView.setOnTouchListener { view, event ->
+                                scaleGestureDetector.onTouchEvent(event)
                                 if (event.action == android.view.MotionEvent.ACTION_UP && event.pointerCount == 1) {
                                     cameraState.value?.let { cam ->
                                         val factory = previewView.meteringPointFactory
@@ -462,7 +475,7 @@ fun QrScanningStep(
                                     .build()
 
                                 imageAnalysis.setAnalyzer(Executors.newSingleThreadExecutor()) { imageProxy ->
-                                    @AndroidxOptIn(androidx.camera.core.ExperimentalGetImage::class)
+                                    @AndroidxOptIn(ExperimentalGetImage::class)
                                     val mediaImage = imageProxy.image
                                     if (mediaImage != null && !qrDetected) {
                                         val image = InputImage.fromMediaImage(mediaImage, imageProxy.imageInfo.rotationDegrees)
@@ -526,12 +539,17 @@ fun QrScanningStep(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(4.dp)
-                                .offset(y = (-130).dp + scanOffset.dp)
+                                .graphicsLayer {
+                                    with(density) {
+                                        translationY = -130.dp.toPx() + scanOffset.dp.toPx()
+                                    }
+                                    alpha = glowAlpha
+                                }
                                 .background(
                                     Brush.verticalGradient(
                                         listOf(
                                             Color.Transparent,
-                                            MaterialTheme.colorScheme.primary.copy(alpha = glowAlpha),
+                                            MaterialTheme.colorScheme.primary,
                                             Color.Transparent
                                         )
                                     )
@@ -539,65 +557,62 @@ fun QrScanningStep(
                         )
 
                         // Add a corner guide effect
-                        Box(
+                        val cornerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+                        Canvas(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .padding(20.dp)
+                                .graphicsLayer { alpha = glowAlpha }
                         ) {
-                            val stroke = 3.dp
-                            val length = 30.dp
-                            val color = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+                            val color = cornerColor
+                            val s = 3.dp.toPx()
+                            val l = 30.dp.toPx()
 
-                            Canvas(modifier = Modifier.fillMaxSize()) {
-                                val s = stroke.toPx()
-                                val l = length.toPx()
+                            // Top Left
+                            drawRect(color, size = Size(l, s))
+                            drawRect(color, size = Size(s, l))
 
-                                // Top Left
-                                drawRect(color, size = Size(l, s))
-                                drawRect(color, size = Size(s, l))
+                            // Top Right
+                            drawRect(
+                                color,
+                                topLeft = androidx.compose.ui.geometry.Offset(size.width - l, 0f),
+                                size = Size(l, s)
+                            )
+                            drawRect(
+                                color,
+                                topLeft = androidx.compose.ui.geometry.Offset(size.width - s, 0f),
+                                size = Size(s, l)
+                            )
 
-                                // Top Right
-                                drawRect(
-                                    color,
-                                    topLeft = androidx.compose.ui.geometry.Offset(size.width - l, 0f),
-                                    size = Size(l, s)
-                                )
-                                drawRect(
-                                    color,
-                                    topLeft = androidx.compose.ui.geometry.Offset(size.width - s, 0f),
-                                    size = Size(s, l)
-                                )
+                            // Bottom Left
+                            drawRect(
+                                color,
+                                topLeft = androidx.compose.ui.geometry.Offset(0f, size.height - s),
+                                size = Size(l, s)
+                            )
+                            drawRect(
+                                color,
+                                topLeft = androidx.compose.ui.geometry.Offset(0f, size.height - l),
+                                size = Size(s, l)
+                            )
 
-                                // Bottom Left
-                                drawRect(
-                                    color,
-                                    topLeft = androidx.compose.ui.geometry.Offset(0f, size.height - s),
-                                    size = Size(l, s)
-                                )
-                                drawRect(
-                                    color,
-                                    topLeft = androidx.compose.ui.geometry.Offset(0f, size.height - l),
-                                    size = Size(s, l)
-                                )
-
-                                // Bottom Right
-                                drawRect(
-                                    color,
-                                    topLeft = androidx.compose.ui.geometry.Offset(
-                                        size.width - l,
-                                        size.height - s
-                                    ),
-                                    size = Size(l, s)
-                                )
-                                drawRect(
-                                    color,
-                                    topLeft = androidx.compose.ui.geometry.Offset(
-                                        size.width - s,
-                                        size.height - l
-                                    ),
-                                    size = Size(s, l)
-                                )
-                            }
+                            // Bottom Right
+                            drawRect(
+                                color,
+                                topLeft = androidx.compose.ui.geometry.Offset(
+                                    size.width - l,
+                                    size.height - s
+                                ),
+                                size = Size(l, s)
+                            )
+                            drawRect(
+                                color,
+                                topLeft = androidx.compose.ui.geometry.Offset(
+                                    size.width - s,
+                                    size.height - l
+                                ),
+                                size = Size(s, l)
+                            )
                         }
                     }
 
@@ -626,16 +641,18 @@ fun FaceVerificationStep(
     onFailure: (String) -> Unit
 ) {
     val context = LocalContext.current
+    val density = LocalDensity.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val scope = rememberCoroutineScope()
     var statusMessage by remember { mutableStateOf("Position your face in the circle") }
     var faceDetected by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    var countdown by remember { mutableIntStateOf(0) } // For the 5-second wait
-    var pendingImageProxy by remember { mutableStateOf<ImageProxy?>(null) }
+    var countdown by remember { mutableIntStateOf(0) }
     var capturedBitmap by remember { mutableStateOf<Bitmap?>(null) }
     var isUploading by remember { mutableStateOf(false) }
     var visible by remember { mutableStateOf(false) }
+    val cameraState = remember { mutableStateOf<Camera?>(null) }
+    val imageCapture = remember { ImageCapture.Builder().build() }
 
     // Auto-Brightness Boost for Face Detection Quality
     DisposableEffect(Unit) {
@@ -658,20 +675,22 @@ fun FaceVerificationStep(
     }
 
     // Liveness Detection States
-    var livenessStep by remember { mutableIntStateOf(0) } // 0: Finding Face, 1: Blinking, 2: Verified
-    val livenessTargetBlink = 0.4f // Probability threshold for a closed eye
+    var livenessStep by remember { mutableIntStateOf(0) } // 0: Search, 1: Eyes Open, 2: Blink, 3: Capture
+    val livenessTargetBlink = 0.25f // Optimized probability threshold for a closed eye
 
     // Holographic Typewriter Effect
     var typewriterText by remember { mutableStateOf("") }
-    val scanningText = if (livenessStep < 2) "LIVENESS_CHECK_ACTIVE..." else "BIOMETRICS_VERIFIED..."
+    val scanningText = if (livenessStep < 3) "LIVENESS_CHECK_ACTIVE..." else "BIOMETRICS_VERIFIED..."
     val idleText = "AWAITING_FACE_INPUT..."
     val blinkPrompt = "ACTION_REQUIRED: BLINK_EYES"
 
     LaunchedEffect(faceDetected, livenessStep) {
         val target = when {
             !faceDetected -> idleText
-            livenessStep == 1 -> blinkPrompt
-            livenessStep == 2 -> scanningText
+            livenessStep == 0 -> "DETECTION_SUCCESS_WAITING_FOR_EYES..."
+            livenessStep == 1 -> "EYES_OPEN_CONFIRMED..."
+            livenessStep == 2 -> blinkPrompt
+            livenessStep == 3 -> scanningText
             else -> "INITIALIZING_SCANNER..."
         }
         typewriterText = ""
@@ -701,20 +720,34 @@ fun FaceVerificationStep(
         FaceDetection.getClient(options)
     }
 
-    fun processCapture(imageProxy: ImageProxy) {
-        try {
-            val bitmap = imageProxy.toBitmap()
-            val matrix = Matrix()
-            matrix.postRotate(imageProxy.imageInfo.rotationDegrees.toFloat())
-            matrix.postScale(-1f, 1f, bitmap.width / 2f, bitmap.height / 2f)
-            capturedBitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
-            statusMessage = "Review your photo"
-        } catch (e: Exception) {
-            Log.e("Attendance", "Capture failed: ${e.message}")
-            errorMessage = "Failed to capture image"
-        } finally {
-            imageProxy.close()
+    DisposableEffect(faceDetector) {
+        onDispose {
+            faceDetector.close()
         }
+    }
+
+    fun takePhoto() {
+        if (capturedBitmap != null || isUploading) return
+        
+        imageCapture.takePicture(
+            ContextCompat.getMainExecutor(context),
+            object : ImageCapture.OnImageCapturedCallback() {
+                override fun onCaptureSuccess(image: ImageProxy) {
+                    val bitmap = image.toBitmap()
+                    val matrix = Matrix()
+                    // Mirroring for front camera to match preview. Rotation is handled by toBitmap().
+                    matrix.postScale(-1f, 1f, bitmap.width / 2f, bitmap.height / 2f)
+                    capturedBitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.width, bitmap.height, matrix, true)
+                    statusMessage = "Review your photo"
+                    image.close()
+                }
+
+                override fun onError(exception: ImageCaptureException) {
+                    Log.e("Attendance", "Capture failed", exception)
+                    errorMessage = "Capture failed: ${exception.message}"
+                }
+            }
+        )
     }
 
     fun uploadAndVerify() {
@@ -738,12 +771,10 @@ fun FaceVerificationStep(
 
                 // --- OPTIMIZATION: Resize and Compress for Cloud Speed ---
                 val scaledBitmap = if (bitmap.width > 800 || bitmap.height > 800) {
-                    val scale = 800f / maxOf(bitmap.width, bitmap.height)
-                    Bitmap.createScaledBitmap(
-                        bitmap,
-                        (bitmap.width * scale).toInt(),
-                        (bitmap.height * scale).toInt(),
-                        true
+                    val scaleFactor = 800f / maxOf(bitmap.width, bitmap.height)
+                    bitmap.scale(
+                        (bitmap.width * scaleFactor).toInt(),
+                        (bitmap.height * scaleFactor).toInt()
                     )
                 } else {
                     bitmap
@@ -933,7 +964,41 @@ fun FaceVerificationStep(
                     } else {
                         AndroidView(
                             factory = { ctx ->
-                                val previewView = PreviewView(ctx)
+                                val previewView = PreviewView(ctx).apply {
+                                    implementationMode = PreviewView.ImplementationMode.PERFORMANCE
+                                }
+
+                                var currentZoomRatio = 1f
+                                val scaleGestureDetector = ScaleGestureDetector(ctx, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
+                                    override fun onScaleBegin(detector: ScaleGestureDetector): Boolean {
+                                        currentZoomRatio = cameraState.value?.cameraInfo?.zoomState?.value?.zoomRatio ?: 1f
+                                        return true
+                                    }
+
+                                    override fun onScale(detector: ScaleGestureDetector): Boolean {
+                                        val cam = cameraState.value ?: return false
+                                        val zoomState = cam.cameraInfo.zoomState.value ?: return false
+                                        currentZoomRatio *= detector.scaleFactor
+                                        currentZoomRatio = currentZoomRatio.coerceIn(zoomState.minZoomRatio, zoomState.maxZoomRatio)
+                                        cam.cameraControl.setZoomRatio(currentZoomRatio)
+                                        return true
+                                    }
+                                })
+
+                                previewView.setOnTouchListener { view, event ->
+                                    scaleGestureDetector.onTouchEvent(event)
+                                    if (event.action == android.view.MotionEvent.ACTION_UP && event.pointerCount == 1) {
+                                        cameraState.value?.let { cam ->
+                                            val factory = previewView.meteringPointFactory
+                                            val point = factory.createPoint(event.x, event.y)
+                                            val action = FocusMeteringAction.Builder(point).build()
+                                            cam.cameraControl.startFocusAndMetering(action)
+                                        }
+                                    }
+                                    view.performClick()
+                                    true
+                                }
+
                                 val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
                                 cameraProviderFuture.addListener({
                                     val cameraProvider = cameraProviderFuture.get()
@@ -943,7 +1008,7 @@ fun FaceVerificationStep(
                                         .build()
 
                                     imageAnalysis.setAnalyzer(Executors.newSingleThreadExecutor()) { imageProxy ->
-                                        @AndroidxOptIn(androidx.camera.core.ExperimentalGetImage::class)
+                                        @AndroidxOptIn(ExperimentalGetImage::class)
                                         val mediaImage = imageProxy.image
                                         if (mediaImage != null && capturedBitmap == null && countdown == 0) {
                                             val image = InputImage.fromMediaImage(
@@ -956,37 +1021,44 @@ fun FaceVerificationStep(
                                                         val face = faces[0]
                                                         faceDetected = true
                                                         
-                                                        // Liveness Logic
-                                                        if (livenessStep == 0) {
-                                                            livenessStep = 1
-                                                            statusMessage = "Blink your eyes to verify"
-                                                        } else if (livenessStep == 1) {
-                                                            val leftOpen = face.leftEyeOpenProbability ?: 1.0f
-                                                            val rightOpen = face.rightEyeOpenProbability ?: 1.0f
-                                                            
-                                                            if (leftOpen < livenessTargetBlink || rightOpen < livenessTargetBlink) {
-                                                                livenessStep = 2
-                                                                statusMessage = "Liveness Verified! Capturing..."
-                                                                // Trigger auto-capture after a short delay
-                                                                scope.launch {
-                                                                    delay(500)
-                                                                    pendingImageProxy?.let { processCapture(it) }
+                                                        val leftOpen = face.leftEyeOpenProbability ?: 1.0f
+                                                        val rightOpen = face.rightEyeOpenProbability ?: 1.0f
+
+                                                        // Liveness Logic - 3-Phase Verification
+                                                        when (livenessStep) {
+                                                            0 -> { // Phase 1: Ensure eyes are open initially
+                                                                if (leftOpen > 0.7f && rightOpen > 0.7f) {
+                                                                    livenessStep = 1
+                                                                    statusMessage = "Blink your eyes"
+                                                                } else {
+                                                                    statusMessage = "Open your eyes wide"
+                                                                }
+                                                            }
+                                                            1 -> { // Phase 2: Detect Blink
+                                                                if (leftOpen < livenessTargetBlink || rightOpen < livenessTargetBlink) {
+                                                                    livenessStep = 2
+                                                                    statusMessage = "Blink detected! Keep still"
+                                                                }
+                                                            }
+                                                            2 -> { // Phase 3: Final capture when eyes open again
+                                                                if (leftOpen > 0.6f && rightOpen > 0.6f) {
+                                                                    livenessStep = 3
+                                                                    statusMessage = "Capturing..."
+                                                                    scope.launch {
+                                                                        delay(300)
+                                                                        takePhoto()
+                                                                    }
                                                                 }
                                                             }
                                                         }
-
-                                                        pendingImageProxy?.close()
-                                                        pendingImageProxy = imageProxy
                                                     } else {
                                                         faceDetected = false
                                                         livenessStep = 0
                                                         if (errorMessage == null && countdown == 0) statusMessage =
                                                             "Looking for face..."
-                                                        pendingImageProxy?.close()
-                                                        pendingImageProxy = imageProxy
                                                     }
                                                 }
-                                                .addOnFailureListener {
+                                                .addOnCompleteListener {
                                                     imageProxy.close()
                                                 }
                                         } else {
@@ -997,12 +1069,14 @@ fun FaceVerificationStep(
                                     val cameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
                                     try {
                                         cameraProvider.unbindAll()
-                                        cameraProvider.bindToLifecycle(
+                                        val cam = cameraProvider.bindToLifecycle(
                                             lifecycleOwner,
                                             cameraSelector,
                                             preview,
-                                            imageAnalysis
+                                            imageAnalysis,
+                                            imageCapture
                                         )
+                                        cameraState.value = cam
                                         preview.surfaceProvider = previewView.surfaceProvider
                                     } catch (e: Exception) {
                                         Log.e("Camera", "Use case binding failed", e)
@@ -1038,7 +1112,7 @@ fun FaceVerificationStep(
                                             modifier = Modifier
                                                 .size(width = 14.dp, height = 3.dp)
                                                 .background(
-                                                    if (livenessStep > i || (faceDetected && i < 2)) 
+                                                    if (faceDetected && i <= livenessStep + 1) 
                                                         Color(0xFF00E5FF) 
                                                     else 
                                                         Color.White.copy(alpha = 0.2f),
@@ -1075,12 +1149,17 @@ fun FaceVerificationStep(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(2.dp)
-                                .offset(y = (-110).dp + laserPos.dp)
+                                .graphicsLayer {
+                                    with(density) {
+                                        translationY = -110.dp.toPx() + laserPos.dp.toPx()
+                                    }
+                                    alpha = if (faceDetected) 0.9f else 0.4f
+                                }
                                 .background(
                                     Brush.verticalGradient(
                                         listOf(
                                             Color.Transparent,
-                                            (if (livenessStep == 2) Color.Green else Color(0xFF00E5FF)).copy(alpha = if (faceDetected) 0.9f else 0.4f),
+                                            (if (livenessStep == 3) Color.Green else Color(0xFF00E5FF)),
                                             Color.Transparent
                                         )
                                     )
@@ -1090,11 +1169,10 @@ fun FaceVerificationStep(
                         // Cybernetic Corner Brackets
                         Canvas(modifier = Modifier
                             .fillMaxSize()
-                            .padding(35.dp)) {
-                            val color =
-                                if (livenessStep == 2) Color.Green.copy(alpha = glowAlpha) else Color(
-                                    0xFF00E5FF
-                                ).copy(alpha = glowAlpha)
+                            .padding(35.dp)
+                            .graphicsLayer { alpha = glowAlpha }
+                        ) {
+                            val color = if (livenessStep == 3) Color.Green else Color(0xFF00E5FF)
                             val s = 2.dp.toPx()
                             val l = 25.dp.toPx()
 
@@ -1239,11 +1317,7 @@ fun FaceVerificationStep(
                     }
                 } else if (capturedBitmap == null && !isUploading && countdown == 0) {
                     Button(
-                        onClick = {
-                            pendingImageProxy?.let { processCapture(it) } ?: run {
-                                statusMessage = "Waiting for camera..."
-                            }
-                        },
+                        onClick = { takePhoto() },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(56.dp),
@@ -1468,7 +1542,7 @@ fun ReceiptRow(label: String, value: String, color: Color = MaterialTheme.colorS
     }
 }
 
-private val isoFormat = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.getDefault())
+private val isoFormat = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.US)
 
 @Composable
 fun PermissionSection(onRequest: () -> Unit) {

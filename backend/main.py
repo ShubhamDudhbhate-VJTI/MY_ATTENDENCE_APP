@@ -410,6 +410,48 @@ class VerifyWifiRequest(BaseModel):
     latitude: Optional[float] = None
     longitude: Optional[float] = None
 
+# --- ADMIN CRUD MODELS ---
+
+class StudentCreate(BaseModel):
+    registration_number: str
+    full_name: str
+    email: str
+    password: str
+    branch: str
+    year: str
+
+class StudentUpdate(BaseModel):
+    full_name: Optional[str] = None
+    branch: Optional[str] = None
+    year: Optional[str] = None
+    registration_number: Optional[str] = None
+
+class FacultyCreate(BaseModel):
+    employee_id: str
+    full_name: str
+    email: str
+    password: str
+    branch: str
+    designation: Optional[str] = None
+
+class FacultyUpdate(BaseModel):
+    full_name: Optional[str] = None
+    branch: Optional[str] = None
+    designation: Optional[str] = None
+    employee_id: Optional[str] = None
+
+class SubjectCreate(BaseModel):
+    name: str
+    code: str
+    branch: str
+    year: str
+
+class SubjectUpdate(BaseModel):
+    name: Optional[str] = None
+    code: Optional[str] = None
+    branch: Optional[str] = None
+    year: Optional[str] = None
+
 # --- API ENDPOINTS ---
 
 @app.get("/")
@@ -2557,6 +2599,68 @@ async def update_schedule_record(record_id: str, record: dict = Body(...), db: S
         "room": room.name if room else "Unknown", "time": f"{s.start_time} - {s.end_time}"
     }
 
+@app.get("/students")
+async def get_students(db: Session = Depends(get_db)):
+    """Returns a list of all students"""
+    students = db.query(Student).all()
+    # Join with User to get email
+    results = db.query(Student, User).join(User, Student.id == User.id).all()
+    return [{
+        "id": str(s.id),
+        "registration_number": s.registration_number,
+        "full_name": s.full_name,
+        "branch": s.branch,
+        "year": s.year,
+        "email": u.email
+    } for s, u in results]
+
+@app.post("/students")
+async def create_student(data: StudentCreate, db: Session = Depends(get_db)):
+    existing = db.query(User).filter((User.email == data.email) | (User.username == data.registration_number)).first()
+    if existing: raise HTTPException(status_code=400, detail="Student already exists")
+
+    new_id = str(uuid.uuid4())
+    user = User(id=new_id, username=data.registration_number, email=data.email, password_hash=data.password, full_name=data.full_name, role="student")
+    student = Student(id=new_id, full_name=data.full_name, registration_number=data.registration_number, branch=data.branch, year=data.year)
+
+    db.add(user)
+    db.add(student)
+    db.commit()
+    return {"success": True, "id": new_id}
+
+@app.put("/students/{student_id}")
+async def update_student(student_id: str, data: StudentUpdate, db: Session = Depends(get_db)):
+    uid = clean_id(student_id)
+    student = db.query(Student).filter(Student.id == uid).first()
+    user = db.query(User).filter(User.id == uid).first()
+    if not student or not user: raise HTTPException(404, "Student not found")
+
+    if data.full_name:
+        student.full_name = data.full_name
+        user.full_name = data.full_name
+    if data.branch: student.branch = data.branch
+    if data.year: student.year = data.year
+    if data.registration_number:
+        student.registration_number = data.registration_number
+        user.username = data.registration_number
+
+    db.commit()
+    return {"success": True}
+
+@app.delete("/students/{student_id}")
+async def delete_student(student_id: str, db: Session = Depends(get_db)):
+    uid = clean_id(student_id)
+    # Cascading delete should handle the Student record if ForeignKey is set up with CASCADE
+    # But let's be explicit if needed, though Student.id has ForeignKey("app_users.id", ondelete="CASCADE")
+    user = db.query(User).filter(User.id == uid).first()
+    if not user: raise HTTPException(404, "Student not found")
+
+    db.delete(user)
+    db.commit()
+    return {"success": True}
+
+# --- FACULTY CRUD ---
+
 @app.get("/faculty/all")
 async def get_all_faculty(db: Session = Depends(get_db)):
     """Returns a list of all faculty members with full profile for HOD views"""
@@ -2570,13 +2674,92 @@ async def get_all_faculty(db: Session = Depends(get_db)):
             "email": str(user.email or f"{user.username}@academic.edu"),
             "full_name": str(user.full_name),
             "role": "faculty",
-            "academic": {
-                "branch": str(teacher.branch or ""),
-                "designation": str(teacher.designation or ""),
-                "employee_id": str(teacher.employee_id or "")
-            }
+            "branch": str(teacher.branch or ""),
+            "designation": str(teacher.designation or ""),
+            "employee_id": str(teacher.employee_id or "")
         })
     return profiles
+
+@app.post("/faculty")
+async def create_faculty(data: FacultyCreate, db: Session = Depends(get_db)):
+    existing = db.query(User).filter((User.email == data.email) | (User.username == data.employee_id)).first()
+    if existing: raise HTTPException(status_code=400, detail="Faculty already exists")
+
+    new_id = str(uuid.uuid4())
+    user = User(id=new_id, username=data.employee_id, email=data.email, password_hash=data.password, full_name=data.full_name, role="faculty")
+    teacher = Teacher(id=new_id, full_name=data.full_name, employee_id=data.employee_id, branch=data.branch, designation=data.designation)
+
+    db.add(user)
+    db.add(teacher)
+    db.commit()
+    return {"success": True, "id": new_id}
+
+@app.put("/faculty/{faculty_id}")
+async def update_faculty(faculty_id: str, data: FacultyUpdate, db: Session = Depends(get_db)):
+    uid = clean_id(faculty_id)
+    teacher = db.query(Teacher).filter(Teacher.id == uid).first()
+    user = db.query(User).filter(User.id == uid).first()
+    if not teacher or not user: raise HTTPException(404, "Faculty not found")
+
+    if data.full_name:
+        teacher.full_name = data.full_name
+        user.full_name = data.full_name
+    if data.branch: teacher.branch = data.branch
+    if data.designation: teacher.designation = data.designation
+    if data.employee_id:
+        teacher.employee_id = data.employee_id
+        user.username = data.employee_id
+
+    db.commit()
+    return {"success": True}
+
+@app.delete("/faculty/{faculty_id}")
+async def delete_faculty(faculty_id: str, db: Session = Depends(get_db)):
+    uid = clean_id(faculty_id)
+    user = db.query(User).filter(User.id == uid).first()
+    if not user: raise HTTPException(404, "Faculty not found")
+
+    db.delete(user)
+    db.commit()
+    return {"success": True}
+
+# --- SUBJECT CRUD ---
+
+@app.get("/subjects")
+async def get_subjects(db: Session = Depends(get_db)):
+    return [{"id": str(s.id), "name": str(s.name or "Unknown Subject"), "code": str(s.code or ""), "branch": s.branch, "year": s.year} for s in db.query(Subject).all()]
+
+@app.post("/subjects")
+async def create_subject(data: SubjectCreate, db: Session = Depends(get_db)):
+    new_id = str(uuid.uuid4())
+    subject = Subject(id=new_id, name=data.name, code=data.code, branch=data.branch, year=data.year)
+    db.add(subject)
+    db.commit()
+    return {"success": True, "id": new_id}
+
+@app.put("/subjects/{subject_id}")
+async def update_subject(subject_id: str, data: SubjectUpdate, db: Session = Depends(get_db)):
+    sid = clean_id(subject_id)
+    subject = db.query(Subject).filter(Subject.id == sid).first()
+    if not subject: raise HTTPException(404, "Subject not found")
+
+    if data.name: subject.name = data.name
+    if data.code: subject.code = data.code
+    if data.branch: subject.branch = data.branch
+    if data.year: subject.year = data.year
+
+    db.commit()
+    return {"success": True}
+
+@app.delete("/subjects/{subject_id}")
+async def delete_subject(subject_id: str, db: Session = Depends(get_db)):
+    sid = clean_id(subject_id)
+    subject = db.query(Subject).filter(Subject.id == sid).first()
+    if not subject: raise HTTPException(404, "Subject not found")
+
+    db.delete(subject)
+    db.commit()
+    return {"success": True}
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))

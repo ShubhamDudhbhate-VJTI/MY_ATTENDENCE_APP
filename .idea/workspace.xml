@@ -10,15 +10,31 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="37fbc4eb-d571-4aaf-8d9d-f890ab6307cf" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/admin-dashboard/index.html" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/admin-dashboard/package.json" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/admin-dashboard/postcss.config.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/admin-dashboard/src/App.jsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/admin-dashboard/src/api/index.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/admin-dashboard/src/components/Layout.jsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/admin-dashboard/src/index.css" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/admin-dashboard/src/main.jsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/admin-dashboard/src/pages/Dashboard.jsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/admin-dashboard/src/pages/Faculty.jsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/admin-dashboard/src/pages/Students.jsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/admin-dashboard/src/pages/Subjects.jsx" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/admin-dashboard/tailwind.config.js" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/admin-dashboard/vite.config.js" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.gradle/9.3.1/executionHistory/executionHistory.bin" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/9.3.1/executionHistory/executionHistory.bin" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.gradle/9.3.1/executionHistory/executionHistory.lock" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/9.3.1/executionHistory/executionHistory.lock" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.gradle/9.3.1/fileHashes/fileHashes.bin" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/9.3.1/fileHashes/fileHashes.bin" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.gradle/9.3.1/fileHashes/fileHashes.lock" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/9.3.1/fileHashes/fileHashes.lock" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.gradle/9.3.1/fileHashes/resourceHashesCache.bin" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/9.3.1/fileHashes/resourceHashesCache.bin" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.gradle/buildOutputCleanup/buildOutputCleanup.lock" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/buildOutputCleanup/buildOutputCleanup.lock" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.gradle/file-system.probe" beforeDir="false" afterPath="$PROJECT_DIR$/.gradle/file-system.probe" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/build.gradle.kts" beforeDir="false" afterPath="$PROJECT_DIR$/app/build.gradle.kts" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/example/dbms_shubham_application/data/model/AttendanceModels.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/example/dbms_shubham_application/data/model/AttendanceModels.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/app/src/main/java/com/example/dbms_shubham_application/screens/MarkAttendanceScreen.kt" beforeDir="false" afterPath="$PROJECT_DIR$/app/src/main/java/com/example/dbms_shubham_application/screens/MarkAttendanceScreen.kt" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/backend/main.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/requirements.txt" beforeDir="false" afterPath="$PROJECT_DIR$/backend/requirements.txt" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -28,7 +44,7 @@
   <component name="ClangdSettings">
     <option name="formatViaClangd" value="false" />
   </component>
-  <component name="ExecutionTargetManager" SELECTED_TARGET="device_and_snapshot_combo_box_target[PhysicalDevice::serial=irpzauyx854tq8hu]" />
+  <component name="ExecutionTargetManager" SELECTED_TARGET="device_and_snapshot_combo_box_target[LocalEmulator::path=D:\AndroidAVD\Pixel_4.avd]" />
   <component name="ExternalProjectsData">
     <projectState path="$PROJECT_DIR$">
       <ProjectState />
@@ -339,12 +355,12 @@
       <map>
         <entry key="com.example.dbms_shubham_application">
           <value>
-            <CheckInfo lastCheckTimestamp="1776801652822" />
+            <CheckInfo lastCheckTimestamp="1778389818219" />
           </value>
         </entry>
         <entry key="com.example.dbms_shubham_application.test">
           <value>
-            <CheckInfo lastCheckTimestamp="1776801652820" />
+            <CheckInfo lastCheckTimestamp="1778389818218" />
           </value>
         </entry>
       </map>

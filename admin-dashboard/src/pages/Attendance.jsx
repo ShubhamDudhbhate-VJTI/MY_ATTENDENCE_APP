@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ClipboardList, Loader2, Trash2, ChevronDown, ChevronRight, Users, Clock, Search } from 'lucide-react';
+import { ClipboardList, Loader2, Trash2, ChevronDown, ChevronRight, Users, Clock, Search, Calendar, Download } from 'lucide-react';
 import { attendanceApi } from '../api';
 import { useToast } from '../components/Toast';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -13,6 +13,8 @@ const Attendance = () => {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const { showToast, ToastContainer } = useToast();
 
   const fetchData = async () => { setLoading(true); try { setSessions(await attendanceApi.getSessions()); } catch(e) { showToast(e.message,'error'); } finally { setLoading(false); } };
@@ -38,18 +40,61 @@ const Attendance = () => {
   const statuses = [...new Set(sessions.map(s => s.status).filter(Boolean))];
   const filtered = useMemo(() => sessions.filter(s => {
     const matchText = !q || s.subjects?.name?.toLowerCase().includes(q) || s.id?.toLowerCase().includes(q) || s.subjects?.code?.toLowerCase().includes(q);
-    return matchText && (!filterStatus || s.status === filterStatus);
-  }), [sessions, q, filterStatus]);
+    const matchStatus = !filterStatus || s.status === filterStatus;
+    const sessionDate = s.start_time ? new Date(s.start_time) : null;
+    const matchFrom = !dateFrom || (sessionDate && sessionDate >= new Date(dateFrom));
+    const matchTo = !dateTo || (sessionDate && sessionDate <= new Date(dateTo + 'T23:59:59'));
+    return matchText && matchStatus && matchFrom && matchTo;
+  }), [sessions, q, filterStatus, dateFrom, dateTo]);
+
+  const activeCount = sessions.filter(s => s.status === 'active').length;
+  const totalRecordCount = records.length;
+
+  const exportSessions = () => {
+    const headers = ['Subject','Branch','Status','Start Time','Faculty'];
+    const rows = filtered.map(s => [s.subjects?.name, s.subjects?.branch, s.status, s.start_time, s.app_users?.full_name]);
+    const csv = [headers, ...rows].map(r => r.map(c => `"${(c||'').replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `attendance_export.csv`; a.click();
+    showToast(`Exported ${filtered.length} sessions`, 'info');
+  };
 
   return (
     <div className="space-y-6 animate-fadeIn">
       <ToastContainer />
       <ConfirmDialog isOpen={!!deleteTarget} title="Delete Session" message="Delete this session and all records?" onConfirm={handleDelete} onCancel={()=>setDeleteTarget(null)} />
 
-      <div>
-        <h1 className="text-2xl font-extrabold text-gray-900 dark:text-white flex items-center gap-2"><ClipboardList size={24} className="text-rose-600" /> Attendance Sessions</h1>
-        <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">{sessions.length} sessions recorded</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-extrabold text-gray-900 dark:text-white flex items-center gap-2"><ClipboardList size={24} className="text-rose-600" /> Attendance Sessions</h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">{sessions.length} sessions • {activeCount} active</p>
+        </div>
+        <button onClick={exportSessions} className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-all">
+          <Download size={16}/> Export Sessions
+        </button>
       </div>
+
+      {/* Mini Stats */}
+      {!loading && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="bg-white dark:bg-gray-900 px-4 py-3 rounded-xl border border-gray-100 dark:border-gray-800">
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Total Sessions</p>
+            <p className="text-lg font-extrabold text-gray-900 dark:text-white mt-0.5">{sessions.length}</p>
+          </div>
+          <div className="bg-white dark:bg-gray-900 px-4 py-3 rounded-xl border border-gray-100 dark:border-gray-800">
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Active Now</p>
+            <p className="text-lg font-extrabold text-green-600 mt-0.5">{activeCount}</p>
+          </div>
+          <div className="bg-white dark:bg-gray-900 px-4 py-3 rounded-xl border border-gray-100 dark:border-gray-800">
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Stopped</p>
+            <p className="text-lg font-extrabold text-gray-500 mt-0.5">{sessions.length - activeCount}</p>
+          </div>
+          <div className="bg-white dark:bg-gray-900 px-4 py-3 rounded-xl border border-gray-100 dark:border-gray-800">
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Filtered</p>
+            <p className="text-lg font-extrabold text-blue-600 mt-0.5">{filtered.length}</p>
+          </div>
+        </div>
+      )}
 
       {/* Search & Filters */}
       <div className="flex flex-wrap gap-3 items-center">
@@ -63,7 +108,13 @@ const Attendance = () => {
           <option value="">All Status</option>
           {statuses.map(s=><option key={s} value={s}>{s.charAt(0).toUpperCase()+s.slice(1)}</option>)}
         </select>
-        {(searchTerm||filterStatus) && <button onClick={()=>{setSearchTerm('');setFilterStatus('');}} className="px-3 py-2 text-xs text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl font-medium">Clear</button>}
+        <div className="flex items-center gap-2">
+          <Calendar size={14} className="text-gray-400" />
+          <input type="date" className="px-3 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl text-sm bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300" value={dateFrom} onChange={e=>setDateFrom(e.target.value)} placeholder="From" />
+          <span className="text-gray-400 text-xs">to</span>
+          <input type="date" className="px-3 py-2.5 border border-gray-200 dark:border-gray-700 rounded-xl text-sm bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300" value={dateTo} onChange={e=>setDateTo(e.target.value)} placeholder="To" />
+        </div>
+        {(searchTerm||filterStatus||dateFrom||dateTo) && <button onClick={()=>{setSearchTerm('');setFilterStatus('');setDateFrom('');setDateTo('');}} className="px-3 py-2 text-xs text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl font-medium">Clear All</button>}
         <p className="text-xs text-gray-400 font-medium ml-auto">{filtered.length} sessions</p>
       </div>
 

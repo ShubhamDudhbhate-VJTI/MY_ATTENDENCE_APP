@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Search, Plus, Edit3, Trash2, X, Users, Loader2, Filter, Download, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, CheckSquare, Square } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { Search, Plus, Edit3, Trash2, X, Users, Loader2, Filter, Download, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, CheckSquare, Square, Upload } from 'lucide-react';
 import { studentApi } from '../api';
 import { useToast } from '../components/Toast';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -67,6 +67,47 @@ const Students = () => {
     const a = document.createElement('a'); a.href = url; a.download = `students_export_${new Date().toISOString().slice(0,10)}.csv`; a.click();
     URL.revokeObjectURL(url);
     showToast(`Exported ${filtered.length} students to CSV`, 'info');
+  };
+
+  // CSV Import
+  const fileInputRef = useRef(null);
+  const [importing, setImporting] = useState(false);
+
+  const handleCSVImport = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setImporting(true);
+    try {
+      const text = await file.text();
+      const lines = text.split('\n').filter(l => l.trim());
+      if (lines.length < 2) { showToast('CSV must have a header row + data rows', 'error'); return; }
+      const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, '').toLowerCase());
+      const nameIdx = headers.findIndex(h => h.includes('name'));
+      const regIdx = headers.findIndex(h => h.includes('reg') || h.includes('registration'));
+      const emailIdx = headers.findIndex(h => h.includes('email'));
+      const branchIdx = headers.findIndex(h => h.includes('branch'));
+      const yearIdx = headers.findIndex(h => h.includes('year'));
+
+      if (nameIdx === -1 || emailIdx === -1) { showToast('CSV must have "name" and "email" columns', 'error'); return; }
+
+      let created = 0, failed = 0;
+      for (let i = 1; i < lines.length; i++) {
+        const cols = lines[i].split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+        const row = {
+          full_name: cols[nameIdx] || '',
+          registration_number: regIdx >= 0 ? cols[regIdx] : '',
+          email: cols[emailIdx] || '',
+          password: 'password123',
+          branch: branchIdx >= 0 ? cols[branchIdx] : '',
+          year: yearIdx >= 0 ? cols[yearIdx] : '',
+        };
+        if (!row.full_name || !row.email) { failed++; continue; }
+        try { await studentApi.create(row); created++; } catch { failed++; }
+      }
+      showToast(`Imported ${created} students (${failed} skipped)`);
+      fetchData();
+    } catch (err) { showToast('Failed to parse CSV: ' + err.message, 'error'); }
+    finally { setImporting(false); if (fileInputRef.current) fileInputRef.current.value = ''; }
   };
 
   // Filter
@@ -137,8 +178,14 @@ const Students = () => {
           <h1 className="text-2xl font-extrabold text-gray-900 dark:text-white flex items-center gap-2"><Users size={24} className="text-blue-600" /> Student Management</h1>
           <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">Manage student records — {students.length} total</p>
         </div>
-        <div className="flex gap-2">
-          <button onClick={exportCSV} className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-all">
+        <div className="flex gap-2 flex-wrap">
+          <input type="file" accept=".csv" ref={fileInputRef} onChange={handleCSVImport} className="hidden" />
+          <button onClick={() => fileInputRef.current?.click()} disabled={importing}
+            className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-all bg-white dark:bg-gray-900 disabled:opacity-50">
+            {importing ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
+            {importing ? 'Importing...' : 'Import CSV'}
+          </button>
+          <button onClick={exportCSV} className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-all bg-white dark:bg-gray-900">
             <Download size={16} /> Export
           </button>
           <button onClick={() => openModal()} className="btn-primary flex items-center gap-2 px-5 py-2.5 text-white rounded-xl text-sm font-semibold">
