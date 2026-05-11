@@ -1,0 +1,162 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  --color-primary: #1877F2;
+  --color-primary-dark: #1565C0;
+  --color-accent: #6366f1;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+.dark * {
+  scrollbar-color: #374151 transparent;
+}
+
+*::-webkit-scrollbar { width: 6px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 999px; }
+*::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+.dark *::-webkit-scrollbar-thumb { background: #4b5563; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #f8fafc;
+  color: #0f172a;
+}
+
+.dark body,
+html.dark body {
+  background-color: #030712;
+  color: #f1f5f9;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes pulse-ring {
+  0% { transform: scale(0.8); opacity: 1; }
+  100% { transform: scale(2); opacity: 0; }
+}
+
+.animate-fadeIn { animation: fadeIn 0.2s ease-out; }
+.animate-scaleIn { animation: scaleIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.animate-slideUp { animation: slideUp 0.35s ease-out; }
+
+/* Skeleton loader */
+.skeleton {
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 8px;
+}
+.dark .skeleton {
+  background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+  background-size: 200% 100%;
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, #1877F2, #6366f1);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ============ LIGHT MODE (Default) ============ */
+/* Clean white design like before */
+.btn-primary {
+  background: linear-gradient(135deg, #1877F2, #1565C0);
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(24, 119, 242, 0.25);
+}
+.btn-primary:hover {
+  box-shadow: 0 4px 16px rgba(24, 119, 242, 0.4);
+  transform: translateY(-1px);
+}
+
+.stat-card { transition: all 0.2s ease; }
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+.dark .stat-card:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.table-row-hover { transition: all 0.15s ease; }
+.table-row-hover:hover { background-color: #f8fafc; }
+.dark .table-row-hover:hover { background-color: #111827; }
+
+/* Input focus */
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--color-primary) !important;
+  box-shadow: 0 0 0 3px rgba(24, 119, 242, 0.1) !important;
+}
+.dark input:focus, .dark select:focus, .dark textarea:focus {
+  box-shadow: 0 0 0 3px rgba(24, 119, 242, 0.2) !important;
+}
+
+/* Modal backdrop */
+.modal-backdrop {
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+}
+
+/* ============ DARK MODE OVERRIDES ============ */
+/* Ensure all dark mode text is readable */
+.dark h1, .dark h2, .dark h3, .dark h4, .dark h5 {
+  color: #f1f5f9;
+}
+.dark p {
+  color: #94a3b8;
+}
+.dark label {
+  color: #94a3b8;
+}
+.dark th {
+  color: #6b7280;
+}
+.dark td {
+  color: #d1d5db;
+}
+
+/* Dark mode chart text fix */
+.dark .recharts-text {
+  fill: #9ca3af !important;
+}
+.dark .recharts-cartesian-grid line {
+  stroke: #1f2937 !important;
+}
+.dark .recharts-legend-item-text {
+  color: #9ca3af !important;
+}
