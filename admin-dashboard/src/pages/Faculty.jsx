@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, Plus, Edit3, Trash2, X, UserSquare2, Loader2, Filter, Download, CheckSquare, Square } from 'lucide-react';
+import { Search, Plus, Edit3, Trash2, X, UserSquare2, Loader2, Filter, Download, CheckSquare, Square, FileText } from 'lucide-react';
+import { exportPDF, exportCSV } from '../lib/exportUtils';
 import { facultyApi } from '../api';
 import { useToast } from '../components/Toast';
 import ConfirmDialog from '../components/ConfirmDialog';
+import ProfileCard from '../components/ProfileCard';
 
 const BRANCHES = ['Information Technology','Computer Engineering','Mechanical Engineering','Civil Engineering','Electronics Engineering','Electrical Engineering','Production Engineering','Textile Engineering'];
 
@@ -18,6 +20,7 @@ const Faculty = () => {
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [bulkMode, setBulkMode] = useState(false);
   const [form, setForm] = useState({ employee_id:'', full_name:'', email:'', password:'password123', branch:'', designation:'' });
+  const [profileTarget, setProfileTarget] = useState(null);
   const { showToast, ToastContainer } = useToast();
 
   const fetch = async () => { setLoading(true); try { setFaculty(await facultyApi.getAll()); } catch(e) { showToast(e.message,'error'); } finally { setLoading(false); } };
@@ -43,13 +46,17 @@ const Faculty = () => {
     showToast(`Deleted ${d} faculty`); setSelectedIds(new Set()); setBulkMode(false); setDeleteTarget(null); fetch();
   };
 
-  const exportCSV = () => {
-    const headers = ['Full Name','Employee ID','Email','Branch','Designation'];
-    const rows = filtered.map(f => [f.full_name, f.employee_id, f.email, f.branch, f.designation]);
-    const csv = [headers, ...rows].map(r => r.map(c => `"${(c||'').replace(/"/g,'""')}"`).join(',')).join('\n');
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `faculty_export_${new Date().toISOString().slice(0,10)}.csv`; a.click();
+  const expHeaders = ['Full Name','Employee ID','Email','Branch','Designation'];
+  const getExpRows = () => filtered.map(f => [f.full_name, f.employee_id, f.email, f.branch, f.designation]);
+
+  const handleExportCSV = () => {
+    exportCSV({ headers: expHeaders, rows: getExpRows(), filename: `faculty_export_${new Date().toISOString().slice(0,10)}.csv` });
     showToast(`Exported ${filtered.length} faculty to CSV`, 'info');
+  };
+
+  const handleExportPDF = () => {
+    exportPDF({ title: 'Faculty Report', subtitle: `${filtered.length} faculty members • AttendX Admin Dashboard`, headers: expHeaders, rows: getExpRows(), filters: [{ label: 'Branch', value: filterBranch }], filename: `Faculty_Report_${new Date().toISOString().slice(0,10)}.pdf` });
+    showToast(`Exported ${filtered.length} faculty to PDF`, 'info');
   };
 
   const q = searchTerm.toLowerCase();
@@ -81,7 +88,8 @@ const Faculty = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div><h1 className="text-2xl font-extrabold text-gray-900 dark:text-white flex items-center gap-2"><UserSquare2 size={24} className="text-emerald-600" /> Faculty Management</h1><p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">{faculty.length} faculty members</p></div>
         <div className="flex gap-2">
-          <button onClick={exportCSV} className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800"><Download size={16}/> Export</button>
+          <button onClick={handleExportPDF} className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800"><FileText size={16}/> PDF</button>
+          <button onClick={handleExportCSV} className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800"><Download size={16}/> CSV</button>
           <button onClick={()=>openModal()} className="btn-primary flex items-center gap-2 px-5 py-2.5 text-white rounded-xl text-sm font-semibold"><Plus size={18}/>Add Faculty</button>
         </div>
       </div>
@@ -121,8 +129,8 @@ const Faculty = () => {
               <div className="flex justify-between items-start mb-3">
                 <div className="flex items-center gap-3">
                   <button onClick={()=>toggleSelect(f.id)} className="text-gray-400 hover:text-blue-600">{selectedIds.has(f.id)?<CheckSquare size={16} className="text-blue-600"/>:<Square size={16}/>}</button>
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-100 to-green-100 dark:from-emerald-900/30 dark:to-green-900/30 text-emerald-600 flex items-center justify-center font-bold text-sm uppercase">{f.full_name?.split(' ').map(n=>n[0]).join('').slice(0,2)}</div>
-                  <div><h3 className="font-bold text-gray-900 dark:text-white text-sm">{f.full_name}</h3><p className="text-[11px] text-gray-400">{f.designation||'Faculty'} • {f.employee_id}</p></div>
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-100 to-green-100 dark:from-emerald-900/30 dark:to-green-900/30 text-emerald-600 flex items-center justify-center font-bold text-sm uppercase cursor-pointer" onClick={()=>setProfileTarget(f)}>{f.full_name?.split(' ').map(n=>n[0]).join('').slice(0,2)}</div>
+                  <div className="cursor-pointer" onClick={()=>setProfileTarget(f)}><h3 className="font-bold text-gray-900 dark:text-white text-sm hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors">{f.full_name}</h3><p className="text-[11px] text-gray-400">{f.designation||'Faculty'} • {f.employee_id}</p></div>
                 </div>
                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button onClick={()=>openModal(f)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg"><Edit3 size={14}/></button>
@@ -156,6 +164,9 @@ const Faculty = () => {
           </div>
         </div>
       )}
+
+      {/* Profile Detail Card */}
+      <ProfileCard isOpen={!!profileTarget} onClose={() => setProfileTarget(null)} person={profileTarget} type="faculty" />
     </div>
   );
 };

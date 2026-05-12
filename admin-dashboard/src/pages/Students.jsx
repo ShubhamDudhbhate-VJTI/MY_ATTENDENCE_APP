@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Search, Plus, Edit3, Trash2, X, Users, Loader2, Filter, Download, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, CheckSquare, Square, Upload } from 'lucide-react';
+import { Search, Plus, Edit3, Trash2, X, Users, Loader2, Filter, Download, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, CheckSquare, Square, Upload, FileText } from 'lucide-react';
+import { exportPDF, exportCSV } from '../lib/exportUtils';
 import { studentApi } from '../api';
 import { useToast } from '../components/Toast';
 import ConfirmDialog from '../components/ConfirmDialog';
+import ProfileCard from '../components/ProfileCard';
 
 const BRANCHES = ['Information Technology','Computer Engineering','Mechanical Engineering','Civil Engineering','Electronics Engineering','Electrical Engineering','Production Engineering','Textile Engineering'];
 const YEARS = ['First Year','Second Year','Third Year','Final Year'];
@@ -26,6 +28,7 @@ const Students = () => {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
   const [form, setForm] = useState({ registration_number:'', full_name:'', email:'', password:'password123', branch:'', year:'' });
+  const [profileTarget, setProfileTarget] = useState(null);
   const { showToast, ToastContainer } = useToast();
 
   const fetchData = async () => { setLoading(true); try { setStudents(await studentApi.getAll()); } catch(e) { showToast(e.message,'error'); } finally { setLoading(false); } };
@@ -58,15 +61,17 @@ const Students = () => {
     fetchData();
   };
 
-  const exportCSV = () => {
-    const headers = ['Full Name','Registration No','Email','Branch','Year'];
-    const rows = filtered.map(s => [s.full_name, s.registration_number, s.email, s.branch, s.year]);
-    const csv = [headers, ...rows].map(r => r.map(c => `"${(c||'').replace(/"/g,'""')}"`).join(',')).join('\n');
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = `students_export_${new Date().toISOString().slice(0,10)}.csv`; a.click();
-    URL.revokeObjectURL(url);
+  const headers = ['Full Name','Registration No','Email','Branch','Year'];
+  const getRows = () => filtered.map(s => [s.full_name, s.registration_number, s.email, s.branch, s.year]);
+
+  const handleExportCSV = () => {
+    exportCSV({ headers, rows: getRows(), filename: `students_export_${new Date().toISOString().slice(0,10)}.csv` });
     showToast(`Exported ${filtered.length} students to CSV`, 'info');
+  };
+
+  const handleExportPDF = () => {
+    exportPDF({ title: 'Student Report', subtitle: `${filtered.length} students • AttendX Admin Dashboard`, headers, rows: getRows(), filters: [{ label: 'Branch', value: filterBranch }, { label: 'Year', value: filterYear }], filename: `Students_Report_${new Date().toISOString().slice(0,10)}.pdf` });
+    showToast(`Exported ${filtered.length} students to PDF`, 'info');
   };
 
   // CSV Import
@@ -185,8 +190,11 @@ const Students = () => {
             {importing ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
             {importing ? 'Importing...' : 'Import CSV'}
           </button>
-          <button onClick={exportCSV} className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-all bg-white dark:bg-gray-900">
-            <Download size={16} /> Export
+          <button onClick={handleExportPDF} className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-all bg-white dark:bg-gray-900">
+            <FileText size={16} /> PDF
+          </button>
+          <button onClick={handleExportCSV} className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-all bg-white dark:bg-gray-900">
+            <Download size={16} /> CSV
           </button>
           <button onClick={() => openModal()} className="btn-primary flex items-center gap-2 px-5 py-2.5 text-white rounded-xl text-sm font-semibold">
             <Plus size={18} /> Add Student
@@ -270,7 +278,7 @@ const Students = () => {
                         {selectedIds.has(s.id) ? <CheckSquare size={16} className="text-blue-600" /> : <Square size={16} />}
                       </button>
                     </td>
-                    <td className="px-4 py-3"><div className="flex items-center gap-3"><div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 text-blue-600 flex items-center justify-center font-bold text-[10px] uppercase">{s.full_name?.split(' ').map(n=>n[0]).join('').slice(0,2)}</div><div><p className="text-sm font-semibold text-gray-900 dark:text-white">{s.full_name}</p><p className="text-[11px] text-gray-400">{s.email}</p></div></div></td>
+                    <td className="px-4 py-3 cursor-pointer" onClick={()=>setProfileTarget(s)}><div className="flex items-center gap-3"><div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 text-blue-600 flex items-center justify-center font-bold text-[10px] uppercase">{s.full_name?.split(' ').map(n=>n[0]).join('').slice(0,2)}</div><div><p className="text-sm font-semibold text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors">{s.full_name}</p><p className="text-[11px] text-gray-400">{s.email}</p></div></div></td>
                     <td className="px-4 py-3 font-mono text-xs text-gray-600 dark:text-gray-400">{s.registration_number}</td>
                     <td className="px-4 py-3"><span className="px-2 py-0.5 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded-lg text-[10px] font-medium">{s.branch||'—'}</span></td>
                     <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{s.year||'—'}</td>
@@ -331,8 +339,12 @@ const Students = () => {
           </div>
         </div>
       )}
+
+      {/* Profile Detail Card */}
+      <ProfileCard isOpen={!!profileTarget} onClose={() => setProfileTarget(null)} person={profileTarget} type="student" />
     </div>
   );
 };
 
 export default Students;
+

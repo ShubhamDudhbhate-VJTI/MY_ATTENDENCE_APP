@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, Plus, Edit3, Trash2, X, BookOpen, Loader2, Layers, Download } from 'lucide-react';
+import { Search, Plus, Edit3, Trash2, X, BookOpen, Loader2, Layers, Download, FileText } from 'lucide-react';
+import { exportPDF, exportCSV } from '../lib/exportUtils';
 import { subjectApi } from '../api';
 import { useToast } from '../components/Toast';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -37,13 +38,17 @@ const Subjects = () => {
 
   const handleDelete = async () => { try { await subjectApi.delete(deleteTarget.id); showToast('Subject deleted!'); setDeleteTarget(null); fetchData(); } catch(e){ showToast(e.message,'error'); } };
 
-  const exportCSV = () => {
-    const headers = ['Name','Code','Branch','Year'];
-    const rows = filtered.map(s => [s.name, s.code, s.branch, s.year]);
-    const csv = [headers, ...rows].map(r => r.map(c => `"${(c||'').replace(/"/g,'""')}"`).join(',')).join('\n');
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `subjects_export.csv`; a.click();
-    showToast(`Exported ${filtered.length} subjects`, 'info');
+  const expHeaders = ['Name','Code','Branch','Year'];
+  const getExpRows = () => filtered.map(s => [s.name, s.code, s.branch, s.year]);
+
+  const handleExportCSV = () => {
+    exportCSV({ headers: expHeaders, rows: getExpRows(), filename: `subjects_export_${new Date().toISOString().slice(0,10)}.csv` });
+    showToast(`Exported ${filtered.length} subjects to CSV`, 'info');
+  };
+
+  const handleExportPDF = () => {
+    exportPDF({ title: 'Subjects Report', subtitle: `${filtered.length} subjects • AttendX Admin Dashboard`, headers: expHeaders, rows: getExpRows(), filters: [{ label: 'Branch', value: filterBranch }, { label: 'Year', value: filterYear }], filename: `Subjects_Report_${new Date().toISOString().slice(0,10)}.pdf` });
+    showToast(`Exported ${filtered.length} subjects to PDF`, 'info');
   };
 
   const q = searchTerm.toLowerCase();
@@ -67,7 +72,8 @@ const Subjects = () => {
           <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">{subjects.length} subjects registered</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={exportCSV} className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-all bg-white dark:bg-gray-900"><Download size={16}/> Export</button>
+          <button onClick={handleExportPDF} className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-all bg-white dark:bg-gray-900"><FileText size={16}/> PDF</button>
+          <button onClick={handleExportCSV} className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-all bg-white dark:bg-gray-900"><Download size={16}/> CSV</button>
           <button onClick={()=>openModal()} className="btn-primary flex items-center gap-2 px-5 py-2.5 text-white rounded-xl text-sm font-semibold"><Plus size={18}/>Add Subject</button>
         </div>
       </div>

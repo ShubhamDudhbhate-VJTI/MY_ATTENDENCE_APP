@@ -125,6 +125,66 @@ export const facultyApi = {
   }
 };
 
+// ==================== HOD ====================
+export const hodApi = {
+  async getAll() {
+    const { data, error } = await supabase
+      .from('app_users')
+      .select('id, username, email, full_name, app_teachers!inner(employee_id, full_name, branch, department_id, designation)')
+      .eq('role', 'hod')
+      .order('full_name');
+    if (error) throw error;
+    return data.map(u => ({
+      id: u.id,
+      username: u.username,
+      email: u.email,
+      full_name: u.full_name,
+      employee_id: u.app_teachers?.employee_id || u.username,
+      branch: u.app_teachers?.branch || '',
+      department: u.app_teachers?.department_id || u.app_teachers?.branch || '',
+      designation: u.app_teachers?.designation || 'HOD'
+    }));
+  },
+
+  async create({ employee_id, full_name, email, password, branch, department, designation }) {
+    const id = generateId();
+    const { error: userErr } = await supabase.from('app_users').insert({
+      id, username: employee_id, email, password_hash: password,
+      full_name, role: 'hod'
+    });
+    if (userErr) throw userErr;
+    const { error: teacherErr } = await supabase.from('app_teachers').insert({
+      id, employee_id, full_name, branch, department_id: department || branch, designation: designation || 'Professor & HOD'
+    });
+    if (teacherErr) throw teacherErr;
+    return { id };
+  },
+
+  async update(id, { full_name, branch, department, designation, employee_id }) {
+    const teacherUpdates = {};
+    const userUpdates = {};
+    if (full_name) { teacherUpdates.full_name = full_name; userUpdates.full_name = full_name; }
+    if (branch) teacherUpdates.branch = branch;
+    if (department) teacherUpdates.department_id = department;
+    if (designation) teacherUpdates.designation = designation;
+    if (employee_id) { teacherUpdates.employee_id = employee_id; userUpdates.username = employee_id; }
+
+    if (Object.keys(teacherUpdates).length) {
+      const { error } = await supabase.from('app_teachers').update(teacherUpdates).eq('id', id);
+      if (error) throw error;
+    }
+    if (Object.keys(userUpdates).length) {
+      const { error } = await supabase.from('app_users').update(userUpdates).eq('id', id);
+      if (error) throw error;
+    }
+  },
+
+  async delete(id) {
+    const { error } = await supabase.from('app_users').delete().eq('id', id);
+    if (error) throw error;
+  }
+};
+
 // ==================== SUBJECTS ====================
 export const subjectApi = {
   async getAll() {
@@ -227,7 +287,7 @@ export const scheduleApi = {
   async getAll() {
     const { data, error } = await supabase
       .from('schedules')
-      .select('*, subjects(name, code), classrooms(name)')
+      .select('*, subjects(name, code, branch, year), classrooms(name)')
       .order('day_of_week');
     if (error) throw error;
     return data;

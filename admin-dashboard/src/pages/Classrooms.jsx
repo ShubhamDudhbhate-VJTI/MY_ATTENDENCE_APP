@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, Plus, Edit3, Trash2, X, Building2, Loader2, Wifi } from 'lucide-react';
+import { Search, Plus, Edit3, Trash2, X, Building2, Loader2, Wifi, Download, FileText } from 'lucide-react';
+import { exportPDF, exportCSV } from '../lib/exportUtils';
 import { classroomApi } from '../api';
 import { useToast } from '../components/Toast';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -37,6 +38,16 @@ const Classrooms = () => {
     return !q || c.name?.toLowerCase().includes(q) || c.wifi_ssid?.toLowerCase().includes(q) || c.wifi_bssid?.toLowerCase().includes(q);
   }), [classrooms, q]);
 
+  const expHeaders = ['Room Name','WiFi SSID','WiFi BSSID'];
+  const getExpRows = () => filtered.map(c => [c.name, c.wifi_ssid || '', c.wifi_bssid || '']);
+
+  const handleExportCSV = () => {
+    exportCSV({ headers: expHeaders, rows: getExpRows(), filename: `classrooms_export_${new Date().toISOString().slice(0,10)}.csv` });
+  };
+  const handleExportPDF = () => {
+    exportPDF({ title: 'Classroom Report', subtitle: `${filtered.length} classrooms • AttendX Admin Dashboard`, headers: expHeaders, rows: getExpRows(), filename: `Classrooms_Report_${new Date().toISOString().slice(0,10)}.pdf` });
+  };
+
   return (
     <div className="space-y-6 animate-fadeIn">
       <ToastContainer />
@@ -47,7 +58,11 @@ const Classrooms = () => {
           <h1 className="text-2xl font-extrabold text-gray-900 dark:text-white flex items-center gap-2"><Building2 size={24} className="text-amber-600" /> Classroom Management</h1>
           <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">{classrooms.length} rooms configured</p>
         </div>
-        <button onClick={()=>openModal()} className="btn-primary flex items-center gap-2 px-5 py-2.5 text-white rounded-xl text-sm font-semibold"><Plus size={18}/>Add Classroom</button>
+        <div className="flex gap-2">
+          <button onClick={handleExportPDF} className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-all bg-white dark:bg-gray-900"><FileText size={16}/> PDF</button>
+          <button onClick={handleExportCSV} className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-all bg-white dark:bg-gray-900"><Download size={16}/> CSV</button>
+          <button onClick={()=>openModal()} className="btn-primary flex items-center gap-2 px-5 py-2.5 text-white rounded-xl text-sm font-semibold"><Plus size={18}/>Add Classroom</button>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-3 items-center">

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ClipboardList, Loader2, Trash2, ChevronDown, ChevronRight, Users, Clock, Search, Calendar, Download } from 'lucide-react';
+import { ClipboardList, Loader2, Trash2, ChevronDown, ChevronRight, Users, Clock, Search, Calendar, Download, FileText } from 'lucide-react';
+import { exportPDF, exportCSV } from '../lib/exportUtils';
 import { attendanceApi } from '../api';
 import { useToast } from '../components/Toast';
 import ConfirmDialog from '../components/ConfirmDialog';
@@ -50,13 +51,17 @@ const Attendance = () => {
   const activeCount = sessions.filter(s => s.status === 'active').length;
   const totalRecordCount = records.length;
 
-  const exportSessions = () => {
-    const headers = ['Subject','Branch','Status','Start Time','Faculty'];
-    const rows = filtered.map(s => [s.subjects?.name, s.subjects?.branch, s.status, s.start_time, s.app_users?.full_name]);
-    const csv = [headers, ...rows].map(r => r.map(c => `"${(c||'').replace(/"/g,'""')}"`).join(',')).join('\n');
-    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `attendance_export.csv`; a.click();
-    showToast(`Exported ${filtered.length} sessions`, 'info');
+  const expHeaders = ['Subject','Branch','Status','Start Time'];
+  const getExpRows = () => filtered.map(s => [s.subjects?.name, s.subjects?.branch, s.status, s.start_time ? new Date(s.start_time).toLocaleString('en-IN') : '']);
+
+  const handleExportCSV = () => {
+    exportCSV({ headers: expHeaders, rows: getExpRows(), filename: `attendance_sessions_${new Date().toISOString().slice(0,10)}.csv` });
+    showToast(`Exported ${filtered.length} sessions to CSV`, 'info');
+  };
+
+  const handleExportPDF = () => {
+    exportPDF({ title: 'Attendance Sessions Report', subtitle: `${filtered.length} sessions • AttendX Admin Dashboard`, headers: expHeaders, rows: getExpRows(), filters: [{ label: 'Status', value: filterStatus }, { label: 'From', value: dateFrom }, { label: 'To', value: dateTo }], filename: `Attendance_Report_${new Date().toISOString().slice(0,10)}.pdf` });
+    showToast(`Exported ${filtered.length} sessions to PDF`, 'info');
   };
 
   return (
@@ -69,9 +74,14 @@ const Attendance = () => {
           <h1 className="text-2xl font-extrabold text-gray-900 dark:text-white flex items-center gap-2"><ClipboardList size={24} className="text-rose-600" /> Attendance Sessions</h1>
           <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">{sessions.length} sessions • {activeCount} active</p>
         </div>
-        <button onClick={exportSessions} className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-all">
-          <Download size={16}/> Export Sessions
-        </button>
+        <div className="flex gap-2">
+          <button onClick={handleExportPDF} className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-all">
+            <FileText size={16}/> PDF
+          </button>
+          <button onClick={handleExportCSV} className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-all">
+            <Download size={16}/> CSV
+          </button>
+        </div>
       </div>
 
       {/* Mini Stats */}

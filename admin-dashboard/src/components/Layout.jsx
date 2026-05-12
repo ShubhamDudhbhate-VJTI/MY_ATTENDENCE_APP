@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, UserSquare2, BookOpen, Building2,
   CalendarClock, ClipboardList, LogOut, Bell, Search, Menu,
   X, ChevronRight, Moon, Sun, Database, Wifi, WifiOff,
-  Command
+  Command, Shield
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
@@ -12,6 +12,7 @@ const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard', color: 'text-blue-600' },
   { to: '/students', icon: Users, label: 'Students', color: 'text-blue-600' },
   { to: '/faculty', icon: UserSquare2, label: 'Faculty', color: 'text-emerald-600' },
+  { to: '/hods', icon: Shield, label: 'HODs', color: 'text-amber-600' },
   { to: '/subjects', icon: BookOpen, label: 'Subjects', color: 'text-violet-600' },
   { to: '/classrooms', icon: Building2, label: 'Classrooms', color: 'text-amber-600' },
   { to: '/attendance', icon: ClipboardList, label: 'Attendance', color: 'text-rose-600' },
@@ -85,6 +86,7 @@ const Layout = ({ onLogout }) => {
     { label: 'Dashboard', path: '/', icon: LayoutDashboard },
     { label: 'Students', path: '/students', icon: Users },
     { label: 'Faculty', path: '/faculty', icon: UserSquare2 },
+    { label: 'HODs', path: '/hods', icon: Shield },
     { label: 'Subjects', path: '/subjects', icon: BookOpen },
     { label: 'Classrooms', path: '/classrooms', icon: Building2 },
     { label: 'Attendance', path: '/attendance', icon: ClipboardList },

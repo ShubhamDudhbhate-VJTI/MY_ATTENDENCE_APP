@@ -5,6 +5,7 @@ import Dashboard from './pages/Dashboard'
 import Students from './pages/Students'
 import Faculty from './pages/Faculty'
 import Subjects from './pages/Subjects'
+import HODs from './pages/HODs'
 import Classrooms from './pages/Classrooms'
 import Attendance from './pages/Attendance'
 import Schedules from './pages/Schedules'
@@ -23,6 +24,7 @@ function App() {
         <Route index element={<Dashboard />} />
         <Route path="students" element={<Students />} />
         <Route path="faculty" element={<Faculty />} />
+        <Route path="hods" element={<HODs />} />
         <Route path="subjects" element={<Subjects />} />
         <Route path="classrooms" element={<Classrooms />} />
         <Route path="attendance" element={<Attendance />} />
