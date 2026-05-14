@@ -4,7 +4,7 @@ import {
   LayoutDashboard, Users, UserSquare2, BookOpen, Building2,
   CalendarClock, ClipboardList, LogOut, Bell, Search, Menu,
   X, ChevronRight, Moon, Sun, Database, Wifi, WifiOff,
-  Command, Shield
+  Command, Shield, BarChart3, Link2
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
@@ -17,6 +17,9 @@ const navItems = [
   { to: '/classrooms', icon: Building2, label: 'Classrooms', color: 'text-amber-600' },
   { to: '/attendance', icon: ClipboardList, label: 'Attendance', color: 'text-rose-600' },
   { to: '/schedules', icon: CalendarClock, label: 'Schedules', color: 'text-indigo-600' },
+  { to: '/assignments', icon: Link2, label: 'Assignments', color: 'text-indigo-600' },
+  { to: '/analytics', icon: BarChart3, label: 'Analytics', color: 'text-rose-600' },
+  { to: '/student-report', icon: ClipboardList, label: 'Student Report', color: 'text-violet-600' },
 ];
 
 const SidebarLink = ({ to, icon: Icon, label, collapsed, color }) => {
@@ -91,6 +94,9 @@ const Layout = ({ onLogout }) => {
     { label: 'Classrooms', path: '/classrooms', icon: Building2 },
     { label: 'Attendance', path: '/attendance', icon: ClipboardList },
     { label: 'Schedules', path: '/schedules', icon: CalendarClock },
+    { label: 'Assignments', path: '/assignments', icon: Link2 },
+    { label: 'Analytics', path: '/analytics', icon: BarChart3 },
+    { label: 'Student Report', path: '/student-report', icon: ClipboardList },
     { label: 'Add Student', path: '/students', icon: Users },
     { label: 'Add Faculty', path: '/faculty', icon: UserSquare2 },
     { label: 'Add Subject', path: '/subjects', icon: BookOpen },

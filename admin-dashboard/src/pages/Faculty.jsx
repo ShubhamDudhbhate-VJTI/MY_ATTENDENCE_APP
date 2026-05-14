@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, Plus, Edit3, Trash2, X, UserSquare2, Loader2, Filter, Download, CheckSquare, Square, FileText } from 'lucide-react';
+import { Search, Plus, Edit3, Trash2, X, UserSquare2, Loader2, Filter, Download, CheckSquare, Square, FileText, Upload } from 'lucide-react';
 import { exportPDF, exportCSV } from '../lib/exportUtils';
 import { facultyApi } from '../api';
 import { useToast } from '../components/Toast';
@@ -22,6 +22,30 @@ const Faculty = () => {
   const [form, setForm] = useState({ employee_id:'', full_name:'', email:'', password:'password123', branch:'', designation:'' });
   const [profileTarget, setProfileTarget] = useState(null);
   const { showToast, ToastContainer } = useToast();
+
+  // CSV Import
+  const fileInputRef = React.useRef(null);
+  const [importing, setImporting] = useState(false);
+
+  const handleCSVImport = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setImporting(true);
+    try {
+      const result = await facultyApi.bulkImport(file);
+      showToast(`Successfully imported ${result.imported} faculty members!`);
+      if (result.errors?.length > 0) {
+        console.error('Import errors:', result.errors);
+        showToast(`${result.errors.length} rows had errors. Check console.`, 'warning');
+      }
+      fetch();
+    } catch (err) {
+      showToast('Bulk import failed: ' + err.message, 'error');
+    } finally {
+      setImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
 
   const fetch = async () => { setLoading(true); try { setFaculty(await facultyApi.getAll()); } catch(e) { showToast(e.message,'error'); } finally { setLoading(false); } };
   useEffect(() => { fetch(); }, []);
@@ -87,7 +111,13 @@ const Faculty = () => {
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div><h1 className="text-2xl font-extrabold text-gray-900 dark:text-white flex items-center gap-2"><UserSquare2 size={24} className="text-emerald-600" /> Faculty Management</h1><p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">{faculty.length} faculty members</p></div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          <input type="file" accept=".csv" ref={fileInputRef} onChange={handleCSVImport} className="hidden" />
+          <button onClick={() => fileInputRef.current?.click()} disabled={importing}
+            className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-all bg-white dark:bg-gray-900 disabled:opacity-50">
+            {importing ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
+            {importing ? 'Importing...' : 'Import CSV'}
+          </button>
           <button onClick={handleExportPDF} className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800"><FileText size={16}/> PDF</button>
           <button onClick={handleExportCSV} className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800"><Download size={16}/> CSV</button>
           <button onClick={()=>openModal()} className="btn-primary flex items-center gap-2 px-5 py-2.5 text-white rounded-xl text-sm font-semibold"><Plus size={18}/>Add Faculty</button>

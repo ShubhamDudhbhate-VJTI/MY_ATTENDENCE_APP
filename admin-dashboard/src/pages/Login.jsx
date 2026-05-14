@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Lock, User, Eye, EyeOff, Shield, ChevronRight, GraduationCap, Wifi, ScanFace, BarChart3, Clock } from 'lucide-react';
 
+import { analyticsApi } from '../api';
+
 // Particle canvas
 const ParticleBackground = () => {
   const canvasRef = useRef(null);
@@ -87,9 +89,22 @@ const Login = ({ onLogin }) => {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [stats, setStats] = useState({ totalStudents: 0, totalFaculty: 0, totalSessions: 0 });
   const cardRef = useRef(null);
 
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => { 
+    setMounted(true); 
+    fetchStats();
+  }, []);
+
+  const fetchStats = async () => {
+    try {
+      const data = await analyticsApi.getDashboardStats();
+      if (data) setStats(data);
+    } catch (e) {
+      console.error('Stats fetch error:', e);
+    }
+  };
 
   const typed = useTypewriter([
     'Smart Attendance System',
@@ -158,13 +173,13 @@ const Login = ({ onLogin }) => {
             {/* Live stats */}
             <div className="grid grid-cols-4 gap-3 mt-10">
               {[
-                { icon: GraduationCap, val: 4200, label: 'Students', color: '#3b82f6' },
-                { icon: ScanFace, val: 156, label: 'Faculty', color: '#10b981' },
-                { icon: BarChart3, val: 8700, label: 'Sessions', color: '#8b5cf6' },
+                { icon: GraduationCap, val: stats.totalStudents || 4200, label: 'Students', color: '#3b82f6' },
+                { icon: ScanFace, val: stats.totalFaculty || 156, label: 'Faculty', color: '#10b981' },
+                { icon: BarChart3, val: stats.totalSessions || 8700, label: 'Sessions', color: '#8b5cf6' },
                 { icon: Clock, val: 99, label: '% Uptime', color: '#d4a843' },
               ].map(s => (
-                <div key={s.label} className="p-3 rounded-xl text-center" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
-                  <s.icon size={16} className="mx-auto mb-2" style={{ color: s.color }} />
+                <div key={s.label} className="p-3 rounded-xl text-center backdrop-blur-sm group hover:scale-105 transition-all duration-300" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <s.icon size={16} className="mx-auto mb-2 group-hover:scale-125 transition-transform" style={{ color: s.color }} />
                   <p className="text-xl font-black text-white"><AnimCounter target={s.val} /></p>
                   <p className="text-[9px] text-gray-500 uppercase tracking-wider mt-1 font-bold">{s.label}</p>
                 </div>

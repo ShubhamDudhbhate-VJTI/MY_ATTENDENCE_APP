@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Users, UserSquare2, BookOpen, Building2, ClipboardList,
   ArrowUpRight, Activity, Clock, GraduationCap, BarChart3,
-  RefreshCcw, TrendingUp
+  RefreshCcw, TrendingUp, Shield
 } from 'lucide-react';
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -80,7 +80,7 @@ const Dashboard = () => {
   const [studentsByYear, setStudentsByYear] = useState([]);
   const [facultyByBranch, setFacultyByBranch] = useState([]);
   const [subjectsByBranch, setSubjectsByBranch] = useState([]);
-  const [sessionStatus, setSessionStatus] = useState([]);
+  const [verificationStats, setVerificationStats] = useState([]);
   const [recentSessions, setRecentSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -89,18 +89,18 @@ const Dashboard = () => {
   const fetchAll = async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true); else setLoading(true);
     try {
-      const [s, sb, sy, fb, sub, ss, rs] = await Promise.all([
+      const [s, sb, sy, fb, sub, vs, rs] = await Promise.all([
         analyticsApi.getDashboardStats(),
         analyticsApi.getStudentsByBranch(),
         analyticsApi.getStudentsByYear(),
         analyticsApi.getFacultyByBranch(),
         analyticsApi.getSubjectsByBranch(),
-        analyticsApi.getSessionStatusBreakdown(),
+        analyticsApi.getVerificationStats(),
         analyticsApi.getRecentSessions(6),
       ]);
       setStats(s); setStudentsByBranch(sb); setStudentsByYear(sy);
       setFacultyByBranch(fb); setSubjectsByBranch(sub);
-      setSessionStatus(ss); setRecentSessions(rs);
+      setVerificationStats(vs); setRecentSessions(rs);
       setLastUpdated(new Date());
     } catch (err) { console.error('Dashboard error:', err); }
     finally { setLoading(false); setRefreshing(false); }
@@ -313,23 +313,23 @@ const Dashboard = () => {
 
       {/* Row 3: Session Status (Pie) + Recent Sessions (List) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Session Status */}
+        {/* Verification Analytics */}
         <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm">
-          <h3 className="text-sm font-bold text-gray-900 mb-1 flex items-center gap-2">
-            <ClipboardList size={16} className="text-rose-600" />
-            Session Status
+          <h3 className="text-sm font-bold text-gray-900 dark:text-white mb-1 flex items-center gap-2">
+            <Shield size={16} className="text-emerald-600" />
+            Verification Analytics
           </h3>
-          <p className="text-[11px] text-gray-400 mb-4">Active vs completed sessions</p>
+          <p className="text-[11px] text-gray-400 mb-4">Face Verified vs Manual Records</p>
           {loading ? (
             <div className="skeleton h-52 w-full"></div>
-          ) : sessionStatus.length === 0 ? (
-            <p className="text-gray-400 text-sm text-center py-12">No sessions</p>
+          ) : verificationStats.length === 0 ? (
+            <p className="text-gray-400 text-sm text-center py-12">No data</p>
           ) : (
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
-                    data={sessionStatus}
+                    data={verificationStats}
                     cx="50%" cy="50%"
                     outerRadius={80}
                     innerRadius={45}
@@ -337,8 +337,8 @@ const Dashboard = () => {
                     dataKey="value"
                     label={renderCustomPieLabel}
                   >
-                    {sessionStatus.map((entry, i) => (
-                      <Cell key={i} fill={entry.name === 'Active' ? '#10b981' : entry.name === 'Stopped' ? '#94a3b8' : COLORS[i]} />
+                    {verificationStats.map((entry, i) => (
+                      <Cell key={i} fill={entry.name === 'Face Verified' ? '#10b981' : '#f59e0b'} />
                     ))}
                   </Pie>
                   <Tooltip content={<CustomTooltip />} />
@@ -386,7 +386,7 @@ const Dashboard = () => {
                   <div className="text-right flex-shrink-0">
                     <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
                       s.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
-                    }`}>{s.status}</span>
+                    }`}>{s.status === 'active' ? 'Completed' : 'Stopped'}</span>
                     <p className="text-[10px] text-gray-400 mt-0.5">{formatTime(s.start_time)}</p>
                   </div>
                 </div>

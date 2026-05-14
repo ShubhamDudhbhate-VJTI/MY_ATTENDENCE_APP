@@ -160,3 +160,88 @@ input:focus, select:focus, textarea:focus {
 .dark .recharts-legend-item-text {
   color: #9ca3af !important;
 }
+
+/* ============ STUDENT REPORT PAGE — Theme Tokens ============ */
+:root {
+  --sr-card-bg: #ffffff;
+  --sr-card-border: #e5e7eb;
+  --sr-card-shadow: rgba(0, 0, 0, 0.04);
+  --sr-text-primary: #111827;
+  --sr-text-secondary: #6b7280;
+  --sr-text-muted: #9ca3af;
+  --sr-text-faint: #b0b0b0;
+  --sr-input-bg: #f9fafb;
+  --sr-input-border: #e5e7eb;
+  --sr-select-bg: #ffffff;
+  --sr-btn-bg: #ffffff;
+  --sr-btn-border: #e5e7eb;
+  --sr-btn-text: #374151;
+  --sr-tile-bg: #faf8ff;
+  --sr-tile-border: #ede9fe;
+  --sr-track-bg: #f3f4f6;
+  --sr-section-border: #f3f4f6;
+  --sr-table-header-bg: #f9fafb;
+  --sr-table-border: #f3f4f6;
+  --sr-row-alt: #fafafa;
+  --sr-row-default: #ffffff;
+  --sr-student-selected-bg: #f5f3ff;
+  --sr-student-avatar-bg: #f3f4f6;
+  --sr-student-avatar-text: #6b7280;
+  --sr-photo-loader-bg: #f3f4f6;
+  --sr-photo-badge-bg: #f3f4f6;
+  --sr-photo-badge-text: #6b7280;
+  --sr-badge-success-bg: #dcfce7;
+  --sr-badge-success-text: #15803d;
+  --sr-badge-error-bg: #fee2e2;
+  --sr-badge-error-text: #dc2626;
+  --sr-icon-box-bg: #ede9fe;
+  --sr-empty-icon: #d1d5db;
+  --sr-empty-title: #6b7280;
+  --sr-stat-border: #e5e7eb;
+  --sr-stat-shadow: rgba(0, 0, 0, 0.03);
+}
+
+.dark {
+  --sr-card-bg: #111827;
+  --sr-card-border: #1f2937;
+  --sr-card-shadow: rgba(0, 0, 0, 0.3);
+  --sr-text-primary: #f1f5f9;
+  --sr-text-secondary: #94a3b8;
+  --sr-text-muted: #64748b;
+  --sr-text-faint: #4b5563;
+  --sr-input-bg: #1e293b;
+  --sr-input-border: #374151;
+  --sr-select-bg: #1e293b;
+  --sr-btn-bg: #1e293b;
+  --sr-btn-border: #374151;
+  --sr-btn-text: #d1d5db;
+  --sr-tile-bg: #1a1530;
+  --sr-tile-border: #2e2554;
+  --sr-track-bg: #1e293b;
+  --sr-section-border: #1f2937;
+  --sr-table-header-bg: #0f172a;
+  --sr-table-border: #1f2937;
+  --sr-row-alt: #0f172a;
+  --sr-row-default: #111827;
+  --sr-student-selected-bg: #1e1b2e;
+  --sr-student-avatar-bg: #1e293b;
+  --sr-student-avatar-text: #94a3b8;
+  --sr-photo-loader-bg: #1e293b;
+  --sr-photo-badge-bg: #1e293b;
+  --sr-photo-badge-text: #94a3b8;
+  --sr-badge-success-bg: #052e16;
+  --sr-badge-success-text: #4ade80;
+  --sr-badge-error-bg: #450a0a;
+  --sr-badge-error-text: #f87171;
+  --sr-icon-box-bg: #2e1065;
+  --sr-empty-icon: #374151;
+  --sr-empty-title: #94a3b8;
+  --sr-stat-border: #1f2937;
+  --sr-stat-shadow: rgba(0, 0, 0, 0.2);
+}
+
+/* Dark mode select/option fix */
+.dark select option {
+  background: #1e293b;
+  color: #d1d5db;
+}

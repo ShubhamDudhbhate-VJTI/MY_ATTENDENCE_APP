@@ -83,36 +83,19 @@ const Students = () => {
     if (!file) return;
     setImporting(true);
     try {
-      const text = await file.text();
-      const lines = text.split('\n').filter(l => l.trim());
-      if (lines.length < 2) { showToast('CSV must have a header row + data rows', 'error'); return; }
-      const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, '').toLowerCase());
-      const nameIdx = headers.findIndex(h => h.includes('name'));
-      const regIdx = headers.findIndex(h => h.includes('reg') || h.includes('registration'));
-      const emailIdx = headers.findIndex(h => h.includes('email'));
-      const branchIdx = headers.findIndex(h => h.includes('branch'));
-      const yearIdx = headers.findIndex(h => h.includes('year'));
-
-      if (nameIdx === -1 || emailIdx === -1) { showToast('CSV must have "name" and "email" columns', 'error'); return; }
-
-      let created = 0, failed = 0;
-      for (let i = 1; i < lines.length; i++) {
-        const cols = lines[i].split(',').map(c => c.trim().replace(/^"|"$/g, ''));
-        const row = {
-          full_name: cols[nameIdx] || '',
-          registration_number: regIdx >= 0 ? cols[regIdx] : '',
-          email: cols[emailIdx] || '',
-          password: 'password123',
-          branch: branchIdx >= 0 ? cols[branchIdx] : '',
-          year: yearIdx >= 0 ? cols[yearIdx] : '',
-        };
-        if (!row.full_name || !row.email) { failed++; continue; }
-        try { await studentApi.create(row); created++; } catch { failed++; }
+      const result = await studentApi.bulkImport(file);
+      showToast(`Successfully imported ${result.imported} students!`);
+      if (result.errors?.length > 0) {
+        console.error('Import errors:', result.errors);
+        showToast(`${result.errors.length} rows had errors. Check console.`, 'warning');
       }
-      showToast(`Imported ${created} students (${failed} skipped)`);
       fetchData();
-    } catch (err) { showToast('Failed to parse CSV: ' + err.message, 'error'); }
-    finally { setImporting(false); if (fileInputRef.current) fileInputRef.current.value = ''; }
+    } catch (err) {
+      showToast('Bulk import failed: ' + err.message, 'error');
+    } finally {
+      setImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
   };
 
   // Filter

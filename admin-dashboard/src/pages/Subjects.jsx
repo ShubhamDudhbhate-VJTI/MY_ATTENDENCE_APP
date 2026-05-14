@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Search, Plus, Edit3, Trash2, X, BookOpen, Loader2, Layers, Download, FileText } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { Search, Plus, Edit3, Trash2, X, BookOpen, Loader2, Layers, Download, FileText, Upload } from 'lucide-react';
 import { exportPDF, exportCSV } from '../lib/exportUtils';
 import { subjectApi } from '../api';
 import { useToast } from '../components/Toast';
@@ -12,6 +12,7 @@ const Subjects = () => {
   const [subjects, setSubjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterBranch, setFilterBranch] = useState('');
   const [filterYear, setFilterYear] = useState('');
@@ -20,6 +21,7 @@ const Subjects = () => {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [form, setForm] = useState({ name:'', code:'', branch:'', year:'' });
   const { showToast, ToastContainer } = useToast();
+  const fileInputRef = useRef(null);
 
   const fetchData = async () => { setLoading(true); try { setSubjects(await subjectApi.getAll()); } catch(e) { showToast(e.message,'error'); } finally { setLoading(false); } };
   useEffect(() => { fetchData(); }, []);
@@ -37,6 +39,26 @@ const Subjects = () => {
   } catch(e){ showToast(e.message,'error'); } finally { setSaving(false); } };
 
   const handleDelete = async () => { try { await subjectApi.delete(deleteTarget.id); showToast('Subject deleted!'); setDeleteTarget(null); fetchData(); } catch(e){ showToast(e.message,'error'); } };
+
+  const handleBulkImport = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setImporting(true);
+    try {
+      const result = await subjectApi.bulkImport(file);
+      showToast(`Successfully imported ${result.imported} subjects!`, 'success');
+      if (result.errors?.length > 0) {
+        showToast(`${result.errors.length} rows had errors.`, 'warning');
+      }
+      fetchData();
+    } catch (err) {
+      showToast(err.message || 'Bulk import failed', 'error');
+    } finally {
+      setImporting(false);
+      e.target.value = ''; // Reset input
+    }
+  };
 
   const expHeaders = ['Name','Code','Branch','Year'];
   const getExpRows = () => filtered.map(s => [s.name, s.code, s.branch, s.year]);
@@ -72,6 +94,10 @@ const Subjects = () => {
           <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">{subjects.length} subjects registered</p>
         </div>
         <div className="flex gap-2">
+          <input type="file" accept=".csv" ref={fileInputRef} className="hidden" onChange={handleBulkImport} />
+          <button onClick={() => fileInputRef.current?.click()} disabled={importing} className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-all bg-white dark:bg-gray-900">
+            {importing ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />} Import
+          </button>
           <button onClick={handleExportPDF} className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-all bg-white dark:bg-gray-900"><FileText size={16}/> PDF</button>
           <button onClick={handleExportCSV} className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-all bg-white dark:bg-gray-900"><Download size={16}/> CSV</button>
           <button onClick={()=>openModal()} className="btn-primary flex items-center gap-2 px-5 py-2.5 text-white rounded-xl text-sm font-semibold"><Plus size={18}/>Add Subject</button>

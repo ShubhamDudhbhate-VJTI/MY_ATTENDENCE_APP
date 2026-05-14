@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { X, Mail, Hash, GitBranch, GraduationCap, Building2, Shield, User, Camera, Briefcase } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { getFaceUrl, getProfilePhotoUrl } from '../api';
 
 /**
  * ProfileCard — Premium detail card shown when clicking a Student, Faculty, or HOD.
- * Fetches photo from Supabase if available, otherwise shows initials avatar.
+ * Fetches photo from Backend if available, otherwise Supabase, then initials avatar.
  *
  * Props:
  *  - isOpen: boolean
@@ -38,52 +39,85 @@ const ProfileCard = ({ isOpen, onClose, person, type = 'student' }) => {
     const fetchPhoto = async () => {
       setLoadingPhoto(true);
       setPhotoUrl(null);
+      let foundPhoto = false;
       try {
+        // 1. Try Backend face endpoint for students
         if (type === 'student') {
-          // Try face_image from app_students
-          const { data } = await supabase
-            .from('app_students')
-            .select('face_image')
-            .eq('id', person.id)
-            .single();
-          if (data?.face_image) {
-            // face_image is stored as bytea — Supabase returns it as a base64 string or hex
-            const bytes = data.face_image;
-            if (typeof bytes === 'string' && bytes.length > 100) {
-              // Check if it's already base64 or hex-encoded
-              if (bytes.startsWith('\\x')) {
-                // hex format — convert to base64
-                const hex = bytes.slice(2);
-                const byteArray = new Uint8Array(hex.match(/.{1,2}/g).map(b => parseInt(b, 16)));
-                const blob = new Blob([byteArray], { type: 'image/jpeg' });
+          try {
+            const url = getFaceUrl(person.registration_number || person.id);
+            const resp = await fetch(url);
+            if (resp.ok) {
+              const blob = await resp.blob();
+              if (blob.size > 100) {
                 setPhotoUrl(URL.createObjectURL(blob));
-              } else {
-                // Assume base64
-                setPhotoUrl(`data:image/jpeg;base64,${bytes}`);
+                foundPhoto = true;
               }
             }
-          }
+          } catch (_) {}
         }
-        // Also try profile_photo from app_users for all types
-        if (!photoUrl) {
-          const { data: userData } = await supabase
-            .from('app_users')
-            .select('profile_photo')
-            .eq('id', person.id)
-            .single();
-          if (userData?.profile_photo) {
-            const bytes = userData.profile_photo;
-            if (typeof bytes === 'string' && bytes.length > 100) {
-              if (bytes.startsWith('\\x')) {
-                const hex = bytes.slice(2);
-                const byteArray = new Uint8Array(hex.match(/.{1,2}/g).map(b => parseInt(b, 16)));
-                const blob = new Blob([byteArray], { type: 'image/jpeg' });
+
+        // 2. Try Backend profile photo endpoint
+        if (!foundPhoto) {
+          try {
+            const profileUrl = getProfilePhotoUrl(person.id);
+            const pResp = await fetch(profileUrl);
+            if (pResp.ok) {
+              const blob = await pResp.blob();
+              if (blob.size > 100) {
                 setPhotoUrl(URL.createObjectURL(blob));
-              } else {
-                setPhotoUrl(`data:image/jpeg;base64,${bytes}`);
+                foundPhoto = true;
               }
             }
-          }
+          } catch (_) {}
+        }
+
+        // 3. Fallback to Supabase face_image from app_students
+        if (!foundPhoto && type === 'student') {
+          try {
+            const { data } = await supabase
+              .from('app_students')
+              .select('face_image')
+              .eq('id', person.id)
+              .single();
+            if (data?.face_image) {
+              const bytes = data.face_image;
+              if (typeof bytes === 'string' && bytes.length > 100) {
+                if (bytes.startsWith('\\x')) {
+                  const hex = bytes.slice(2);
+                  const byteArray = new Uint8Array(hex.match(/.{1,2}/g).map(b => parseInt(b, 16)));
+                  const blob = new Blob([byteArray], { type: 'image/jpeg' });
+                  setPhotoUrl(URL.createObjectURL(blob));
+                } else {
+                  setPhotoUrl(`data:image/jpeg;base64,${bytes}`);
+                }
+                foundPhoto = true;
+              }
+            }
+          } catch (_) {}
+        }
+
+        // 4. Fallback to Supabase profile_photo from app_users
+        if (!foundPhoto) {
+          try {
+            const { data: userData } = await supabase
+              .from('app_users')
+              .select('profile_photo')
+              .eq('id', person.id)
+              .single();
+            if (userData?.profile_photo) {
+              const bytes = userData.profile_photo;
+              if (typeof bytes === 'string' && bytes.length > 100) {
+                if (bytes.startsWith('\\x')) {
+                  const hex = bytes.slice(2);
+                  const byteArray = new Uint8Array(hex.match(/.{1,2}/g).map(b => parseInt(b, 16)));
+                  const blob = new Blob([byteArray], { type: 'image/jpeg' });
+                  setPhotoUrl(URL.createObjectURL(blob));
+                } else {
+                  setPhotoUrl(`data:image/jpeg;base64,${bytes}`);
+                }
+              }
+            }
+          } catch (_) {}
         }
       } catch (e) {
         console.log('Photo fetch skipped:', e.message);

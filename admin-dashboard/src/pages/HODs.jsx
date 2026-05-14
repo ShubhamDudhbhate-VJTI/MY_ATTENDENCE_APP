@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, Plus, Edit3, Trash2, X, Shield, Loader2, Download, Building2, FileText } from 'lucide-react';
+import { Search, Plus, Edit3, Trash2, X, Shield, Loader2, Download, Building2, FileText, Mail, GraduationCap } from 'lucide-react';
 import { exportPDF, exportCSV } from '../lib/exportUtils';
 import { hodApi } from '../api';
 import { useToast } from '../components/Toast';
@@ -7,6 +7,7 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import ProfileCard from '../components/ProfileCard';
 
 const BRANCHES = ['Information Technology','Computer Engineering','Mechanical Engineering','Civil Engineering','Electronics Engineering','Electrical Engineering','Production Engineering','Textile Engineering'];
+const YEARS = ['First Year','Second Year','Third Year','Final Year'];
 
 const branchColors = {
   'Information Technology': { bg: 'bg-blue-100 dark:bg-blue-900/30', text: 'text-blue-700 dark:text-blue-400', grad: 'from-blue-500 to-cyan-500' },
@@ -32,6 +33,7 @@ const HODs = () => {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [form, setForm] = useState({ employee_id:'', full_name:'', email:'', password:'hod123', branch:'', department:'', designation:'Professor & HOD' });
   const [profileTarget, setProfileTarget] = useState(null);
+
   const { showToast, ToastContainer } = useToast();
 
   const fetchData = async () => { setLoading(true); try { setHods(await hodApi.getAll()); } catch(e) { showToast(e.message,'error'); } finally { setLoading(false); } };
@@ -42,6 +44,7 @@ const HODs = () => {
     else { setIsEditing(false); setForm({ employee_id:'', full_name:'', email:'', password:'hod123', branch:'', department:'', designation:'Professor & HOD' }); }
     setIsModalOpen(true);
   };
+
 
   const handleSubmit = async (e) => { e.preventDefault(); setSaving(true); try {
     const payload = { ...form, department: form.department || form.branch };
@@ -83,6 +86,7 @@ const HODs = () => {
           <p className="text-gray-500 dark:text-gray-400 mt-1 text-sm">{hods.length} Head{hods.length !== 1 ? 's' : ''} of Department registered</p>
         </div>
         <div className="flex gap-2">
+
           <button onClick={handleExportPDF} className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-all bg-white dark:bg-gray-900"><FileText size={16}/>PDF</button>
           <button onClick={handleExportCSV} className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-all bg-white dark:bg-gray-900"><Download size={16}/>CSV</button>
           <button onClick={()=>openModal()} className="btn-primary flex items-center gap-2 px-5 py-2.5 text-white rounded-xl text-sm font-semibold"><Plus size={18}/>Add HOD</button>
@@ -203,6 +207,8 @@ const HODs = () => {
 
       {/* Profile Detail Card */}
       <ProfileCard isOpen={!!profileTarget} onClose={() => setProfileTarget(null)} person={profileTarget} type="hod" />
+
+
     </div>
   );
 };

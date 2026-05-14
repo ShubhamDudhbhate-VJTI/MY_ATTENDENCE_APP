@@ -9,6 +9,9 @@ import HODs from './pages/HODs'
 import Classrooms from './pages/Classrooms'
 import Attendance from './pages/Attendance'
 import Schedules from './pages/Schedules'
+import Assignments from './pages/Assignments'
+import Analytics from './pages/Analytics'
+import StudentReport from './pages/StudentReport'
 import Login from './pages/Login'
 
 function App() {
@@ -29,6 +32,9 @@ function App() {
         <Route path="classrooms" element={<Classrooms />} />
         <Route path="attendance" element={<Attendance />} />
         <Route path="schedules" element={<Schedules />} />
+        <Route path="assignments" element={<Assignments />} />
+        <Route path="analytics" element={<Analytics />} />
+        <Route path="student-report" element={<StudentReport />} />
       </Route>
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>

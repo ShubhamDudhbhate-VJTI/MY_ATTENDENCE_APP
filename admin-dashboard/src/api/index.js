@@ -10,6 +10,11 @@ function generateId() {
 }
 
 // ==================== STUDENTS ====================
+const BACKEND_URL = 'http://localhost:8000'; // Default, update as needed
+
+export const getFaceUrl = (studentId) => `${BACKEND_URL}/faces/${studentId}.jpg`;
+export const getProfilePhotoUrl = (userId) => `${BACKEND_URL}/users/${userId}/profile-photo`;
+
 export const studentApi = {
   async getAll() {
     const { data, error } = await supabase
@@ -25,6 +30,17 @@ export const studentApi = {
       year: s.year,
       email: s.app_users?.email || ''
     }));
+  },
+
+  async bulkImport(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await fetch(`${BACKEND_URL}/students/bulk`, {
+      method: 'POST',
+      body: formData,
+    });
+    if (!response.ok) throw new Error('Bulk import failed');
+    return await response.json();
   },
 
   async create({ registration_number, full_name, email, password, branch, year }) {
@@ -85,6 +101,17 @@ export const facultyApi = {
       branch: u.app_teachers?.branch || '',
       designation: u.app_teachers?.designation || ''
     }));
+  },
+
+  async bulkImport(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await fetch(`${BACKEND_URL}/faculty/bulk`, {
+      method: 'POST',
+      body: formData,
+    });
+    if (!response.ok) throw new Error('Bulk import failed');
+    return await response.json();
   },
 
   async create({ employee_id, full_name, email, password, branch, designation }) {
@@ -216,6 +243,17 @@ export const subjectApi = {
   async delete(id) {
     const { error } = await supabase.from('subjects').delete().eq('id', id);
     if (error) throw error;
+  },
+
+  async bulkImport(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await fetch(`${BACKEND_URL}/subjects/bulk`, {
+      method: 'POST',
+      body: formData,
+    });
+    if (!response.ok) throw new Error('Bulk import failed');
+    return await response.json();
   }
 };
 
@@ -313,6 +351,40 @@ export const scheduleApi = {
   }
 };
 
+// ==================== ASSIGNMENTS (Faculty-Subject Mapping) ====================
+export const assignmentApi = {
+  async getAll() {
+    const { data, error } = await supabase
+      .from('faculty_subjects')
+      .select('*, app_users!inner(full_name, app_teachers(full_name, employee_id, branch)), subjects!inner(name, code, branch, year)')
+      .order('id');
+    if (error) throw error;
+    return data.map(item => ({
+      id: item.id,
+      faculty_id: item.faculty_id,
+      subject_id: item.subject_id,
+      faculty_name: item.app_users?.app_teachers?.full_name || item.app_users?.full_name,
+      employee_id: item.app_users?.app_teachers?.employee_id,
+      subject_name: item.subjects?.name,
+      subject_code: item.subjects?.code,
+      branch: item.subjects?.branch,
+      year: item.subjects?.year
+    }));
+  },
+
+  async create({ faculty_id, subject_id }) {
+    const id = generateId();
+    const { error } = await supabase.from('faculty_subjects').insert({ id, faculty_id, subject_id });
+    if (error) throw error;
+    return { id };
+  },
+
+  async delete(id) {
+    const { error } = await supabase.from('faculty_subjects').delete().eq('id', id);
+    if (error) throw error;
+  }
+};
+
 // ==================== ANALYTICS (Dashboard) ====================
 export const analyticsApi = {
   async getDashboardStats() {
@@ -366,12 +438,15 @@ export const analyticsApi = {
     return Object.entries(counts).map(([name, value]) => ({ name: name.replace(' Engineering', '').replace('Information Technology', 'IT'), fullName: name, value }));
   },
 
-  async getSessionStatusBreakdown() {
-    const { data, error } = await supabase.from('attendance_sessions').select('status');
+  async getVerificationStats() {
+    const { data, error } = await supabase.from('attendance_records').select('face_verified');
     if (error) throw error;
-    const counts = {};
-    data.forEach(s => { const st = s.status || 'unknown'; counts[st] = (counts[st] || 0) + 1; });
-    return Object.entries(counts).map(([name, value]) => ({ name: name.charAt(0).toUpperCase() + name.slice(1), value }));
+    const counts = { 'Face Verified': 0, 'Manual/Other': 0 };
+    data.forEach(r => {
+      if (r.face_verified) counts['Face Verified']++;
+      else counts['Manual/Other']++;
+    });
+    return Object.entries(counts).map(([name, value]) => ({ name, value }));
   },
 
   async getRecentSessions(limit = 6) {
@@ -392,5 +467,119 @@ export const analyticsApi = {
       .limit(limit);
     if (error) throw error;
     return data;
+  }
+};
+
+// ==================== REPORTS ====================
+export const reportApi = {
+  async downloadDefaulterLetters(departmentId, branch = 'All', year = 'All') {
+    const params = new URLSearchParams({
+      department_id: departmentId,
+      branch: branch,
+      year: year
+    });
+    const response = await fetch(`${BACKEND_URL}/reports/defaulter-letters?${params.toString()}`);
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || 'Failed to download defaulter letters');
+    }
+    return await response.blob();
+  },
+
+  async downloadMasterReport(departmentId, params = {}) {
+    const queryParams = new URLSearchParams({
+      department_id: departmentId,
+      branch: params.branch || 'All',
+      year: params.year || 'All',
+      faculty_id: params.faculty_id || 'All',
+      subject_id: params.subject_id || 'All',
+      student_id: params.student_id || 'All',
+      start_date: params.start_date || '',
+      end_date: params.end_date || ''
+    });
+    const response = await fetch(`${BACKEND_URL}/reports/hod-master-pdf?${queryParams.toString()}`);
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || 'Failed to download master report');
+    }
+    return await response.blob();
+  }
+};
+
+// ==================== STUDENT REPORT ====================
+export const studentReportApi = {
+  /** Get all students (for search/select dropdown) */
+  async getAllStudents() {
+    const { data, error } = await supabase
+      .from('app_students')
+      .select('id, full_name, registration_number, branch, year')
+      .order('full_name');
+    if (error) throw error;
+    return data;
+  },
+
+  /** Get full student details including email */
+  async getStudentDetails(studentId) {
+    const { data: student, error: sErr } = await supabase
+      .from('app_students')
+      .select('id, full_name, registration_number, branch, year')
+      .eq('id', studentId)
+      .single();
+    if (sErr) throw sErr;
+
+    // Soft fetch email — don't crash if app_users row is missing
+    let email = '';
+    try {
+      const { data: user } = await supabase
+        .from('app_users')
+        .select('email')
+        .eq('id', studentId)
+        .single();
+      if (user?.email) email = user.email;
+    } catch (_) { /* skip */ }
+
+    return { ...student, email };
+  },
+
+  /** Get all attendance records for a student with session + subject info */
+  async getStudentAttendance(studentId) {
+    const { data, error } = await supabase
+      .from('attendance_records')
+      .select(`
+        id, status, marked_at, face_verified,
+        attendance_sessions!inner(
+          id, status, start_time, qr_expires_at,
+          subject_id,
+          subjects(id, name, code, branch, year)
+        )
+      `)
+      .eq('student_id', studentId)
+      .order('marked_at', { ascending: false });
+    if (error) throw error;
+    return data;
+  },
+
+  /** Get total sessions for each subject the student SHOULD have attended (same branch+year) */
+  async getTotalSessionsBySubjects(branch, year) {
+    // Get all subjects for this branch+year
+    const { data: subjects, error: subErr } = await supabase
+      .from('subjects')
+      .select('id, name, code')
+      .eq('branch', branch)
+      .eq('year', year);
+    if (subErr) throw subErr;
+
+    // For each subject, count total sessions
+    const result = {};
+    for (const sub of subjects) {
+      const { count, error: cErr } = await supabase
+        .from('attendance_sessions')
+        .select('id', { count: 'exact', head: true })
+        .eq('subject_id', sub.id);
+      if (!cErr) {
+        result[sub.id] = { ...sub, totalSessions: count || 0 };
+      }
+    }
+    return result;
   }
 };

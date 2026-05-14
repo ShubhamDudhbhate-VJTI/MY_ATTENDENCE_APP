@@ -196,9 +196,146 @@ function addFooter(doc) {
 /**
  * Export data as a beautifully formatted PDF matching the app's institutional style
  */
-export function exportPDF({ title, subtitle, headers, rows, filters, filename }) {
+export function exportPDF({ title, subtitle, headers, rows, filters, filename, studentPhoto, studentInfo }) {
   const doc = new jsPDF('landscape', 'mm', 'a4');
-  const startY = addHeader(doc, title, subtitle, filters);
+  let startY = addHeader(doc, title, subtitle, filters);
+
+  // ═══ STUDENT INFO CARD (Photo + Details in a bordered box) ═══
+  if (studentInfo) {
+    const pw = doc.internal.pageSize.getWidth();
+    const cardX = 10;
+    const cardW = pw - 20;
+    const cardY = startY;
+    const cardH = 42;
+
+    // Card background & border
+    doc.setFillColor(...COLORS.cardBg);
+    doc.setDrawColor(...COLORS.divider);
+    doc.setLineWidth(0.4);
+    doc.roundedRect(cardX, cardY, cardW, cardH, 3, 3, 'FD');
+
+    // Left accent bar
+    doc.setFillColor(...COLORS.primary);
+    doc.roundedRect(cardX, cardY, 2.5, cardH, 1.5, 0, 'F');
+    doc.rect(cardX + 1.5, cardY, 1, cardH, 'F');
+
+    // ── Photo (left side inside card) ──
+    const photoX = cardX + 8;
+    const photoY = cardY + 5;
+    const photoW = 28;
+    const photoH = 32;
+
+    if (studentPhoto) {
+      try {
+        // Photo border
+        doc.setFillColor(255, 255, 255);
+        doc.setDrawColor(...COLORS.primary);
+        doc.setLineWidth(0.5);
+        doc.roundedRect(photoX - 1, photoY - 1, photoW + 2, photoH + 2, 2, 2, 'FD');
+        doc.addImage(studentPhoto, 'JPEG', photoX, photoY, photoW, photoH);
+      } catch (e) {
+        // Fallback placeholder
+        doc.setFillColor(...COLORS.surfaceVariant);
+        doc.roundedRect(photoX, photoY, photoW, photoH, 2, 2, 'F');
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(14);
+        doc.setTextColor(...COLORS.primary);
+        const initials = (studentInfo.name || '??').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+        doc.text(initials, photoX + photoW / 2, photoY + photoH / 2 + 3, { align: 'center' });
+      }
+    } else {
+      // No photo — show initials placeholder
+      doc.setFillColor(...COLORS.surfaceVariant);
+      doc.roundedRect(photoX, photoY, photoW, photoH, 2, 2, 'F');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(14);
+      doc.setTextColor(...COLORS.primary);
+      const initials = (studentInfo.name || '??').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+      doc.text(initials, photoX + photoW / 2, photoY + photoH / 2 + 3, { align: 'center' });
+    }
+
+    // ── Student Details (right side inside card) ──
+    const detailX = photoX + photoW + 10;
+    let detailY = cardY + 8;
+
+    // Student Name (large)
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.setTextColor(...COLORS.darkText);
+    doc.text(studentInfo.name || '—', detailX, detailY);
+    detailY += 6;
+
+    // Detail rows: label + value pairs
+    const details = [
+      { label: 'Registration No:', value: studentInfo.regNo },
+      { label: 'Branch:', value: studentInfo.branch },
+      { label: 'Year:', value: studentInfo.year },
+      { label: 'Email:', value: studentInfo.email },
+    ];
+
+    details.forEach(d => {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(7.5);
+      doc.setTextColor(...COLORS.grayText);
+      doc.text(d.label, detailX, detailY);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(...COLORS.secondary);
+      doc.text(d.value || '—', detailX + 28, detailY);
+      detailY += 5.5;
+    });
+
+    // ── Overall Attendance Badge (right side of card) ──
+    const badgeX = cardX + cardW - 55;
+    const badgeY = cardY + 6;
+    const pct = studentInfo.overallPct || 0;
+    const badgeColor = pct >= 75 ? COLORS.success : pct >= 50 ? [230, 150, 0] : COLORS.error;
+
+    // Badge box
+    doc.setFillColor(badgeColor[0], badgeColor[1], badgeColor[2], 0.08);
+    doc.setDrawColor(...badgeColor);
+    doc.setLineWidth(0.5);
+    doc.roundedRect(badgeX, badgeY, 48, 30, 3, 3, 'FD');
+
+    // Percentage
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(22);
+    doc.setTextColor(...badgeColor);
+    doc.text(`${pct}%`, badgeX + 24, badgeY + 14, { align: 'center' });
+
+    // Label
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(6.5);
+    doc.setTextColor(...COLORS.secondary);
+    doc.text('Overall Attendance', badgeX + 24, badgeY + 20, { align: 'center' });
+
+    // Sessions count
+    doc.setFontSize(6);
+    doc.setTextColor(...COLORS.grayText);
+    doc.text(`${studentInfo.attended || 0} / ${studentInfo.totalSessions || 0} sessions`, badgeX + 24, badgeY + 25, { align: 'center' });
+
+    startY = cardY + cardH + 6;
+  } else if (studentPhoto) {
+    // Fallback: just photo if no studentInfo (backwards compat)
+    try {
+      const photoX = 12;
+      const photoY = startY;
+      const photoW = 26;
+      const photoH = 26;
+      doc.setFillColor(255, 255, 255);
+      doc.setDrawColor(...COLORS.primary);
+      doc.setLineWidth(0.6);
+      doc.roundedRect(photoX - 0.5, photoY - 0.5, photoW + 1, photoH + 1, 2, 2, 'S');
+      doc.addImage(studentPhoto, 'JPEG', photoX, photoY, photoW, photoH);
+      doc.setFontSize(6.5);
+      doc.setFont('helvetica', 'italic');
+      doc.setTextColor(...COLORS.grayText);
+      doc.text('Student Photo', photoX + photoW / 2, photoY + photoH + 4, { align: 'center' });
+      startY = photoY + photoH + 8;
+    } catch (e) {
+      console.log('Photo embed in PDF skipped:', e.message);
+    }
+  }
 
   autoTable(doc, {
     head: [headers],
@@ -225,7 +362,6 @@ export function exportPDF({ title, subtitle, headers, rows, filters, filename })
     },
     didDrawPage: (data) => {
       if (data.pageNumber > 1) {
-        // Minimal header on continuation pages
         doc.setFillColor(...COLORS.primary);
         doc.rect(0, 0, doc.internal.pageSize.getWidth(), 10, 'F');
         doc.setFillColor(...COLORS.gold);
