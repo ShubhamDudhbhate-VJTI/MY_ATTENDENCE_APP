@@ -151,7 +151,8 @@ data class ScheduleRecord(
     @SerializedName("room") val room: String,
     @SerializedName("classroom_id") val classroom_id: String? = null,
     @SerializedName("time") val time: String,
-    @SerializedName("is_official") val is_official: Boolean = false
+    @SerializedName("is_official") val is_official: Boolean = false,
+    @SerializedName("faculty_name") val faculty_name: String? = null
 )
 
 data class UserProfile(

@@ -33,6 +33,9 @@ import com.example.dbms_shubham_application.ui.theme.StatusPresent
 import com.example.dbms_shubham_application.ui.theme.WarningYellow
 import com.example.dbms_shubham_application.utils.PredictiveAttendanceUtils
 
+import java.net.URLDecoder
+import java.nio.charset.StandardCharsets
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SubjectDetailsScreen(
@@ -43,21 +46,24 @@ fun SubjectDetailsScreen(
     attended: Int,
     total: Int
 ) {
+    val decodedId = remember(subjectId) { URLDecoder.decode(subjectId, StandardCharsets.UTF_8.toString()) }
+    val decodedName = remember(subjectName) { URLDecoder.decode(subjectName, StandardCharsets.UTF_8.toString()) }
+    
     val context = LocalContext.current
     val sessionManager = remember { SessionManager(context) }
-    val userId = remember { sessionManager.getUserId() ?: "" }
+    val userId = remember { sessionManager.getUserId()?.replace("\"", "")?.replace("'", "") ?: "" }
     val colorScheme = MaterialTheme.colorScheme
 
     var history by remember { mutableStateOf<List<AttendanceRecord>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var selectedStatus by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(userId, subjectId) {
+    LaunchedEffect(userId, decodedId) {
         try {
             val response = RetrofitClient.apiService.getAttendanceHistory(userId)
             if (response.isSuccessful) {
                 history = response.body()?.filter {
-                    it.subject_id == subjectId && !it.session_id.startsWith("cloud___")
+                    it.subject_id == decodedId && !it.session_id.startsWith("cloud___")
                 } ?: emptyList()
             }
         } catch (e: Exception) {
@@ -91,13 +97,13 @@ fun SubjectDetailsScreen(
                     title = {
                         Column {
                             Text(
-                                subjectName,
+                                decodedName,
                                 fontWeight = FontWeight.Black,
                                 fontSize = 22.sp,
                                 letterSpacing = (-0.5).sp
                             )
                             Text(
-                                subjectId,
+                                decodedId,
                                 style = MaterialTheme.typography.labelMedium,
                                 color = colorScheme.primary,
                                 fontWeight = FontWeight.Bold

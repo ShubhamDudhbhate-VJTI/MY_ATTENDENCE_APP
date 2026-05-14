@@ -64,6 +64,8 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 import java.util.Calendar
 
 // --- MODERN GLASSMORPHIC PALETTE ---
@@ -77,7 +79,7 @@ fun DashboardScreen(navController: NavController, role: String) {
     
     val normalizedRole = remember(role) { role.lowercase() }
     val userId = remember { sessionManager.getUserId()?.replace("\"", "")?.replace("'", "") ?: "" }
-    val userName = remember { sessionManager.getName() ?: "User" }
+    val userName = remember { sessionManager.getName()?.replace("\"", "") ?: "User" }
     
     var studentHistory by remember { mutableStateOf<List<AttendanceRecord>>(emptyList()) }
     var subjectAttendance by remember { mutableStateOf<List<SubjectAttendance>>(emptyList()) }
@@ -771,8 +773,8 @@ fun QuickActionsSection(navController: NavController, modifier: Modifier = Modif
             ModernActionItem("History", Icons.Default.History, MaterialTheme.colorScheme.secondary, Modifier.weight(1f)) {
                 navController.navigate("attendance_history")
             }
-            ModernActionItem("Leaves", Icons.AutoMirrored.Filled.EventNote, MaterialTheme.colorScheme.tertiary, Modifier.weight(1f)) {
-                navController.navigate("leave_management")
+            ModernActionItem("Schedule", Icons.Default.EventNote, MaterialTheme.colorScheme.tertiary, Modifier.weight(1f)) {
+                navController.navigate("student_schedule")
             }
         }
     }
@@ -1199,7 +1201,9 @@ fun SubjectAttendanceCard(item: SubjectAttendance, navController: NavController?
             .width(160.dp)
             .height(180.dp)
             .clickable { 
-                val route = "subject_details/${item.subject_id}/${item.subject_name}/${item.percentage.toFloat()}/${item.attended_classes}/${item.total_classes}"
+                val encodedId = URLEncoder.encode(item.subject_id, StandardCharsets.UTF_8.toString())
+                val encodedName = URLEncoder.encode(item.subject_name, StandardCharsets.UTF_8.toString())
+                val route = "subject_details/$encodedId/$encodedName/${item.percentage.toFloat()}/${item.attended_classes}/${item.total_classes}"
                 navController?.navigate(route)
             },
         shape = RoundedCornerShape(32.dp),

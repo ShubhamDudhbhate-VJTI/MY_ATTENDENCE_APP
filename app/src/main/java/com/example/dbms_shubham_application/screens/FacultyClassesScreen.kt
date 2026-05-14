@@ -38,6 +38,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
 
 // --- THEME CONSISTENCY REMOVED LEGACY COLORS ---
 
@@ -205,7 +207,12 @@ fun FacultyClassesScreen(navController: NavController) {
                         ScheduleCard(
                             item = item,
                             onStart = {
-                                val route = "start_session?subject_id=${item.subject_id}&classroom_id=${item.classroom_id}&subject_name=${item.subject}&room_name=${item.room}"
+                                val encodedSubId = URLEncoder.encode(item.subject_id, StandardCharsets.UTF_8.toString())
+                                val encodedRoomId = URLEncoder.encode(item.classroom_id, StandardCharsets.UTF_8.toString())
+                                val encodedSubName = URLEncoder.encode(item.subject, StandardCharsets.UTF_8.toString())
+                                val encodedRoomName = URLEncoder.encode(item.room, StandardCharsets.UTF_8.toString())
+                                
+                                val route = "start_session?subject_id=$encodedSubId&classroom_id=$encodedRoomId&subject_name=$encodedSubName&room_name=$encodedRoomName"
                                 navController.navigate(route)
                             },
                             onEdit = { editingRecord = item },

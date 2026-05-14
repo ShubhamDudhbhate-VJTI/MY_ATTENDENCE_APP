@@ -41,6 +41,8 @@ import com.example.dbms_shubham_application.utils.DateTimeUtils
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
 import java.text.SimpleDateFormat
+import java.net.URLDecoder
+import java.nio.charset.StandardCharsets
 import java.util.*
 import com.example.dbms_shubham_application.utils.FileUtils
 import kotlinx.coroutines.Dispatchers
@@ -61,6 +63,11 @@ fun StartSessionScreen(
     val scope = rememberCoroutineScope()
 
     val colorScheme = MaterialTheme.colorScheme
+
+    val decodedSubId = remember(prefillSubjectId) { prefillSubjectId?.let { URLDecoder.decode(it, StandardCharsets.UTF_8.toString()) } }
+    val decodedRoomId = remember(prefillClassroomId) { prefillClassroomId?.let { URLDecoder.decode(it, StandardCharsets.UTF_8.toString()) } }
+    val decodedSubName = remember(prefillSubjectName) { prefillSubjectName?.let { URLDecoder.decode(it, StandardCharsets.UTF_8.toString()) } }
+    val decodedRoomName = remember(prefillRoomName) { prefillRoomName?.let { URLDecoder.decode(it, StandardCharsets.UTF_8.toString()) } }
 
     var classrooms by remember { mutableStateOf<List<Classroom>>(emptyList()) }
     var subjects by remember { mutableStateOf<List<Subject>>(emptyList()) }
@@ -94,7 +101,7 @@ fun StartSessionScreen(
                 if (roomRes.isSuccessful) {
                     val classroomsData = roomRes.body() ?: emptyList()
                     classrooms = classroomsData
-                    selectedClassroom = classroomsData.find { it.id == prefillClassroomId || it.name == prefillRoomName } ?: classroomsData.firstOrNull()
+                    selectedClassroom = classroomsData.find { it.id == decodedRoomId || it.name == decodedRoomName } ?: classroomsData.firstOrNull()
                 }
 
                 val subjectRes = if (facultyId.isNotEmpty()) {
@@ -106,12 +113,12 @@ fun StartSessionScreen(
                 if (subjectRes.isSuccessful) {
                     val fetchedSubjects = subjectRes.body() ?: emptyList()
                     subjects = fetchedSubjects
-                    selectedSubject = subjects.find { it.id == prefillSubjectId || it.name == prefillSubjectName } ?: subjects.firstOrNull()
+                    selectedSubject = subjects.find { it.id == decodedSubId || it.name == decodedSubName } ?: subjects.firstOrNull()
                 } else {
                     val allRes = RetrofitClient.apiService.getSubjects()
                     if (allRes.isSuccessful) {
                         subjects = allRes.body() ?: emptyList()
-                        selectedSubject = subjects.find { it.id == prefillSubjectId || it.name == prefillSubjectName } ?: subjects.firstOrNull()
+                        selectedSubject = subjects.find { it.id == decodedSubId || it.name == decodedSubName } ?: subjects.firstOrNull()
                     }
                 }
             } catch (e: Exception) {

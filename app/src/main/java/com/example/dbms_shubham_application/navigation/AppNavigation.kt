@@ -68,6 +68,12 @@ fun AppNavigation(
         composable("alerts") {
             AlertsScreen(navController = navController)
         }
+        composable("student_schedule") {
+            StudentScheduleScreen(navController = navController)
+        }
+        composable("faculty_schedule") {
+            FacultyClassesScreen(navController = navController)
+        }
         composable("faculty_classes") {
             FacultyClassesScreen(navController = navController)
         }

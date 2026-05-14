@@ -21,8 +21,9 @@ android {
     buildTypes {
         debug {
             resValue("string", "app_name", "AttendX (Debug)")
-            buildConfigField("String", "BASE_URL", "\"http://127.0.0.1:8000/\"")
-//              buildConfigField("String", "BASE_URL", "\"http://10.143.103.244:8000/\"")
+            // Use local IP for WiFi testing
+            buildConfigField("String", "BASE_URL", "\"http://10.87.34.244:8000/\"")
+            // buildConfigField("String", "BASE_URL", "\"https://sd-backend-attenedence-app.onrender.com/\"")
         }
         release {
             isMinifyEnabled = true

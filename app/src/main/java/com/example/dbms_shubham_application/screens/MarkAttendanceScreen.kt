@@ -17,6 +17,8 @@ import android.view.ScaleGestureDetector
 import android.widget.Toast
 import androidx.core.graphics.scale
 import androidx.camera.core.*
+import androidx.camera.core.resolutionselector.ResolutionSelector
+import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.animation.*
@@ -60,6 +62,7 @@ import com.example.dbms_shubham_application.ui.theme.RedAccent
 import com.example.dbms_shubham_application.ui.theme.YellowAccent
 import com.example.dbms_shubham_application.utils.DateTimeUtils
 import com.example.dbms_shubham_application.data.model.SessionDetailsResponse
+import org.json.JSONObject
 import java.util.*
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
@@ -72,8 +75,10 @@ import com.google.mlkit.vision.face.FaceDetection
 import com.google.mlkit.vision.face.FaceDetectorOptions
 import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.asRequestBody
@@ -95,10 +100,16 @@ fun MarkAttendanceScreen(navController: NavController) {
 
     val cameraPermissionState = rememberPermissionState(Manifest.permission.CAMERA)
     val locationPermissionState = rememberPermissionState(Manifest.permission.ACCESS_FINE_LOCATION)
+    val nearbyWifiPermissionState = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+        rememberPermissionState(Manifest.permission.NEARBY_WIFI_DEVICES)
+    } else null
 
     LaunchedEffect(Unit) {
         if (!cameraPermissionState.status.isGranted) cameraPermissionState.launchPermissionRequest()
         if (!locationPermissionState.status.isGranted) locationPermissionState.launchPermissionRequest()
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            nearbyWifiPermissionState?.launchPermissionRequest()
+        }
     }
 
     Scaffold(
@@ -123,7 +134,9 @@ fun MarkAttendanceScreen(navController: NavController) {
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            if (cameraPermissionState.status.isGranted && locationPermissionState.status.isGranted) {
+            if (cameraPermissionState.status.isGranted && 
+                locationPermissionState.status.isGranted && 
+                (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.TIRAMISU || nearbyWifiPermissionState?.status?.isGranted == true)) {
                 StepIndicator(currentStep = currentStep)
                 Spacer(modifier = Modifier.height(40.dp))
 
@@ -186,6 +199,9 @@ fun MarkAttendanceScreen(navController: NavController) {
                 PermissionSection {
                     cameraPermissionState.launchPermissionRequest()
                     locationPermissionState.launchPermissionRequest()
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                        nearbyWifiPermissionState?.launchPermissionRequest()
+                    }
                 }
             }
         }
@@ -213,7 +229,9 @@ fun EnvironmentDetectionStep(onDetected: (String, String, Double?, Double?) -> U
         try {
             if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
                 val locationResult = fusedLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, CancellationTokenSource().token)
-                val location = com.google.android.gms.tasks.Tasks.await(locationResult)
+                val location = withContext(Dispatchers.IO) {
+                    com.google.android.gms.tasks.Tasks.await(locationResult)
+                }
                 lat = location?.latitude
                 lon = location?.longitude
             }
@@ -317,8 +335,11 @@ fun QrScanningStep(
         BarcodeScanning.getClient(options)
     }
 
-    DisposableEffect(scanner) {
+    val cameraExecutor = remember { Executors.newSingleThreadExecutor() }
+
+    DisposableEffect(Unit) {
         onDispose {
+            cameraExecutor.shutdown()
             scanner.close()
         }
     }
@@ -345,20 +366,45 @@ fun QrScanningStep(
                 }
                 
                 Log.d("Attendance", "QR Scanned! Raw: $qrToken -> SID: $sid")
+                Log.d("Attendance", "WiFi Data - BSSID: $bssid, SSID: $ssid, Lat: $lat, Lon: $lon")
 
-                // 2. Fire-and-forget the backend checks
-                scope.launch {
-                    try {
-                        RetrofitClient.apiService.verifyWifi(WifiRequest(sid, bssid, ssid, lat, lon))
-                        RetrofitClient.apiService.verifyQr(mapOf("session_id" to sid, "token" to token))
-                    } catch (e: Exception) {
-                        Log.e("Attendance", "Background check failed: ${e.message}")
+                // 2. Perform backend checks and WAIT for response
+                try {
+                    val wifiRes = RetrofitClient.apiService.verifyWifi(WifiRequest(sid, bssid, ssid, lat, lon))
+                    val qrRes = RetrofitClient.apiService.verifyQr(mapOf("session_id" to sid, "token" to token))
+
+                    if (wifiRes.isSuccessful && qrRes.isSuccessful) {
+                        onSuccess(sid)
+                    } else {
+                        val errorMsg = if (!wifiRes.isSuccessful) {
+                            val errorBody = wifiRes.errorBody()?.string()
+                            Log.e("Attendance", "WiFi Verification Error (Code ${wifiRes.code()}): $errorBody")
+                            
+                            val detail = try {
+                                JSONObject(errorBody ?: "{}").optString("detail", "WiFi Verification failed")
+                            } catch (e: Exception) {
+                                "WiFi Verification failed (HTTP ${wifiRes.code()})"
+                            }
+                            
+                            if (bssid == "02:00:00:00:00:00") {
+                                "$detail (BSSID hidden - check Location/Nearby permissions)"
+                            } else {
+                                detail
+                            }
+                        } else {
+                            "QR Verification failed"
+                        }
+                        onFailure(errorMsg)
+                        // Reset for retry
+                        isVerifying = false
+                        qrDetected = false
                     }
+                } catch (e: Exception) {
+                    Log.e("Attendance", "Network error during QR verification", e)
+                    onFailure("Connection error: ${e.localizedMessage}. Please try again.")
+                    isVerifying = false
+                    qrDetected = false
                 }
-                
-                // 3. Move to next step IMMEDIATELY
-                delay(300) 
-                onSuccess(sid)
             } catch (e: Exception) {
                 Log.e("Attendance", "Scan error", e)
                 qrDetected = false
@@ -472,9 +518,19 @@ fun QrScanningStep(
                                 
                                 val imageAnalysis = ImageAnalysis.Builder()
                                     .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                                    .setResolutionSelector(
+                                        ResolutionSelector.Builder()
+                                            .setResolutionStrategy(
+                                                ResolutionStrategy(
+                                                    android.util.Size(1280, 720),
+                                                    ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER
+                                                )
+                                            )
+                                            .build()
+                                    )
                                     .build()
 
-                                imageAnalysis.setAnalyzer(Executors.newSingleThreadExecutor()) { imageProxy ->
+                                imageAnalysis.setAnalyzer(cameraExecutor) { imageProxy ->
                                     @AndroidxOptIn(ExperimentalGetImage::class)
                                     val mediaImage = imageProxy.image
                                     if (mediaImage != null && !qrDetected) {
@@ -675,21 +731,22 @@ fun FaceVerificationStep(
     }
 
     // Liveness Detection States
-    var livenessStep by remember { mutableIntStateOf(0) } // 0: Search, 1: Eyes Open, 2: Blink, 3: Capture
+    // 0: Wait for Eyes Open, 1: Wait for Blink, 2: Wait for Eyes Open (Final), 3: Captured
+    var livenessStep by remember { mutableIntStateOf(0) }
     val livenessTargetBlink = 0.25f // Optimized probability threshold for a closed eye
 
     // Holographic Typewriter Effect
     var typewriterText by remember { mutableStateOf("") }
-    val scanningText = if (livenessStep < 3) "LIVENESS_CHECK_ACTIVE..." else "BIOMETRICS_VERIFIED..."
+    val scanningText = "BIOMETRICS_VERIFIED_CAPTURING..."
     val idleText = "AWAITING_FACE_INPUT..."
     val blinkPrompt = "ACTION_REQUIRED: BLINK_EYES"
 
     LaunchedEffect(faceDetected, livenessStep) {
         val target = when {
             !faceDetected -> idleText
-            livenessStep == 0 -> "DETECTION_SUCCESS_WAITING_FOR_EYES..."
-            livenessStep == 1 -> "EYES_OPEN_CONFIRMED..."
-            livenessStep == 2 -> blinkPrompt
+            livenessStep == 0 -> "FACE_DETECTED_WAITING_FOR_EYES..."
+            livenessStep == 1 -> blinkPrompt
+            livenessStep == 2 -> "BLINK_CONFIRMED_STAY_STILL..."
             livenessStep == 3 -> scanningText
             else -> "INITIALIZING_SCANNER..."
         }
@@ -720,8 +777,11 @@ fun FaceVerificationStep(
         FaceDetection.getClient(options)
     }
 
-    DisposableEffect(faceDetector) {
+    val faceCameraExecutor = remember { Executors.newSingleThreadExecutor() }
+
+    DisposableEffect(Unit) {
         onDispose {
+            faceCameraExecutor.shutdown()
             faceDetector.close()
         }
     }
@@ -921,37 +981,6 @@ fun FaceVerificationStep(
                         ),
                     contentAlignment = Alignment.Center
                 ) {
-                    // Quality Meter Overlay
-                    if (capturedBitmap == null && faceDetected) {
-                        Column(
-                            modifier = Modifier
-                                .align(Alignment.TopCenter)
-                                .padding(top = 20.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(
-                                "FACE_INTEGRITY",
-                                color = Color(0xFF00E5FF).copy(alpha = 0.7f),
-                                fontSize = 8.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                                repeat(5) { i ->
-                                    Box(
-                                        modifier = Modifier
-                                            .size(width = 12.dp, height = 4.dp)
-                                            .background(
-                                                if (livenessStep > i) Color.Green else Color(0xFF00E5FF).copy(alpha = 0.2f),
-                                                RoundedCornerShape(1.dp)
-                                            )
-                                    )
-                                }
-                            }
-                        }
-                    }
-
                     if (capturedBitmap != null) {
                         androidx.compose.foundation.Image(
                             bitmap = capturedBitmap!!.asImageBitmap(),
@@ -1005,9 +1034,19 @@ fun FaceVerificationStep(
                                     val preview = Preview.Builder().build()
                                     val imageAnalysis = ImageAnalysis.Builder()
                                         .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                                        .setResolutionSelector(
+                                            ResolutionSelector.Builder()
+                                                .setResolutionStrategy(
+                                                    ResolutionStrategy(
+                                                        android.util.Size(640, 480),
+                                                        ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER
+                                                    )
+                                                )
+                                                .build()
+                                        )
                                         .build()
 
-                                    imageAnalysis.setAnalyzer(Executors.newSingleThreadExecutor()) { imageProxy ->
+                                    imageAnalysis.setAnalyzer(faceCameraExecutor) { imageProxy ->
                                         @AndroidxOptIn(ExperimentalGetImage::class)
                                         val mediaImage = imageProxy.image
                                         if (mediaImage != null && capturedBitmap == null && countdown == 0) {
@@ -1037,15 +1076,15 @@ fun FaceVerificationStep(
                                                             1 -> { // Phase 2: Detect Blink
                                                                 if (leftOpen < livenessTargetBlink || rightOpen < livenessTargetBlink) {
                                                                     livenessStep = 2
-                                                                    statusMessage = "Blink detected! Keep still"
+                                                                    statusMessage = "Blink detected! Keep still..."
                                                                 }
                                                             }
                                                             2 -> { // Phase 3: Final capture when eyes open again
                                                                 if (leftOpen > 0.6f && rightOpen > 0.6f) {
                                                                     livenessStep = 3
-                                                                    statusMessage = "Capturing..."
+                                                                    statusMessage = "Liveness verified! Capturing..."
                                                                     scope.launch {
-                                                                        delay(300)
+                                                                        delay(400) // Slightly longer delay for better focus
                                                                         takePhoto()
                                                                     }
                                                                 }
