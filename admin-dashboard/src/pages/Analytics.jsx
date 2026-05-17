@@ -541,30 +541,43 @@ const Analytics = () => {
           </div>
 
           {/* Extra Insights Section */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 bg-gradient-to-br from-indigo-600 to-violet-700 rounded-3xl p-8 text-white relative overflow-hidden shadow-xl shadow-indigo-200 dark:shadow-none">
-              <div className="absolute top-0 right-0 p-8 opacity-10">
-                <TrendingUp size={160} />
-              </div>
-              <div className="relative z-10">
-                <h3 className="text-2xl font-black mb-2 flex items-center gap-2">
-                  <Star size={24} className="text-amber-300 fill-amber-300" />
-                  Growth Trajectory
-                </h3>
-                <p className="text-indigo-100 text-sm mb-8 max-w-md">Based on current attendance trends, your branch engagement has improved by 4.2% compared to the previous month.</p>
-                
-                <div className="flex flex-wrap gap-4">
-                  <div className="bg-white/10 backdrop-blur-md px-6 py-4 rounded-2xl border border-white/10">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-indigo-200 mb-1">Top Performer</p>
-                    <p className="text-lg font-bold">IT - 3rd Year</p>
+          {(() => {
+            // Calculate real metrics based on current subjectStats
+            const validSubjects = subjectStats.filter(s => s.sessions > 0);
+            const overallAvg = validSubjects.length > 0 
+              ? (validSubjects.reduce((acc, s) => acc + s.avgAttendance, 0) / validSubjects.length).toFixed(1) 
+              : 0;
+            
+            const highestAttendanceSub = [...validSubjects].sort((a, b) => b.avgAttendance - a.avgAttendance)[0];
+            const mostActiveSub = [...subjectStats].sort((a, b) => b.sessions - a.sessions)[0];
+
+            return (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+                <div className="lg:col-span-2 bg-gradient-to-br from-indigo-600 to-violet-700 rounded-3xl p-8 text-white relative overflow-hidden shadow-xl shadow-indigo-200 dark:shadow-none">
+                  <div className="absolute top-0 right-0 p-8 opacity-10">
+                    <TrendingUp size={160} />
                   </div>
-                  <div className="bg-white/10 backdrop-blur-md px-6 py-4 rounded-2xl border border-white/10">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-indigo-200 mb-1">Most Active Sub.</p>
-                    <p className="text-lg font-bold">{subjectStats[0]?.name || '—'}</p>
+                  <div className="relative z-10">
+                    <h3 className="text-2xl font-black mb-2 flex items-center gap-2">
+                      <Star size={24} className="text-amber-300 fill-amber-300" />
+                      Class Engagement Overview
+                    </h3>
+                    <p className="text-indigo-100 text-sm mb-8 max-w-md">
+                      Currently analyzing data for <span className="font-bold text-white">{shortBranch(filterBranch)} • {filterYear}</span>. The overall class attendance average stands at <span className="font-bold text-white">{overallAvg}%</span> across {validSubjects.length} active subjects.
+                    </p>
+                    
+                    <div className="flex flex-wrap gap-4">
+                      <div className="bg-white/10 backdrop-blur-md px-6 py-4 rounded-2xl border border-white/10">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-indigo-200 mb-1">Highest Attendance</p>
+                        <p className="text-lg font-bold">{highestAttendanceSub ? `${highestAttendanceSub.name} (${highestAttendanceSub.avgAttendance}%)` : '—'}</p>
+                      </div>
+                      <div className="bg-white/10 backdrop-blur-md px-6 py-4 rounded-2xl border border-white/10">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-indigo-200 mb-1">Most Conducted Classes</p>
+                        <p className="text-lg font-bold">{mostActiveSub && mostActiveSub.sessions > 0 ? `${mostActiveSub.name} (${mostActiveSub.sessions} sessions)` : '—'}</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </div>
 
             <div className="bg-white dark:bg-gray-900 rounded-3xl p-8 border border-gray-100 dark:border-gray-800 shadow-sm">
               <h3 className="text-lg font-black text-gray-900 dark:text-white mb-6 flex items-center gap-2">
@@ -591,6 +604,7 @@ const Analytics = () => {
               </div>
             </div>
           </div>
+          );})()}
         </>
       )}
     </div>
