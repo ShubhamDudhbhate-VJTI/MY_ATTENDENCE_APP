@@ -81,7 +81,7 @@ const Dashboard = () => {
   const [facultyByBranch, setFacultyByBranch] = useState([]);
   const [subjectsByBranch, setSubjectsByBranch] = useState([]);
   const [verificationStats, setVerificationStats] = useState([]);
-  const [recentSessions, setRecentSessions] = useState([]);
+  const [liveSessions, setLiveSessions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(null);
@@ -96,11 +96,11 @@ const Dashboard = () => {
         analyticsApi.getFacultyByBranch(),
         analyticsApi.getSubjectsByBranch(),
         analyticsApi.getVerificationStats(),
-        analyticsApi.getRecentSessions(6),
+        analyticsApi.getLiveSessions(6),
       ]);
       setStats(s); setStudentsByBranch(sb); setStudentsByYear(sy);
       setFacultyByBranch(fb); setSubjectsByBranch(sub);
-      setVerificationStats(vs); setRecentSessions(rs);
+      setVerificationStats(vs); setLiveSessions(rs);
       setLastUpdated(new Date());
     } catch (err) { console.error('Dashboard error:', err); }
     finally { setLoading(false); setRefreshing(false); }
@@ -349,45 +349,57 @@ const Dashboard = () => {
           )}
         </div>
 
-        {/* Recent Sessions */}
-        <div className="lg:col-span-2 bg-white dark:bg-gray-900 p-6 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
+        {/* Live Sessions Monitor */}
+        <div className="lg:col-span-2 bg-white dark:bg-gray-900 p-6 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-sm relative overflow-hidden">
+          {/* Subtle Live Background glow */}
+          <div className="absolute top-0 right-0 w-64 h-64 bg-rose-500/5 blur-[100px] rounded-full pointer-events-none"></div>
+          
+          <div className="flex items-center justify-between mb-4 relative z-10">
             <div>
               <h3 className="text-sm font-bold text-gray-900 dark:text-white flex items-center gap-2">
-                <Activity size={16} className="text-blue-600" />
-                Recent Attendance Sessions
+                <div className="relative flex items-center justify-center w-4 h-4">
+                  <div className="absolute w-full h-full bg-rose-500 rounded-full animate-ping opacity-75"></div>
+                  <div className="relative w-2 h-2 bg-rose-600 rounded-full"></div>
+                </div>
+                Live Sessions Monitor
               </h3>
-              <p className="text-[11px] text-gray-400 mt-0.5">Live from Supabase</p>
+              <p className="text-[11px] text-gray-400 mt-0.5">Currently active classes</p>
             </div>
           </div>
 
           {loading ? (
-            <div className="space-y-3">
-              {[1,2,3,4].map(i => <div key={i} className="skeleton h-14 w-full"></div>)}
+            <div className="space-y-3 relative z-10">
+              {[1,2,3].map(i => <div key={i} className="skeleton h-16 w-full"></div>)}
             </div>
-          ) : recentSessions.length === 0 ? (
-            <div className="text-center py-12 text-gray-400">
-              <ClipboardList size={40} className="mx-auto mb-3 opacity-40" />
-              <p className="text-sm">No sessions found</p>
+          ) : liveSessions.length === 0 ? (
+            <div className="text-center py-12 text-gray-400 relative z-10">
+              <Activity size={40} className="mx-auto mb-3 opacity-20" />
+              <p className="text-sm">No classes currently live</p>
             </div>
           ) : (
-            <div className="space-y-1.5">
-              {recentSessions.map((s) => (
-                <div key={s.id} className="flex items-center gap-4 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                    s.status === 'active' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-500'
-                  }`}>
-                    <ClipboardList size={16} />
+            <div className="space-y-2 relative z-10">
+              {liveSessions.map((s) => (
+                <div key={s.id} className="flex items-center gap-4 p-3 rounded-xl border border-rose-100 dark:border-rose-900/30 bg-rose-50/50 dark:bg-rose-900/10 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors">
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 bg-white dark:bg-gray-800 shadow-sm border border-rose-100 dark:border-rose-800 text-rose-500">
+                    <Activity size={18} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{s.subjects?.name || 'Unknown'}</p>
-                    <p className="text-[11px] text-gray-400">{s.app_users?.full_name || 'N/A'}</p>
+                    <p className="text-sm font-bold text-gray-900 dark:text-white truncate flex items-center gap-2">
+                      {s.subjects?.name || 'Unknown'}
+                      <span className="px-1.5 py-0.5 rounded text-[9px] font-black tracking-wider bg-rose-100 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400 uppercase">Live</span>
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{s.app_users?.full_name || 'N/A'}</p>
                   </div>
-                  <div className="text-right flex-shrink-0">
-                    <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                      s.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
-                    }`}>{s.status === 'active' ? 'Completed' : 'Stopped'}</span>
-                    <p className="text-[10px] text-gray-400 mt-0.5">{formatTime(s.start_time)}</p>
+                  <div className="text-right flex-shrink-0 flex items-center gap-4">
+                    <div className="text-center">
+                      <p className="text-[10px] text-gray-400 uppercase font-bold">Students</p>
+                      <p className="text-sm font-black text-emerald-600 dark:text-emerald-400">{s.attendanceCount}</p>
+                    </div>
+                    <div className="w-px h-8 bg-gray-200 dark:bg-gray-700"></div>
+                    <div className="text-right">
+                      <p className="text-[10px] text-gray-400 uppercase font-bold">Started</p>
+                      <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mt-0.5">{formatTime(s.start_time)}</p>
+                    </div>
                   </div>
                 </div>
               ))}

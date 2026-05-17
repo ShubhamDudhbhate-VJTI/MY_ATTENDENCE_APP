@@ -410,8 +410,12 @@ export const analyticsApi = {
     const { data, error } = await supabase.from('app_students').select('branch');
     if (error) throw error;
     const counts = {};
-    data.forEach(s => { const b = s.branch || 'Unknown'; counts[b] = (counts[b] || 0) + 1; });
-    return Object.entries(counts).map(([name, value]) => ({ name: name.replace(' Engineering', '').replace('Information Technology', 'IT'), fullName: name, value }));
+    data.forEach(s => { 
+      let b = s.branch || 'Unknown'; 
+      b = b.replace(' Engineering', '').replace('Information Technology', 'IT').trim();
+      counts[b] = (counts[b] || 0) + 1; 
+    });
+    return Object.entries(counts).map(([name, value]) => ({ name, fullName: name, value }));
   },
 
   async getStudentsByYear() {
@@ -426,16 +430,24 @@ export const analyticsApi = {
     const { data, error } = await supabase.from('app_teachers').select('branch');
     if (error) throw error;
     const counts = {};
-    data.forEach(f => { const b = f.branch || 'Unknown'; counts[b] = (counts[b] || 0) + 1; });
-    return Object.entries(counts).map(([name, value]) => ({ name: name.replace(' Engineering', '').replace('Information Technology', 'IT'), fullName: name, value }));
+    data.forEach(f => { 
+      let b = f.branch || 'Unknown'; 
+      b = b.replace(' Engineering', '').replace('Information Technology', 'IT').trim();
+      counts[b] = (counts[b] || 0) + 1; 
+    });
+    return Object.entries(counts).map(([name, value]) => ({ name, fullName: name, value }));
   },
 
   async getSubjectsByBranch() {
     const { data, error } = await supabase.from('subjects').select('branch');
     if (error) throw error;
     const counts = {};
-    data.forEach(s => { const b = s.branch || 'Common'; counts[b] = (counts[b] || 0) + 1; });
-    return Object.entries(counts).map(([name, value]) => ({ name: name.replace(' Engineering', '').replace('Information Technology', 'IT'), fullName: name, value }));
+    data.forEach(s => { 
+      let b = s.branch || 'Common'; 
+      b = b.replace(' Engineering', '').replace('Information Technology', 'IT').trim();
+      counts[b] = (counts[b] || 0) + 1; 
+    });
+    return Object.entries(counts).map(([name, value]) => ({ name, fullName: name, value }));
   },
 
   async getVerificationStats() {
@@ -447,6 +459,39 @@ export const analyticsApi = {
       else counts['Manual/Other']++;
     });
     return Object.entries(counts).map(([name, value]) => ({ name, value }));
+  },
+
+  async getLiveSessions(limit = 6) {
+    const { data, error } = await supabase
+      .from('attendance_sessions')
+      .select('id, status, start_time, qr_expires_at, subjects(name), app_users!attendance_sessions_faculty_id_fkey(full_name)')
+      .eq('status', 'active')
+      .order('start_time', { ascending: false })
+      .limit(limit);
+    if (error) throw error;
+    
+    // For live sessions, let's also fetch the current attendance count
+    if (data.length > 0) {
+      const sessionIds = data.map(s => s.id);
+      const { data: recordCounts, error: countError } = await supabase
+        .from('attendance_records')
+        .select('session_id')
+        .in('session_id', sessionIds);
+        
+      if (!countError && recordCounts) {
+        const countMap = {};
+        recordCounts.forEach(r => {
+          countMap[r.session_id] = (countMap[r.session_id] || 0) + 1;
+        });
+        
+        return data.map(session => ({
+          ...session,
+          attendanceCount: countMap[session.id] || 0
+        }));
+      }
+    }
+    
+    return data.map(s => ({ ...s, attendanceCount: 0 }));
   },
 
   async getRecentSessions(limit = 6) {
@@ -582,4 +627,63 @@ export const studentReportApi = {
     }
     return result;
   }
+};
+
+// ==================== FACULTY REPORT ====================
+export const facultyReportApi = {
+  async getAllFaculty() {
+    const { data, error } = await supabase
+      .from('app_users')
+      .select('id, full_name, email, app_teachers!inner(employee_id, branch, designation)')
+      .in('role', ['faculty', 'hod'])
+      .order('full_name');
+    if (error) throw error;
+    return data.map(u => ({
+      id: u.id,
+      full_name: u.full_name,
+      email: u.email,
+      employee_id: u.app_teachers?.employee_id,
+      branch: u.app_teachers?.branch,
+      designation: u.app_teachers?.designation,
+    }));
+  },
+
+  async getFacultyDetails(facultyId) {
+    const { data, error } = await supabase
+      .from('app_users')
+      .select('id, full_name, email, role, app_teachers!inner(employee_id, branch, designation)')
+      .eq('id', facultyId)
+      .single();
+    if (error) throw error;
+    return {
+      id: data.id,
+      full_name: data.full_name,
+      email: data.email,
+      role: data.role,
+      employee_id: data.app_teachers?.employee_id,
+      branch: data.app_teachers?.branch,
+      designation: data.app_teachers?.designation,
+    };
+  },
+
+  async getFacultySessions(facultyId) {
+    const { data, error } = await supabase
+      .from('attendance_sessions')
+      .select('id, status, start_time, qr_expires_at, subject_id, subjects(id, name, code, branch, year)')
+      .eq('faculty_id', facultyId)
+      .order('start_time', { ascending: false });
+    if (error) throw error;
+    return data;
+  },
+
+  async getSessionRecords(sessionIds) {
+    if (!sessionIds.length) return [];
+    const { data, error } = await supabase
+      .from('attendance_records')
+      .select('id, status, face_verified, session_id, marked_at, app_students(full_name, registration_number)')
+      .in('session_id', sessionIds)
+      .order('marked_at', { ascending: false });
+    if (error) throw error;
+    return data;
+  },
 };

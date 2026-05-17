@@ -7,6 +7,7 @@ import {
   Command, Shield, BarChart3, Link2
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import NotificationsModal from './NotificationsModal';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard', color: 'text-blue-600' },
@@ -19,7 +20,7 @@ const navItems = [
   { to: '/schedules', icon: CalendarClock, label: 'Schedules', color: 'text-indigo-600' },
   { to: '/assignments', icon: Link2, label: 'Assignments', color: 'text-indigo-600' },
   { to: '/analytics', icon: BarChart3, label: 'Analytics', color: 'text-rose-600' },
-  { to: '/student-report', icon: ClipboardList, label: 'Student Report', color: 'text-violet-600' },
+  { to: '/reports', icon: ClipboardList, label: 'Reports', color: 'text-violet-600' },
 ];
 
 const SidebarLink = ({ to, icon: Icon, label, collapsed, color }) => {
@@ -45,6 +46,7 @@ const Layout = ({ onLogout }) => {
   const [dbStatus, setDbStatus] = useState('checking');
   const [globalSearch, setGlobalSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -96,7 +98,7 @@ const Layout = ({ onLogout }) => {
     { label: 'Schedules', path: '/schedules', icon: CalendarClock },
     { label: 'Assignments', path: '/assignments', icon: Link2 },
     { label: 'Analytics', path: '/analytics', icon: BarChart3 },
-    { label: 'Student Report', path: '/student-report', icon: ClipboardList },
+    { label: 'Reports', path: '/reports', icon: ClipboardList },
     { label: 'Add Student', path: '/students', icon: Users },
     { label: 'Add Faculty', path: '/faculty', icon: UserSquare2 },
     { label: 'Add Subject', path: '/subjects', icon: BookOpen },
@@ -210,6 +212,16 @@ const Layout = ({ onLogout }) => {
               <Database size={12} />
               {dbStatus === 'connected' ? 'Live' : 'Offline'}
             </div>
+            
+            <button 
+              onClick={() => setIsNotificationModalOpen(true)}
+              className="relative p-2 text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition-colors ml-2"
+              title="Notifications Management"
+            >
+              <Bell size={20} />
+              <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 border-2 border-white dark:border-gray-900 rounded-full animate-pulse"></span>
+            </button>
+
             <div className="h-8 w-px bg-gray-200 dark:bg-gray-700 mx-1"></div>
             <div className="flex items-center gap-3">
               <div className="text-right hidden sm:block">
@@ -226,6 +238,11 @@ const Layout = ({ onLogout }) => {
           <Outlet />
         </main>
       </div>
+
+      <NotificationsModal 
+        isOpen={isNotificationModalOpen} 
+        onClose={() => setIsNotificationModalOpen(false)} 
+      />
     </div>
   );
 };
