@@ -1,0 +1,56 @@
+# DBMS Shubham Application - Complete Project Requirements
+
+This repository contains a full-stack application consisting of a React frontend (admin-dashboard) and a FastAPI backend.
+Below are the requirements for both sub-projects.
+
+=======================================================
+1. BACKEND REQUIREMENTS (Python / FastAPI)
+=======================================================
+Directory: ./backend/
+
+To install:
+cd backend
+pip install -r requirements.txt
+
+Dependencies:
+- fastapi==0.103.1
+- uvicorn[standard]==0.23.2
+- gunicorn==21.2.0
+- pydantic==1.10.12
+- sqlalchemy==2.0.20
+- psycopg2-binary==2.9.7
+- passlib[bcrypt]==1.7.4
+- python-dotenv==1.0.0
+- python-multipart==0.0.6
+- requests
+- firebase-admin
+- numpy==1.24.3
+- opencv-python-headless
+- fpdf2==2.7.4
+- setuptools==68.0.0
+- wheel==0.40.0
+- supabase
+
+=======================================================
+2. ADMIN DASHBOARD REQUIREMENTS (Node.js / React)
+=======================================================
+Directory: ./admin-dashboard/
+
+To install:
+cd admin-dashboard
+npm install
+
+Core Dependencies:
+- react (^18.2.0)
+- react-dom (^18.2.0)
+- react-router-dom (^6.22.3)
+- @supabase/supabase-js (^2.105.4)
+- axios (^1.6.8)
+- tailwindcss (^3.4.1)
+- lucide-react (^0.363.0)
+- recharts (^2.12.3)
+- jspdf (^4.2.1)
+- jspdf-autotable (^5.0.7)
+- clsx (^2.1.0)
+- tailwind-merge (^2.2.2)
+- vite (^5.2.2)

@@ -1,0 +1,31 @@
+# Admin Dashboard Requirements
+
+This is a React (Vite) application. The primary package manager used is npm.
+To install these dependencies automatically, simply run:
+npm install
+
+## Core Dependencies
+react (v18.2.0)
+react-dom (v18.2.0)
+react-router-dom (v6.22.3)
+
+## State & API
+@supabase/supabase-js (v2.105.4)
+axios (v1.6.8)
+
+## UI & Styling
+tailwindcss (v3.4.1)
+lucide-react (v0.363.0)
+recharts (v2.12.3)
+clsx (v2.1.0)
+tailwind-merge (v2.2.2)
+
+## Export Utilities
+jspdf (v4.2.1)
+jspdf-autotable (v5.0.7)
+
+## Build Tools
+vite (v5.2.2)
+@vitejs/plugin-react (v4.2.1)
+postcss (v8.4.38)
+autoprefixer (v10.4.19)
