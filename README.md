@@ -1,27 +1,28 @@
 <div align="center">
-  <h1>🌊 Jal Drishti</h1>
-  <p><b>A Comprehensive Groundwater Management & Agricultural Advisory System</b></p>
+  <img src="https://img.icons8.com/color/144/000000/fingerprint-scan.png" alt="AttendX Logo" width="100"/>
+  <h1>📱 AttendX</h1>
+  <p><b>Smart Biometric & Geolocation Attendance Management System</b></p>
   
-  [![React](https://img.shields.io/badge/React-18-blue?style=for-the-badge&logo=react)](https://reactjs.org/)
-  [![FastAPI](https://img.shields.io/badge/FastAPI-API-009688?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com/)
-  [![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-3ECF8E?style=for-the-badge&logo=supabase)](https://supabase.com/)
-  [![Groq](https://img.shields.io/badge/Groq-Llama_3.3_70B-f55036?style=for-the-badge&logo=groq)](https://groq.com/)
-  [![Vite](https://img.shields.io/badge/Vite-Build_Tool-646CFF?style=for-the-badge&logo=vite)](https://vitejs.dev/)
+  [![Kotlin](https://img.shields.io/badge/Kotlin-Mobile_App-7F52FF?style=for-the-badge&logo=kotlin)](https://kotlinlang.org/)
+  [![Jetpack Compose](https://img.shields.io/badge/Jetpack_Compose-UI-4285F4?style=for-the-badge&logo=android)](https://developer.android.com/jetpack/compose)
+  [![FastAPI](https://img.shields.io/badge/FastAPI-Backend-009688?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com/)
+  [![Supabase](https://img.shields.io/badge/Supabase-Database-3ECF8E?style=for-the-badge&logo=supabase)](https://supabase.com/)
+  [![DeepFace](https://img.shields.io/badge/DeepFace-AI_Verification-FF0000?style=for-the-badge&logo=python)](https://github.com/serengil/deepface)
 </div>
 
 <br />
 
 <div align="center">
-  <em>Empowering Indian farmers with technology-driven insights for sustainable groundwater management and agricultural prosperity.</em>
+  <em>A cutting-edge solution leveraging AI, GPS, and Network Fingerprinting to ensure secure, proxy-free, and real-time attendance marking.</em>
 </div>
 
 <hr />
 
 ## 🌟 Overview
 
-**Jal Drishti** is a sophisticated, full-stack application designed to track groundwater levels, assess drought risks, and forecast water trends for villages across Maharashtra. Featuring a robust backend powered by **FastAPI** and **Supabase**, and an elegant frontend built with **React** and **TailwindCSS**, it brings critical agricultural data directly to farmers.
+**AttendX** is a comprehensive, full-stack biometric attendance management system designed to eliminate proxy attendance entirely. It features a decoupled architecture with a high-performance **Android app (Kotlin & Jetpack Compose)** and a robust **Python FastAPI** orchestration layer.
 
-At the heart of the system is the **Jal Drishti AI Chatbot**, powered by **Groq** and the **Llama 3.3 70B** model. This AI acts as a virtual agricultural mentor, providing context-aware, village-specific advice in English, Hindi, and Marathi.
+By combining three powerful validation layers—**Network Proximity (WiFi BSSID/SSID)**, **Dynamic QR Tokens**, and **AI Face Verification (DeepFace)**—AttendX guarantees that students must be physically present in the right classroom, at the right time, to mark their attendance.
 
 <br />
 
@@ -30,222 +31,125 @@ At the heart of the system is the **Jal Drishti AI Chatbot**, powered by **Groq*
 <table align="center" width="100%">
   <tr>
     <td align="center" width="33%">
-      <h3>Frontend</h3>
-      <img src="https://skillicons.dev/icons?i=react,ts,vite,tailwind" />
+      <h3>Mobile App (Android)</h3>
+      <img src="https://skillicons.dev/icons?i=kotlin,android" />
       <br/><br/>
-      <b>React 18</b> (Hooks & Context)<br/>
-      <b>TypeScript</b> (Type Safety)<br/>
-      <b>Vite</b> (Fast Bundler)<br/>
-      <b>TailwindCSS</b> (Styling)<br/>
-      <b>Recharts / Chart.js</b> (Data Viz)
+      <b>Kotlin</b><br/>
+      <b>Jetpack Compose</b> (UI)<br/>
+      <b>Google ML Kit</b> (Face & QR)<br/>
+      <b>CameraX API</b><br/>
+      <b>Fused Location Provider</b><br/>
+      <b>Retrofit & OkHttp</b>
     </td>
     <td align="center" width="33%">
-      <h3>Backend</h3>
-      <img src="https://skillicons.dev/icons?i=fastapi,python,supabase" />
+      <h3>Backend (API)</h3>
+      <img src="https://skillicons.dev/icons?i=fastapi,python" />
       <br/><br/>
-      <b>FastAPI</b> (Async API framework)<br/>
-      <b>Python 3.10+</b><br/>
-      <b>Pydantic</b> (Data validation)<br/>
-      <b>HTTPX</b> (Async HTTP requests)<br/>
+      <b>Python 3</b><br/>
+      <b>FastAPI</b> (Async RESTful)<br/>
+      <b>DeepFace</b> (AI Core)<br/>
+      <b>OpenCV</b> (Image Processing)<br/>
       <b>Uvicorn</b> (ASGI Server)
     </td>
     <td align="center" width="33%">
-      <h3>AI & Database</h3>
-      <br/>
-      <img src="https://img.shields.io/badge/Groq-f55036?style=flat-square&logo=groq&logoColor=white" height="32" />
+      <h3>Database & Infra</h3>
+      <img src="https://skillicons.dev/icons?i=supabase,sqlite" />
       <br/><br/>
-      <b>Groq Cloud</b> (Inference Engine)<br/>
-      <b>Llama 3.3 70B Versatile</b> (AI Model)<br/>
-      <b>Supabase</b> (PostgreSQL)<br/>
-      <b>Row Level Security</b><br/>
-      <b>Real-time Subscriptions</b>
+      <b>Supabase (PostgreSQL)</b><br/>
+      <b>SQLAlchemy ORM</b><br/>
+      <b>SQLite</b> (Local Fallback)<br/>
+      <b>Firebase Cloud Messaging</b><br/>
+      <b>Hybrid Storage</b> (Blobs/Files)
     </td>
   </tr>
 </table>
 
 <br />
 
-## ✨ Core Features
+## ✨ Core Features & Security
 
-| Feature | Description |
+| Security Layer | Description |
 | :--- | :--- |
-| **🌊 Groundwater Monitoring** | Real-time tracking of water levels across 1000+ villages. |
-| **🔮 Trend Forecasting** | Advanced predictive analytics projecting water depth for upcoming years. |
-| **🔍 Risk Analysis** | Automated drought risk assessment categorizing villages from SAFE to HIGH risk. |
-| **🤖 AI Chatbot (Groq)** | Context-aware agricultural advisory using Llama 3.3 70B via Groq Cloud. |
-| **🌍 Multilingual Support** | Full seamless support for English, Hindi, and Marathi (i18n). |
-| **📊 Interactive Dashboards** | Dynamic charts visualizing historical groundwater trends vs predictions. |
+| 📍 **Network Fingerprinting** | Validates the student is connected to the exact classroom's **WiFi BSSID/SSID**, guaranteeing physical proximity. |
+| 🔐 **Dynamic QR Tokens** | Faculty generates short-lived, encrypted QR codes with session-specific UUIDs. Prevents QR sharing. |
+| 🤖 **AI Biometric Verification** | Live selfies are compared against a registered "Master Face" using **DeepFace** and Cosine Similarity thresholds. |
+| 📱 **Device ID Binding** | Students are securely bound to their hardware device, stopping multi-login fraud. |
+| 📊 **Real-Time Analytics** | Faculty dashboard updates instantly via live polling. HODs get shortage reports (under 75%) and CSV/PDF exports. |
 
 <br />
 
-## 🗄️ Database Architecture
+## 🔄 Operational Workflow
 
-The system utilizes a structured **Supabase (PostgreSQL)** database. The primary schema includes:
+### **1. Faculty: Session Initialization**
+Faculty selects a scheduled class ➔ System validates time/location ➔ Generates `session_id` and Dynamic QR Token ➔ App starts live polling.
 
-```sql
--- 1. Groundwater Master Data (Historical & Current)
-CREATE TABLE groundwater_cleaned_final (
-    id SERIAL PRIMARY KEY,
-    village VARCHAR(255) NOT NULL,
-    block VARCHAR(255) NOT NULL,
-    district VARCHAR(255) NOT NULL,
-    y2014_jan DECIMAL(8,2), -- Historical depth data across years and months
-    y2014_may DECIMAL(8,2),
-    -- ... (Additional year/month columns up to current year)
-    created_at TIMESTAMP DEFAULT NOW()
-);
+### **2. Student: 3-Layer Verification Loop**
+Identity Login ➔ **WiFi Proximity Check** ➔ **Scan Faculty QR** ➔ **Capture Live Selfie** ➔ Backend DeepFace Match ➔ Success!
 
--- 2. Groundwater Predictions
-CREATE TABLE groundwater_predictions (
-    id SERIAL PRIMARY KEY,
-    village VARCHAR(255) NOT NULL,
-    district VARCHAR(255) NOT NULL,
-    block VARCHAR(255) NOT NULL,
-    season VARCHAR(50) NOT NULL, -- e.g., Pre-monsoon, Post-monsoon
-    predicted_2024 DECIMAL(8,2),
-    predicted_2025 DECIMAL(8,2),
-    confidence_low DECIMAL(8,2),
-    confidence_high DECIMAL(8,2),
-    created_at TIMESTAMP DEFAULT NOW()
-);
-
--- 3. Village Risk Assessment
-CREATE TABLE groundwater_village_risk (
-    id SERIAL PRIMARY KEY,
-    village VARCHAR(255) NOT NULL UNIQUE,
-    district VARCHAR(255) NOT NULL,
-    block VARCHAR(255) NOT NULL,
-    risk_level VARCHAR(50) NOT NULL, -- SAFE, LOW, MODERATE, HIGH
-    avg_actual_2024 DECIMAL(8,2),
-    avg_predicted_2024 DECIMAL(8,2),
-    avg_predicted_2025 DECIMAL(8,2),
-    avg_difference DECIMAL(8,2), -- Trend indicator
-    created_at TIMESTAMP DEFAULT NOW()
-);
-```
+### **3. Reporting & Notifications**
+Student receives FCM notification of success ➔ Faculty sees student on live dashboard ➔ At session close, absentees are logged ➔ Aggregated for HOD Analytics.
 
 <br />
 
-## 🛠️ Installation & Setup
+## 🗄️ Database Schema Entities
+
+- **`app_users`**: Central auth table (Username, Email, Role, Pass Hash).
+- **`app_students`**: Academic details + Biometrics (Face Embeddings).
+- **`classrooms`**: Physical mapping to GPS & WiFi BSSID/SSID.
+- **`attendance_sessions`**: Active classes & dynamic QR tokens.
+- **`attendance_records`**: Final immutable log of verified attendance with timestamps and location data.
+
+<br />
+
+## 🛠️ Setup & Installation
+
+*(Note: Ensure you have Android Studio and Python 3.9+ installed.)*
 
 <details>
-<summary><b>1. Prerequisites</b> <i>(Click to expand)</i></summary>
-
-- **Node.js** (v18 or higher)
-- **Python** (v3.10 or higher)
-- **Git**
-- A **Supabase** account
-- A **Groq** API Key
-</details>
-
-<details>
-<summary><b>2. Clone the Repository</b> <i>(Click to expand)</i></summary>
-
-```bash
-git clone https://github.com/yourusername/Jal-Drishti.git
-cd Jal-Drishti
-```
-</details>
-
-<details>
-<summary><b>3. Backend Setup (FastAPI)</b> <i>(Click to expand)</i></summary>
+<summary><b>1. Backend (FastAPI & DeepFace)</b> <i>(Click to expand)</i></summary>
 
 ```bash
 cd backend
 
-# Create and activate virtual environment
+# Create virtual environment & install deps
 python -m venv venv
-source venv/bin/activate  # On Windows use: venv\Scripts\activate
-
-# Install dependencies
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
-
-# Configure Environment Variables
-# Create a .env file in the root backend directory:
 ```
 
-**`backend/.env`** (Do NOT commit real keys)
+**`.env` Configuration:**
+Create a `.env` file in the backend root:
 ```env
 SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_SERVICE_KEY=your_supabase_service_key
-GROQ_API_KEY=your_groq_api_key
-ALLOWED_ORIGINS=http://localhost:5173
+SUPABASE_KEY=your_supabase_anon_key
+SECRET_KEY=your_jwt_secret
 ```
 
 ```bash
-# Run the backend server
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+# Start the Uvicorn server
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 </details>
 
 <details>
-<summary><b>4. Frontend Setup (React/Vite)</b> <i>(Click to expand)</i></summary>
+<summary><b>2. Frontend (Android / Kotlin)</b> <i>(Click to expand)</i></summary>
 
-```bash
-cd frontend
-
-# Install dependencies
-npm install
-
-# Configure Environment Variables
-# Create a .env.local file:
-```
-
-**`frontend/.env.local`**
-```env
-VITE_API_BASE_URL=http://localhost:8000
-VITE_SUPABASE_URL=https://your-project.supabase.co
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
-```
-
-```bash
-# Run the frontend development server
-npm run dev
-```
+1. Open the `/app` folder in **Android Studio**.
+2. Sync Gradle projects.
+3. Update the `BASE_URL` in your Retrofit client to point to your FastAPI server IP.
+4. Run the app on a physical device (Emulators may not support WiFi scanning or CameraX properly).
 </details>
 
 <br />
 
-## 🌐 API Endpoints Overview
+## 📚 API Documentation
 
-The FastAPI backend provides robust REST endpoints optimized with in-memory caching for performance.
-
-| Endpoint | Method | Description |
-| :--- | :---: | :--- |
-| `/api/health` | `GET` | System health check (Supabase & Groq status). |
-| `/api/cleaned/districts` | `GET` | Fetch list of available districts. |
-| `/api/cleaned/villages/{district}/{block}` | `GET` | Fetch villages dynamically based on block. |
-| `/api/graph-data/{village_name}` | `GET` | Unified endpoint fetching historical + predicted data. |
-| `/api/chat` | `POST` | AI Chatbot interface (invokes Groq API with context). |
-| `/api/village-risk/{village_name}` | `GET` | Retrieve risk level & trend analysis for a village. |
-
-*(Detailed API documentation is auto-generated and available at `http://localhost:8000/docs` via Swagger UI).*
-
-<br />
-
-## 🤖 Groq AI Chatbot Architecture
-
-Jal-Drishti's AI mentor goes beyond standard LLM wrappers. It utilizes **Retrieval-Augmented Generation (RAG)** principles to provide hyper-localized advice.
-
-1. **Context Injection**: When a user asks a question, the backend retrieves the selected village's real-time water depth, risk level, and 5-year historical trends from Supabase.
-2. **Dynamic Prompting**: This data is injected into the system prompt securely.
-3. **Groq Inference**: The request is processed by `llama-3.3-70b-versatile` through the Groq Cloud API, delivering near-instantaneous responses.
-4. **Multilingual Processing**: The system auto-detects English, Hindi, or Marathi, formatting the AI response naturally in the farmer's native language.
-
-<br />
-
-## 🤝 Contributing
-
-We welcome contributions to make Jal Drishti even better!
-1. Fork the Project
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+FastAPI automatically generates interactive documentation for the backend:
+- **Swagger UI**: `http://localhost:8000/docs`
+- **ReDoc**: `http://localhost:8000/redoc`
 
 <br />
 
 <div align="center">
-  <p>Made with ❤️ for Indian Farmers.</p>
-  <p><b>Every drop counts! Every farmer matters! 💧🌾</b></p>
+  <p><b>Zero Proxy. Ultimate Security. Effortless Management.</b></p>
 </div>
