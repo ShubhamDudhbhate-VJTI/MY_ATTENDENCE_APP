@@ -18,6 +18,43 @@
 
 <hr />
 
+## 🎬 Live Demo
+
+<div align="center">
+  <p><b>See AttendX in action — click a preview to watch the full walkthrough.</b></p>
+</div>
+
+<table align="center" width="100%">
+  <tr>
+    <td align="center" width="50%">
+      <h3>🖥️ Admin Dashboard</h3>
+      <a href="https://drive.google.com/file/d/1VHkGYqQ4ffBMXZdIGS3HnOyOjwicWiGy/view?usp=sharing">
+        <img src="https://drive.google.com/thumbnail?id=1VHkGYqQ4ffBMXZdIGS3HnOyOjwicWiGy&sz=w1000" alt="Admin Dashboard Demo" width="100%"/>
+      </a>
+      <br/><br/>
+      <em>Live analytics, session monitoring, shortage reports & exports.</em>
+      <br/><br/>
+      <a href="https://drive.google.com/file/d/1VHkGYqQ4ffBMXZdIGS3HnOyOjwicWiGy/view?usp=sharing">
+        <img src="https://img.shields.io/badge/▶_Watch_Dashboard_Demo-FF0000?style=for-the-badge&logo=googledrive&logoColor=white" alt="Watch Dashboard Demo"/>
+      </a>
+    </td>
+    <td align="center" width="50%">
+      <h3>📱 Android App</h3>
+      <a href="https://drive.google.com/file/d/10fB-xvZ3WPNDwwMLwFi87OOeiM-lqgJg/view?usp=sharing">
+        <img src="https://drive.google.com/thumbnail?id=10fB-xvZ3WPNDwwMLwFi87OOeiM-lqgJg&sz=w1000" alt="Android App Demo" width="100%"/>
+      </a>
+      <br/><br/>
+      <em>WiFi check, QR scan and live face verification, end to end.</em>
+      <br/><br/>
+      <a href="https://drive.google.com/file/d/10fB-xvZ3WPNDwwMLwFi87OOeiM-lqgJg/view?usp=sharing">
+        <img src="https://img.shields.io/badge/▶_Watch_App_Demo-3DDC84?style=for-the-badge&logo=android&logoColor=white" alt="Watch App Demo"/>
+      </a>
+    </td>
+  </tr>
+</table>
+
+<br />
+
 ## 🌟 Overview
 
 **AttendX** is a comprehensive, full-stack biometric attendance management system designed to eliminate proxy attendance entirely. It features a decoupled architecture with a high-performance **Android app (Kotlin & Jetpack Compose)** and a robust **Python FastAPI** orchestration layer.
